@@ -215,14 +215,28 @@ public:
 
   ~BlockSparseNSpace();
 
-  BlockSparseNSpace(const BlockSparseNSpace&) = delete;
-  BlockSparseNSpace& operator=(const BlockSparseNSpace&) = delete;
+  BlockSparseNSpace(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator=(const BlockSparseNSpace& o);
+
+  BlockSparseNSpace& operator+=(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator-=(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator*=(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator/=(const BlockSparseNSpace& o);
 
   void prune_below_threshold(double threshold);
   void clear();
 
   void injest(const BlockSparseNSpace& o);
   void injest_from_subspace(const Eigen::VectorXd& x_super, const BlockSparseNSpace& o);
+
+  void add(const BlockSparseNSpace& o);
+  void subtract(const BlockSparseNSpace& o);
+  void multiply(const BlockSparseNSpace& o);
+  void divide_non_zero(const BlockSparseNSpace& o);
+
+  void scale(double s);
+  void negate_non_zero();
+  void invert_non_zero();
 
   std::vector<Axis> axes() const;
   unsigned naxes() const { return xlo_.size(); }
