@@ -861,14 +861,12 @@ void BlockSparseNSpace::scale(double s)
   overflow_ *= s;
 }
 
-void BlockSparseNSpace::negate_non_zero()
+void BlockSparseNSpace::negate()
 {
   for(auto* block : array_) {
     if(block) {
       for(unsigned i=0;i<block_size_; ++i) {
-        if(block[i] != 0.0) {
-          block[i] = -block[i];
-        }
+        block[i] = -block[i];
       }
     }
   }

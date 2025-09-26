@@ -235,7 +235,7 @@ public:
   void divide_non_zero(const BlockSparseNSpace& o);
 
   void scale(double s);
-  void negate_non_zero();
+  void negate();
   void invert_non_zero();
 
   std::vector<Axis> axes() const;
