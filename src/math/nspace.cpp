@@ -1381,6 +1381,49 @@ void BlockSparseNSpace::map_bin_coords(Eigen::VectorXi& ix_out, int64_t indx) co
   }
 }
 
+double BlockSparseNSpace::interpolate(const Eigen::VectorXd& x) const
+{
+  // Linear interpolation between neighboring cells
+  if(x.size() != n_.size()) {
+    throw std::runtime_error("BlockSparseNSpace: dimensional mismatch in interpolate");
+  }
+
+  // Find the bin indices and fractional positions
+  Eigen::VectorXi ix(n_.size());
+  Eigen::VectorXd frac(n_.size());
+  for(unsigned i=0; i<n_.size(); i++) {
+    if(n_(i) < 2) {
+      throw std::runtime_error("BlockSparseNSpace: cannot interpolate along axis with fewer than 2 bins");
+    }
+    double u = (x(i)-xlo_(i))*dx_inv_(i);
+    int ii = std::min(std::max(int(std::floor(u - 0.5)),0), n_(i)-2);
+    ix(i) = ii;
+    frac(i) = u - ii - 0.5;
+  }
+
+  // Multilinear interpolation over the cell's corners
+  double result = 0.0;
+  int ncorner = 1 << n_.size();
+  for(int c = 0; c < ncorner; ++c) {
+    Eigen::VectorXi corner_ix = ix;
+    double weight = 1.0;
+    for(unsigned d = 0; d < n_.size(); ++d) {
+      if(c & (1 << d)) {
+        corner_ix(d) += 1;
+        weight *= frac(d);
+      } else {
+        weight *= (1.0 - frac(d));
+      }
+    }
+
+    int64_t array_index, block_index;
+    if(index_of_bin(corner_ix, array_index, block_index) && array_[array_index] != nullptr) {
+      result += weight * array_[array_index][block_index];
+    }
+  }
+  return result;
+}
+
 void BlockSparseNSpace::save_to_proto(ix::math::nspace::NSpaceData* proto) const
 {
   proto->Clear();

@@ -223,6 +223,10 @@ public:
   BlockSparseNSpace& operator*=(const BlockSparseNSpace& o);
   BlockSparseNSpace& operator/=(const BlockSparseNSpace& o);
 
+  BlockSparseNSpace* clone() const {
+    return new BlockSparseNSpace(*this);
+  } 
+
   void prune_below_threshold(double threshold);
   void clear();
 
@@ -300,6 +304,8 @@ public:
 
   Eigen::MatrixXd covar_mean_and_total_weight(Eigen::VectorXd& w1, double& w0) const;
   Eigen::MatrixXd covar() const;
+
+  double interpolate(const Eigen::VectorXd& x) const;
 
   void save_to_proto(calin::ix::math::nspace::NSpaceData* proto) const;
   calin::ix::math::nspace::NSpaceData* as_proto() const;
