@@ -1381,7 +1381,7 @@ void BlockSparseNSpace::map_bin_coords(Eigen::VectorXi& ix_out, int64_t indx) co
   }
 }
 
-double BlockSparseNSpace::interpolate(const Eigen::VectorXd& x) const
+double BlockSparseNSpace::interpolate(const Eigen::VectorXd& x, uint32_t cyclic_axis_mask) const
 {
   // Linear interpolation between neighboring cells
   if(x.size() != n_.size()) {
@@ -1390,15 +1390,27 @@ double BlockSparseNSpace::interpolate(const Eigen::VectorXd& x) const
 
   // Find the bin indices and fractional positions
   Eigen::VectorXi ix(n_.size());
+  Eigen::VectorXi jx(n_.size());
   Eigen::VectorXd frac(n_.size());
   for(unsigned i=0; i<n_.size(); i++) {
     if(n_(i) < 2) {
       throw std::runtime_error("BlockSparseNSpace: cannot interpolate along axis with fewer than 2 bins");
     }
-    double u = (x(i)-xlo_(i))*dx_inv_(i);
-    int ii = std::min(std::max(int(std::floor(u - 0.5)),0), n_(i)-2);
-    ix(i) = ii;
-    frac(i) = u - ii - 0.5;
+    double u = (x(i)-xlo_(i))*dx_inv_(i) - 0.5;
+    if((cyclic_axis_mask & (1 << i)) != 0) {
+      // Cyclic axis
+      int ii = int(std::floor(u));
+      frac(i) = u - ii;
+      ii = (ii%n_(i) + n_(i))%n_(i);
+      ix(i) = ii;
+      jx(i) = (ii + 1) % n_(i);
+    } else {
+      // Non-cyclic axis
+      int ii = std::min(std::max(int(std::floor(u)),0), n_(i)-2);
+      ix(i) = ii;
+      jx(i) = ii + 1;
+      frac(i) = u - ii;
+    }
   }
 
   // Multilinear interpolation over the cell's corners
@@ -1409,7 +1421,7 @@ double BlockSparseNSpace::interpolate(const Eigen::VectorXd& x) const
     double weight = 1.0;
     for(unsigned d = 0; d < n_.size(); ++d) {
       if(c & (1 << d)) {
-        corner_ix(d) += 1;
+        corner_ix(d) = jx(d);
         weight *= frac(d);
       } else {
         weight *= (1.0 - frac(d));

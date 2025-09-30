@@ -305,7 +305,7 @@ public:
   Eigen::MatrixXd covar_mean_and_total_weight(Eigen::VectorXd& w1, double& w0) const;
   Eigen::MatrixXd covar() const;
 
-  double interpolate(const Eigen::VectorXd& x) const;
+  double interpolate(const Eigen::VectorXd& x, uint32_t cyclic_axis_mask = 0) const;
 
   void save_to_proto(calin::ix::math::nspace::NSpaceData* proto) const;
   calin::ix::math::nspace::NSpaceData* as_proto() const;
