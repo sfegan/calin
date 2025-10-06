@@ -263,18 +263,6 @@ void SimpleListPEProcessor::clear()
   }
 }
 
-void SimpleListPEProcessor::validate_iscope_ipix(unsigned iscope, unsigned ipix) const
-{
-  if(iscope >= nscope_) {
-    throw std::out_of_range("SimpleListPEProcessor: iscope out of range : "
-      + std::to_string(iscope) + " >= " + std::to_string(nscope_));
-  }
-  if(ipix >= npix_) {
-    throw std::out_of_range("SimpleListPEProcessor:: ipix out of range : "
-      + std::to_string(ipix) + " >= " + std::to_string(npix_));
-  }
-}
-
 unsigned SimpleListPEProcessor::npix_hit(unsigned iscope) const
 {
   validate_iscope_ipix(iscope, 0);
@@ -286,6 +274,40 @@ unsigned SimpleListPEProcessor::npe(unsigned iscope, unsigned ipix) const
   validate_iscope_ipix(iscope, ipix);
   auto pd = scopes_[iscope].pixel_data[ipix];
   return pd==nullptr? 0 : pd->npe;
+}
+
+double SimpleListPEProcessor::tmin(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  return scopes_[iscope].tmin;
+}
+
+double SimpleListPEProcessor::tmax(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  return scopes_[iscope].tmax;
+}
+
+unsigned SimpleListPEProcessor::unchecked_pe_ptrs(unsigned iscope, unsigned ipix, 
+  const double** t_ptr, const double** w_ptr) const
+{
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  if(pd==nullptr) {
+    *t_ptr = nullptr;
+    *w_ptr = nullptr;
+    return 0;
+  } else {
+    *t_ptr = pd->t;
+    *w_ptr = pd->w;
+    return pd->npe;
+  }
+}
+
+unsigned SimpleListPEProcessor::pe_ptrs(unsigned iscope, unsigned ipix, 
+  const double** t_ptr, const double** w_ptr) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  return unchecked_pe_ptrs(iscope, ipix, t_ptr, w_ptr);
 }
 
 const double* SimpleListPEProcessor::pe_t_ptr(unsigned iscope, unsigned ipix) const

@@ -111,9 +111,14 @@ public:
   void process_focal_plane_hit(unsigned scope_id, int pixel_id,
     double x, double y, double ux, double uy, double t, double pe_weight) override;
   void clear();
+
   unsigned npix_hit(unsigned iscope) const;
   unsigned npe(unsigned iscope, unsigned ipix) const;
+  double tmin(unsigned iscope) const;
+  double tmax(unsigned iscope) const;
 #ifndef SWIG
+  unsigned pe_ptrs(unsigned iscope, unsigned ipix, const double** t_ptr, const double** w_ptr) const;
+  unsigned unchecked_pe_ptrs(unsigned iscope, unsigned ipix, const double** t_ptr, const double** w_ptr) const;
   const double* pe_t_ptr(unsigned iscope, unsigned ipix) const;
   const double* pe_w_ptr(unsigned iscope, unsigned ipix) const;
 #endif
@@ -123,7 +128,17 @@ public:
   Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
 
 private:
-  void validate_iscope_ipix(unsigned iscope, unsigned ipix) const;
+  void validate_iscope_ipix(unsigned iscope, unsigned ipix) const
+  {
+    if(iscope >= nscope_) {
+      throw std::out_of_range("SimpleListPEProcessor: iscope out of range : "
+        + std::to_string(iscope) + " >= " + std::to_string(nscope_));
+    }
+    if(ipix >= npix_) {
+      throw std::out_of_range("SimpleListPEProcessor:: ipix out of range : "
+        + std::to_string(ipix) + " >= " + std::to_string(npix_));
+    }
+  }
 
   struct PixelData
   {
