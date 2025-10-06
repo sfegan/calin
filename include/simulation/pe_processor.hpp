@@ -93,6 +93,64 @@ private:
   std::vector<std::vector<Accumulator>> images_;
 };
 
+// =============================================================================
+//
+// SimpleListPEProcessor
+//
+// This PE processor stores a list of PEs for each pixel in each scope. It can
+// be used directly to record the PE times and weights, or as a base class for
+// more complex PE processors.
+// =============================================================================
+
+class SimpleListPEProcessor: public PEProcessor
+{
+public:
+  SimpleListPEProcessor(unsigned nscope, unsigned npix, bool auto_clear = true);
+  virtual ~SimpleListPEProcessor();
+  void start_processing() override;
+  void process_focal_plane_hit(unsigned scope_id, int pixel_id,
+    double x, double y, double ux, double uy, double t, double pe_weight) override;
+  void clear();
+private:
+  struct PixelData
+  {
+    PixelData(unsigned nalloc_ = 64);
+    ~PixelData();
+    void add_pe(double t_, double w_);
+    void clear();
+    unsigned npe = 0;
+    unsigned nalloc = 0;
+    double* t = nullptr;
+    double* w = nullptr;
+  };
+
+  struct ScopeData
+  {
+    ScopeData(unsigned npix_);
+    ~ScopeData();
+    void add_pe(int pixel_id, double t, double w, std::vector<PixelData*>& freelist);
+    void clear_to_freelist(std::vector<PixelData*>& freelist);
+    double tmin;
+    double tmax;
+    std::vector<PixelData*> pixel_data;
+  };
+
+  bool auto_clear_ = false;
+  unsigned nscope_ = 0;
+  unsigned npix_ = 0;
+  std::vector<ScopeData> scopes_;
+  std::vector<PixelData*> pixel_data_freelist;
+};
+
+// =============================================================================
+// ***************************** Probably obsolete *****************************
+//
+// WaveformPEProcessor : waveform trace processor using a per-channel circular 
+//                       buffer to store PEs
+//
+// ***************************** Probably obsolete *****************************
+// =============================================================================
+
 class WaveformPEProcessor: public PEProcessor
 {
 public:
@@ -131,6 +189,15 @@ private:
   bool warning_sent_ = false;
   calin::math::rng::RNG* rng_ = nullptr;
 };
+
+// =============================================================================
+// ***************************** Probably obsolete *****************************
+//
+// UnbinnedWaveformPEProcessor : waveform trace processor using a single large
+//                               buffer to store all PEs
+//
+// ***************************** Probably obsolete *****************************
+// =============================================================================
 
 class UnbinnedWaveformPEProcessor: public PEProcessor
 {
