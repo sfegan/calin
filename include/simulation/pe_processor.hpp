@@ -121,10 +121,10 @@ public:
 
 private:
   void validate_iscope_ipix(unsigned iscope, unsigned ipix) const;
-  
+
   struct PixelData
   {
-    PixelData(unsigned nalloc_ = 64);
+    PixelData();
     ~PixelData();
     void add_pe(double t_, double w_);
     void clear();

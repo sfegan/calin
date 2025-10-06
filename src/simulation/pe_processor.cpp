@@ -318,8 +318,8 @@ Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) 
   }
 }
 
-SimpleListPEProcessor::PixelData::PixelData(unsigned nalloc_):
-  nalloc(std::max(nalloc_, 16U)), 
+SimpleListPEProcessor::PixelData::PixelData():
+  nalloc(64), 
   t(calin::util::memory::safe_aligned_calloc<double>(nalloc)), 
   w(calin::util::memory::safe_aligned_calloc<double>(nalloc))
 {
