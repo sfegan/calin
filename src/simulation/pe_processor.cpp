@@ -288,9 +288,10 @@ double SimpleListPEProcessor::tmax(unsigned iscope) const
   return scopes_[iscope].tmax;
 }
 
-unsigned SimpleListPEProcessor::unchecked_pe_ptrs(unsigned iscope, unsigned ipix, 
+unsigned SimpleListPEProcessor::pe_ptrs(unsigned iscope, unsigned ipix, 
   const double** t_ptr, const double** w_ptr) const
 {
+  validate_iscope_ipix(iscope, ipix);
   auto pd = scopes_[iscope].pixel_data[ipix];
   if(pd==nullptr) {
     *t_ptr = nullptr;
@@ -301,13 +302,6 @@ unsigned SimpleListPEProcessor::unchecked_pe_ptrs(unsigned iscope, unsigned ipix
     *w_ptr = pd->w;
     return pd->npe;
   }
-}
-
-unsigned SimpleListPEProcessor::pe_ptrs(unsigned iscope, unsigned ipix, 
-  const double** t_ptr, const double** w_ptr) const
-{
-  validate_iscope_ipix(iscope, ipix);
-  return unchecked_pe_ptrs(iscope, ipix, t_ptr, w_ptr);
 }
 
 const double* SimpleListPEProcessor::pe_t_ptr(unsigned iscope, unsigned ipix) const
