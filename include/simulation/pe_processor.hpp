@@ -111,7 +111,17 @@ public:
   void process_focal_plane_hit(unsigned scope_id, int pixel_id,
     double x, double y, double ux, double uy, double t, double pe_weight) override;
   void clear();
+  unsigned npe(unsigned iscope, unsigned ipix) const;
+#ifndef SWIG
+  const double* pe_t_ptr(unsigned iscope, unsigned ipix) const;
+  const double* pe_w_ptr(unsigned iscope, unsigned ipix) const;
+#endif
+  Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
+  Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
+
 private:
+  void validate_iscope_ipix(unsigned iscope, unsigned ipix) const;
+  
   struct PixelData
   {
     PixelData(unsigned nalloc_ = 64);

@@ -249,16 +249,10 @@ void SimpleListPEProcessor::start_processing()
 void SimpleListPEProcessor::process_focal_plane_hit(unsigned scope_id, int pixel_id,
     double x, double y, double ux, double uy, double t, double pe_weight)
 {
-  if(scope_id >= nscope_) {
-    throw std::out_of_range("SimpleListPEProcessor::process_focal_plane_hit : scope_id out of range : "
-      + std::to_string(scope_id) + " >= " + std::to_string(nscope_));
-  } 
   if(pixel_id < 0) {
     return;
-  } else if (pixel_id >= int(npix_)) {
-    throw std::out_of_range("SimpleListPEProcessor::process_focal_plane_hit : pixel_id out of range : "
-      + std::to_string(pixel_id) + " >= " + std::to_string(npix_));
   }
+  validate_iscope_ipix(scope_id, pixel_id);
   scopes_[scope_id].add_pe(pixel_id, t, pe_weight, pixel_data_freelist);
 }
 
@@ -266,6 +260,61 @@ void SimpleListPEProcessor::clear()
 {
   for(auto& scope : scopes_) {
     scope.clear_to_freelist(pixel_data_freelist);
+  }
+}
+
+void SimpleListPEProcessor::validate_iscope_ipix(unsigned iscope, unsigned ipix) const
+{
+  if(iscope >= nscope_) {
+    throw std::out_of_range("SimpleListPEProcessor: iscope out of range : "
+      + std::to_string(iscope) + " >= " + std::to_string(nscope_));
+  }
+  if(ipix >= npix_) {
+    throw std::out_of_range("SimpleListPEProcessor:: ipix out of range : "
+      + std::to_string(ipix) + " >= " + std::to_string(npix_));
+  }
+}
+
+unsigned SimpleListPEProcessor::npe(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  return pd==nullptr? 0 : pd->npe;
+}
+
+const double* SimpleListPEProcessor::pe_t_ptr(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  return pd==nullptr? nullptr : pd->t;
+}
+
+const double* SimpleListPEProcessor::pe_w_ptr(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  return pd==nullptr? nullptr : pd->w;
+}
+
+Eigen::VectorXd SimpleListPEProcessor::pe_t_vec(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  if(pd==nullptr) {
+    return Eigen::VectorXd(0);
+  } else {
+    return Eigen::Map<Eigen::VectorXd>(pd->t, pd->npe);
+  }
+}
+
+Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  if(pd==nullptr) {
+    return Eigen::VectorXd(0);
+  } else {
+    return Eigen::Map<Eigen::VectorXd>(pd->w, pd->npe);
   }
 }
 
