@@ -275,6 +275,12 @@ void SimpleListPEProcessor::validate_iscope_ipix(unsigned iscope, unsigned ipix)
   }
 }
 
+unsigned SimpleListPEProcessor::npix_hit(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  return scopes_[iscope].npix_hit;
+}
+
 unsigned SimpleListPEProcessor::npe(unsigned iscope, unsigned ipix) const
 {
   validate_iscope_ipix(iscope, ipix);
@@ -294,6 +300,17 @@ const double* SimpleListPEProcessor::pe_w_ptr(unsigned iscope, unsigned ipix) co
   validate_iscope_ipix(iscope, ipix);
   auto pd = scopes_[iscope].pixel_data[ipix];
   return pd==nullptr? nullptr : pd->w;
+}
+
+Eigen::VectorXi SimpleListPEProcessor::npe_vec(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  Eigen::VectorXi npe(npix_);
+  for(unsigned ipix=0;ipix<npix_; ++ipix) {
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    npe[ipix] = pd==nullptr? 0 : pd->npe;
+  }
+  return npe;
 }
 
 Eigen::VectorXd SimpleListPEProcessor::pe_t_vec(unsigned iscope, unsigned ipix) const
@@ -376,6 +393,7 @@ void SimpleListPEProcessor::ScopeData::add_pe(int pixel_id, double t, double w,
   std::vector<PixelData*>& freelist)
 {
   if(pixel_data[pixel_id] == nullptr) {
+    npix_hit++;
     if(freelist.size() > 0) {
       pixel_data[pixel_id] = freelist.back();
       freelist.pop_back();
@@ -397,6 +415,7 @@ void SimpleListPEProcessor::ScopeData::clear_to_freelist(std::vector<PixelData*>
       pd = nullptr;
     }
   }
+  npix_hit = 0;
   tmin = std::numeric_limits<double>::infinity();
   tmax = -std::numeric_limits<double>::infinity();
 }

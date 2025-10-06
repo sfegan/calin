@@ -111,11 +111,13 @@ public:
   void process_focal_plane_hit(unsigned scope_id, int pixel_id,
     double x, double y, double ux, double uy, double t, double pe_weight) override;
   void clear();
+  unsigned npix_hit(unsigned iscope) const;
   unsigned npe(unsigned iscope, unsigned ipix) const;
 #ifndef SWIG
   const double* pe_t_ptr(unsigned iscope, unsigned ipix) const;
   const double* pe_w_ptr(unsigned iscope, unsigned ipix) const;
 #endif
+  Eigen::VectorXi npe_vec(unsigned iscope) const;
   Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
   Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
 
@@ -140,8 +142,9 @@ private:
     ~ScopeData();
     void add_pe(int pixel_id, double t, double w, std::vector<PixelData*>& freelist);
     void clear_to_freelist(std::vector<PixelData*>& freelist);
-    double tmin;
-    double tmax;
+    unsigned npix_hit = 0;
+    double tmin = std::numeric_limits<double>::infinity();
+    double tmax = -std::numeric_limits<double>::infinity();
     std::vector<PixelData*> pixel_data;
   };
 
