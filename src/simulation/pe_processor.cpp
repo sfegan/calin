@@ -302,6 +302,15 @@ const double* SimpleListPEProcessor::pe_w_ptr(unsigned iscope, unsigned ipix) co
   return pd==nullptr? nullptr : pd->w;
 }
 
+Eigen::VectorXi SimpleListPEProcessor::npix_hit_vec() const
+{
+  Eigen::VectorXi npix_hit(nscope_);
+  for(unsigned iscope=0;iscope<nscope_; ++iscope) {
+    npix_hit[iscope] = scopes_[iscope].npix_hit;
+  }
+  return npix_hit;
+}
+
 Eigen::VectorXi SimpleListPEProcessor::npe_vec(unsigned iscope) const
 {
   validate_iscope_ipix(iscope, 0);

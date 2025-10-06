@@ -117,6 +117,7 @@ public:
   const double* pe_t_ptr(unsigned iscope, unsigned ipix) const;
   const double* pe_w_ptr(unsigned iscope, unsigned ipix) const;
 #endif
+  Eigen::VectorXi npix_hit_vec() const;
   Eigen::VectorXi npe_vec(unsigned iscope) const;
   Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
   Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
