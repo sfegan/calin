@@ -374,29 +374,24 @@ SimpleListPEProcessor::PixelData::~PixelData()
   ::free(w);
 }
 
-void SimpleListPEProcessor::PixelData::add_pe(double t_, double w_)
-{
-  if(npe >= nalloc) {
-    nalloc *= 2;
-    double* new_t = calin::util::memory::safe_aligned_calloc<double>(nalloc);
-    double* new_w = calin::util::memory::safe_aligned_calloc<double>(nalloc);
-    std::copy(t, t+npe, new_t);
-    std::copy(w, w+npe, new_w);
-    ::free(t);
-    ::free(w);
-    t = new_t;
-    w = new_w;
-  }
-  t[npe] = t_;
-  w[npe] = w_;
-  ++npe;
-}
-
 void SimpleListPEProcessor::PixelData::clear()
 {
   npe = 0;
 }
  
+void SimpleListPEProcessor::PixelData::extend_array()
+{
+  nalloc *= 2;
+  double* t_new = calin::util::memory::safe_aligned_calloc<double>(nalloc);
+  double* w_new = calin::util::memory::safe_aligned_calloc<double>(nalloc);
+  std::copy(t, t+npe, t_new);
+  std::copy(w, w+npe, w_new);
+  ::free(t);
+  ::free(w);
+  t = t_new;
+  w = w_new;
+}
+
 SimpleListPEProcessor::ScopeData::ScopeData(unsigned npix):
   tmin(std::numeric_limits<double>::infinity()),
   tmax(-std::numeric_limits<double>::infinity()),
@@ -411,24 +406,7 @@ SimpleListPEProcessor::ScopeData::~ScopeData()
     if(pd != nullptr) {
       delete pd;
     }
-  }
-}
-
-void SimpleListPEProcessor::ScopeData::add_pe(int pixel_id, double t, double w, 
-  std::vector<PixelData*>& freelist)
-{
-  if(pixel_data[pixel_id] == nullptr) {
-    npix_hit++;
-    if(freelist.size() > 0) {
-      pixel_data[pixel_id] = freelist.back();
-      freelist.pop_back();
-    } else {
-      pixel_data[pixel_id] = new PixelData;
-    }
   } 
-  pixel_data[pixel_id]->add_pe(t, w);
-  tmin = std::min(tmin, t);
-  tmax = std::max(tmax, t);
 }
 
 void SimpleListPEProcessor::ScopeData::clear_to_freelist(std::vector<PixelData*>& freelist)
@@ -443,6 +421,20 @@ void SimpleListPEProcessor::ScopeData::clear_to_freelist(std::vector<PixelData*>
   npix_hit = 0;
   tmin = std::numeric_limits<double>::infinity();
   tmax = -std::numeric_limits<double>::infinity();
+}
+
+SimpleListPEProcessor::PixelData* 
+SimpleListPEProcessor::ScopeData::alloc_pixel_data(std::vector<PixelData*>& freelist)
+{
+  SimpleListPEProcessor::PixelData* pd;
+  npix_hit++;
+  if(freelist.size() > 0) {
+    pd = freelist.back();
+    freelist.pop_back();
+  } else {
+    pd = new PixelData;
+  }
+  return pd;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -100,6 +100,7 @@ private:
 // This PE processor stores a list of PEs for each pixel in each scope. It can
 // be used directly to record the PE times and weights, or as a base class for
 // more complex PE processors.
+//
 // =============================================================================
 
 class SimpleListPEProcessor: public PEProcessor
@@ -127,6 +128,7 @@ public:
   Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
 
 protected:
+#ifndef SWIG
   void validate_iscope_ipix(unsigned iscope, unsigned ipix) const
   {
     if(iscope >= nscope_) {
@@ -143,8 +145,16 @@ protected:
   {
     PixelData();
     ~PixelData();
-    void add_pe(double t_, double w_);
+    inline void add_pe(double t_, double w_) {
+      if(npe >= nalloc) {
+        extend_array();
+      }
+      t[npe] = t_;
+      w[npe] = w_;
+      ++npe;
+    }
     void clear();
+    void extend_array();
     unsigned npe = 0;
     unsigned nalloc = 0;
     double* t = nullptr;
@@ -155,8 +165,16 @@ protected:
   {
     ScopeData(unsigned npix_);
     ~ScopeData();
-    void add_pe(int pixel_id, double t, double w, std::vector<PixelData*>& freelist);
+    inline void add_pe(int pixel_id, double t, double w, std::vector<PixelData*>& freelist) {
+      if(pixel_data[pixel_id] == nullptr) {
+        pixel_data[pixel_id] = alloc_pixel_data(freelist);
+      }
+      pixel_data[pixel_id]->add_pe(t, w);
+      tmin = std::min(tmin, t);
+      tmax = std::max(tmax, t);
+    }
     void clear_to_freelist(std::vector<PixelData*>& freelist);
+    SimpleListPEProcessor::PixelData* alloc_pixel_data(std::vector<PixelData*>& freelist);
     unsigned npix_hit = 0;
     double tmin = std::numeric_limits<double>::infinity();
     double tmax = -std::numeric_limits<double>::infinity();
@@ -168,6 +186,7 @@ protected:
   unsigned npix_ = 0;
   std::vector<ScopeData> scopes_;
   std::vector<PixelData*> pixel_data_freelist;
+#endif // ifndef SWIG
 };
 
 // =============================================================================
