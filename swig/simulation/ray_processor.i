@@ -27,6 +27,7 @@
 
 %{
 #include "simulation/pe_processor.hpp"
+#include "simulation/vcl_pe_processor.hpp"
 #include "simulation/ray_processor.hpp"
 #include "simulation/vso_ray_processor.hpp"
 #include "simulation/sct_ray_processor.hpp"
@@ -52,6 +53,7 @@
 
 %import "simulation/pe_processor.pb.i"
 %include "simulation/pe_processor.hpp"
+%include "simulation/vcl_pe_processor.hpp"
 %newobject *::add_processor_and_pe_visitor;
 
 %import "simulation/ray_processor.pb.i"
@@ -71,6 +73,10 @@
 %include "simulation/nspace_ray_processor.hpp"
 
 %include "simulation/vcl_ray_processor.hpp"
+
+%template (VCLWaveformPEProcessor128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL128Architecture>;
+%template (VCLWaveformPEProcessor256) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL256Architecture>;
+%template (VCLWaveformPEProcessor512) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL512Architecture>;
 
 %template (VCLRayTracerRayProcessorDouble128) calin::simulation::vcl_ray_processor::VCLRayTracerRayProcessorDouble<calin::util::vcl::VCL128Architecture>;
 %template (VCLRayTracerRayProcessorDouble256) calin::simulation::vcl_ray_processor::VCLRayTracerRayProcessorDouble<calin::util::vcl::VCL256Architecture>;

@@ -29,6 +29,7 @@
 #include "simulation/vcl_iact.hpp"
 #include "simulation/vcl_iact_ground_map.hpp"
 #include "simulation/vcl_iact_array.hpp"
+#include "simulation/vcl_pe_processor.hpp"
 #include "simulation/nspace_pe_processor.hpp"
 #define SWIG_FILE_WITH_INIT
   %}

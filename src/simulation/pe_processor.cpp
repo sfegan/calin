@@ -403,9 +403,7 @@ SimpleListPEProcessor::ScopeData::ScopeData(unsigned npix):
 SimpleListPEProcessor::ScopeData::~ScopeData()
 {
   for(auto pd : pixel_data) {
-    if(pd != nullptr) {
-      delete pd;
-    }
+    delete pd;
   } 
 }
 
