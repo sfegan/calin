@@ -85,56 +85,94 @@ public:
 
   void transfer_scope_pes_to_waveform_slow(unsigned iscope)
   {
-    // Nonvecorized version, for testing
+    // Non-vectorized version. Takes advantage of "approximate" ordering of PEs
+    // in time within each pixel to minimize memory accesses
     validate_iscope_ipix(iscope, 0);
     pe_waveform_.setZero();
-    double t0 = scopes_[iscope].tmin - time_advance_;
+    double t0 = get_t0_for_scope(iscope);    
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       auto pd = scopes_[iscope].pixel_data[ipix];
       if(pd==nullptr) {
         continue;
       }
-      for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
-        int it = int(floor((pd->t[ipe] - t0) * sampling_freq_));
-        if(it>=0 and it<int(nsample_)) {
-          pe_waveform_(ipix, it) += pd->w[ipe];
+      int it = int(floor((pd->t[0] - t0) * sampling_freq_));
+      double wt = pd->w[0];
+      for(unsigned ipe=1; ipe<pd->npe; ++ipe) {
+        int jt = int(floor((pd->t[ipe] - t0) * sampling_freq_));
+        if(it==jt) {
+          wt += pd->w[ipe];
+        } else {
+          if(it>=0 and it<int(nsample_)) {
+            pe_waveform_(ipix, it) += wt;
+          }
+          it = jt;
+          wt = pd->w[ipe];
         }
+      }
+      if(it>=0 and it<int(nsample_)) {
+        pe_waveform_(ipix, it) += wt;
       }
     }
   }
 
   void transfer_scope_pes_to_waveform(unsigned iscope)
   {
+    // Vectorized version. Takes advantage of "approximate" ordering of PEs
+    // in time within each pixel to minimize memory accesses
     validate_iscope_ipix(iscope, 0);
     pe_waveform_.setZero();
-    double t0 = scopes_[iscope].tmin - time_advance_;
+    double t0 = get_t0_for_scope(iscope);
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       auto pd = scopes_[iscope].pixel_data[ipix];
       if(pd==nullptr) {
         continue;
       }
-      for(int64_vt ipe=VCLArchitecture::int64_iota(); ipe[0]<pd->npe; ipe+=VCLArchitecture::num_int64) {
+      int32_t it = -1;
+      double_vt iw = 0.0;
+      unsigned ipe;
+      for(ipe=0; ipe+VCLArchitecture::num_int64<pd->npe; ipe+=VCLArchitecture::num_int64) {
         double_vt t;
-        t.load(pd->t + ipe[0]);
-        int64_vt it = truncate_to_int64_limited((t - t0) * sampling_freq_);
-        int64_bvt mask = (it>=0) && (it<nsample_) && (ipe<pd->npe);
-        if(horizontal_and(mask && (it==it[0]))) {
-          // Fast path : all indices valid and identical
-          double_vt w;
-          w.load(pd->w + ipe[0]);
-          pe_waveform_(ipix, it[0]) += vcl::horizontal_add(w);
-          continue;
-        } else {
-          // Slow path : indices not identical and/or out of range
-          int64_at ita;
-          it.store(ita);
-          uint32_t imask = vcl::to_bits(mask);
-          for(unsigned j=0; j<VCLArchitecture::num_int64; ++j) {
-            if(imask & (1U<<j)) {
-              pe_waveform_(ipix, ita[j]) += pd->w[ipe[0] + j];
-            } 
+        t.load(pd->t + ipe);
+        int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_);
+        if(horizontal_and(jt == jt[0])) {
+          // Fast path : all indices identical
+          if(jt[0]<0 or jt[0]>=int64_t(nsample_)) {
+            continue;
           }
-        }           
+          if(jt[0] == it) {
+            double_vt jw;
+            jw.load(pd->w + ipe);
+            iw += w;
+          } else {
+            if(it != -1) {
+              pe_waveform_(ipix, it) += vcl::horizontal_add(iw);
+            }
+            iw.load(pd->w + ipe);
+            it = jt[0];
+          }
+        } else {
+          // Slow path : indices not identical
+          if(it != -1) {
+            pe_waveform_(ipix, it) += vcl::horizontal_add(iw);
+            it = -1;
+            iw = 0.0;
+          }
+          for(unsigned j=0; j<VCLArchitecture::num_int64; ++j) {
+            if(jt[j]>=0 and jt[j]<int64_t(nsample_)) {
+              pe_waveform_(ipix, jt[j]) += pd->w[ipe + j];
+            }
+          }
+        }
+      }
+      // Handle remaining PEs (fewer than VCLArchitecture::num_int64)
+      if(it != -1) {
+        pe_waveform_(ipix, it) += vcl::horizontal_add(iw);
+      }
+      for(; ipe<pd->npe; ++ipe) {
+        int jt = int(floor((pd->t[ipe] - t0) * sampling_freq_));
+        if(jt>=0 and jt<int(nsample_)) {
+          pe_waveform_(ipix, jt) += pd->w[ipe];
+        }
       }
     }
   }
@@ -149,6 +187,11 @@ private:
   static unsigned round_ndouble_to_vector(unsigned n) {
     return n + std::min(n%VCLArchitecture::num_double, 1U);
   } 
+
+  double get_t0_for_scope(unsigned iscope) const {
+    return scopes_[iscope].tmin - time_advance_;
+  }
+
   unsigned nsample_;
   unsigned nadvance_;
   double time_resolution_;
