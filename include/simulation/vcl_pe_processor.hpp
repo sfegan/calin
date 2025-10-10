@@ -116,7 +116,7 @@ public:
       for(int64_vt ipe=VCLArchitecture::int64_iota(); ipe[0]<pd->npe; ipe+=VCLArchitecture::num_int64) {
         double_vt t;
         t.load(pd->t + ipe[0]);
-        int64_vt it = truncate_to_int64_limited(floor(t - t0) * sampling_freq_);
+        int64_vt it = truncate_to_int64_limited((t - t0) * sampling_freq_);
         int64_bvt mask = (it>=0) && (it<nsample_) && (ipe<pd->npe);
         if(horizontal_and(mask && (it==it[0]))) {
           // Fast path : all indices valid and identical
