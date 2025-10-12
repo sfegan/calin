@@ -127,10 +127,11 @@ public:
       if(pd==nullptr) {
         continue;
       }
-      int32_t it = -1;
-      double_vt iw = 0.0;
-      unsigned ipe;
-      for(ipe=0; ipe+VCLArchitecture::num_int64<pd->npe; ipe+=VCLArchitecture::num_int64) {
+      int32_t it = 0;
+      double w = 0;
+      unsigned ipe = 0;
+      unsigned jpe = VCLArchitecture::num_int64;
+      for(; jpe<=pd->npe; ipe=jpe,jpe+=VCLArchitecture::num_int64) {
         double_vt t;
         t.load(pd->t + ipe);
         int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_);
@@ -139,41 +140,53 @@ public:
           if(jt[0]<0 or jt[0]>=int64_t(nsample_)) {
             continue;
           }
-          if(jt[0] == it) {
-            double_vt jw;
-            jw.load(pd->w + ipe);
-            iw += w;
-          } else {
-            if(it != -1) {
-              pe_waveform_(ipix, it) += vcl::horizontal_add(iw);
-            }
-            iw.load(pd->w + ipe);
+          double_vt jw;
+          jw.load(pd->w + ipe);
+          if(jt[0] != it) {
+            pe_waveform_(ipix, it) += w;
             it = jt[0];
+            w = vcl::horizontal_add(jw);
+          } else {
+            w += vcl::horizontal_add(jw);
           }
         } else {
           // Slow path : indices not identical
-          if(it != -1) {
-            pe_waveform_(ipix, it) += vcl::horizontal_add(iw);
-            it = -1;
-            iw = 0.0;
-          }
-          for(unsigned j=0; j<VCLArchitecture::num_int64; ++j) {
-            if(jt[j]>=0 and jt[j]<int64_t(nsample_)) {
-              pe_waveform_(ipix, jt[j]) += pd->w[ipe + j];
+          double_at jta;
+          jt.store(jta);
+          for(unsigned koffset=0; koffset<VCLArchitecture::num_int64; ++ipe,++koffset) {
+            if(jta[koffset]<0 or jta[koffset]>=int64_t(nsample_)) {
+              continue;
+            }
+            if(jta[koffset] == it) {
+              w += pd->w[ipe];
+            } else {
+              pe_waveform_(ipix, it) += w;
+              it = jta[koffset];
+              w = pd->w[ipe];
             }
           }
         }
       }
-      // Handle remaining PEs (fewer than VCLArchitecture::num_int64)
-      if(it != -1) {
-        pe_waveform_(ipix, it) += vcl::horizontal_add(iw);
-      }
-      for(; ipe<pd->npe; ++ipe) {
-        int jt = int(floor((pd->t[ipe] - t0) * sampling_freq_));
-        if(jt>=0 and jt<int(nsample_)) {
-          pe_waveform_(ipix, jt) += pd->w[ipe];
+      double_vt t;
+      t.load(pd->t + ipe);
+      int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_);
+      double_at jta;
+      jt.store(jta);
+
+      for(unsigned koffset=0; ipe<pd->npe; ++ipe,++koffset) {        
+        if(jta[koffset]<0 or jta[koffset]>=int64_t(nsample_)) {
+          continue;
+        }
+        if(jta[koffset] == it) {
+          w += pd->w[ipe];
+        } else {
+          pe_waveform_(ipix, it) += w;
+          it = jta[koffset];
+          w = pd->w[ipe];
         }
       }
+      // Finalize last index
+      pe_waveform_(ipix, it) += w;
     }
   }
 
