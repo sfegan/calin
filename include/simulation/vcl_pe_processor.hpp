@@ -61,12 +61,13 @@ public:
   CALIN_TYPEALIAS(VCLReal, calin::util::vcl::VCLDoubleReal<VCLArchitecture>);
   CALIN_TYPEALIAS(RNG, calin::math::rng::VCLRNG<VCLArchitecture>);
 
-  VCLWaveformPEProcessor(unsigned nscope, unsigned npix, unsigned nsample, double time_resolution, unsigned nsample_advance,
+  VCLWaveformPEProcessor(unsigned nscope, unsigned npix, unsigned nsample, 
+      double time_resolution_ns, unsigned nsample_advance,
       RNG* rng = nullptr, bool auto_clear = true, bool adopt_rng = false):
     calin::simulation::pe_processor::SimpleListPEProcessor(nscope, npix, auto_clear),
     nsample_(round_ndouble_to_vector(nsample)),  nadvance_(nsample_advance),
-    time_resolution_(time_resolution), sampling_freq_(1.0/time_resolution),
-    time_advance_(double(nadvance_)*time_resolution_),
+    time_resolution_ns_(time_resolution_ns), sampling_freq_ghz_(1.0/time_resolution_ns_),
+    time_advance_(double(nadvance_)*time_resolution_ns_),
     pe_waveform_(npix, nsample_),
     rng_(rng), adopt_rng_(adopt_rng)
   {
@@ -95,10 +96,10 @@ public:
       if(pd==nullptr) {
         continue;
       }
-      int it = int(floor((pd->t[0] - t0) * sampling_freq_));
+      int it = int(floor((pd->t[0] - t0) * sampling_freq_ghz_));
       double wt = pd->w[0];
       for(unsigned ipe=1; ipe<pd->npe; ++ipe) {
-        int jt = int(floor((pd->t[ipe] - t0) * sampling_freq_));
+        int jt = int(floor((pd->t[ipe] - t0) * sampling_freq_ghz_));
         if(it==jt) {
           wt += pd->w[ipe];
         } else {
@@ -134,7 +135,7 @@ public:
       for(; jpe<=pd->npe; ipe=jpe,jpe+=VCLArchitecture::num_int64) {
         double_vt t;
         t.load(pd->t + ipe);
-        int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_);
+        int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_ghz_);
         if(horizontal_and(jt == jt[0])) {
           // Fast path : all indices identical
           if(jt[0]<0 or jt[0]>=int64_t(nsample_)) {
@@ -169,7 +170,7 @@ public:
       }
       double_vt t;
       t.load(pd->t + ipe);
-      int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_);
+      int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_ghz_);
       double_at jta;
       jt.store(jta);
 
@@ -190,8 +191,40 @@ public:
     }
   }
 
-  // void add_nsb_noise_to_waveform(const Eigen::VectorXd& rate_per_pixel_ghz,
-  //   calin::simulation::detector_efficiency::PEAmplitudeGenerator* pegen = nullptr);
+  void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
+  {
+    for(unsigned ipix=0; ipix<npix_; ++ipix) {
+      double rate_samples = sampling_freq_ghz_/nsb_freq_per_pixel_ghz[ipix];
+      if(rate_samples<=0) {
+        continue;
+      }
+
+      double t_samples = 0;
+      while(t_samples < double(nsample_)) {        
+        double_vt dt_samples = rng_->exponential_double() * rate_samples;
+        double_vt charge = 1.0;
+        if(pegen) {
+          charge = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
+        }
+        double_at dt_samples_a;
+        dt_samples.store(dt_samples_a);
+        double_at charge_a;
+        charge.store(charge_a);
+        for(unsigned insb=0; insb<VCLArchitecture::num_double; ++insb) {
+          t_samples += dt_samples_a[insb];
+          if(t_samples >= double(nsample_)) {
+            goto next_pixel;
+          }
+          int it = int(floor(t_samples));
+          pe_waveform_(ipix, it) += charge_a[insb];
+        }
+      }
+      next_pixel:
+      ;
+    }
+  }
+
   // void downsample_waveform(unsigned ipix, const Eigen::VectorXd& impulse_response, double offset);
 
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
@@ -207,8 +240,8 @@ private:
 
   unsigned nsample_;
   unsigned nadvance_;
-  double time_resolution_;
-  double sampling_freq_;
+  double time_resolution_ns_;
+  double sampling_freq_ghz_;
   double time_advance_;
   Eigen::MatrixXd pe_waveform_;
   RNG* rng_ = nullptr;
