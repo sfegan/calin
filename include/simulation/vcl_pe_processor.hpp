@@ -244,6 +244,11 @@ public:
     }
   }
 
+  void clear_waveforms()
+  {
+    pe_waveform_.setZero();
+    v_waveform_.setZero();
+  }
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
   const Eigen::MatrixXd& v_waveform() const { return v_waveform_; }
 
