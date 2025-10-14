@@ -67,8 +67,8 @@ public:
     calin::simulation::pe_processor::SimpleListPEProcessor(nscope, npix, auto_clear),
     nsample_(round_ndouble_to_vector(nsample)),  nadvance_(nsample_advance),
     time_resolution_ns_(time_resolution_ns), sampling_freq_ghz_(1.0/time_resolution_ns_),
-    time_advance_(double(nadvance_)*time_resolution_ns_),
-    pe_waveform_(npix, nsample_), v_waveform_(npix, nsample_),
+  time_advance_(double(nadvance_)*time_resolution_ns_),
+  pe_waveform_(nsample_, npix_), v_waveform_(nsample_, npix_),
     rng_(rng), adopt_rng_(adopt_rng)
   {
     if(rng_ == nullptr) {
@@ -90,9 +90,11 @@ public:
     // in time within each pixel to minimize memory accesses. Vectorized version
     // was more complex and was tested to be not much faster.
     validate_iscope_ipix(iscope, 0);
-    pe_waveform_.setZero();
     double t0 = get_t0_for_scope(iscope);    
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
+      for(unsigned it=0; it<nsample_; ++it) {
+        pe_waveform_(it, ipix) = 0;
+      }
       auto pd = scopes_[iscope].pixel_data[ipix];
       if(pd==nullptr) {
         continue;
@@ -105,14 +107,14 @@ public:
           wt += pd->w[ipe];
         } else {
           if(it>=0 and it<int(nsample_)) {
-            pe_waveform_(ipix, it) += wt;
+            pe_waveform_(it, ipix) += wt;
           }
           it = jt;
           wt = pd->w[ipe];
         }
       }
       if(it>=0 and it<int(nsample_)) {
-        pe_waveform_(ipix, it) += wt;
+        pe_waveform_(it, ipix) += wt;
       }
     }
   }
@@ -144,7 +146,7 @@ public:
             goto next_pixel;
           }
           int it = int(floor(t_samples));
-          pe_waveform_(ipix, it) += charge_a[insb];
+          pe_waveform_(it, ipix) += charge_a[insb];
         }
       }
       next_pixel:
@@ -154,17 +156,19 @@ public:
 
   void convolve_impulse_response(const Eigen::VectorXd& impulse_response)
   {
-    v_waveform_.setZero();
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       for(unsigned it=0; it<nsample_; ++it) {
-        double wt = pe_waveform_(ipix, it);
+        v_waveform_(it, ipix) = 0;
+      }
+      for(unsigned it=0; it<nsample_; ++it) {
+        double wt = pe_waveform_(it, ipix);
         if(wt==0) {
           continue;
         }
         unsigned jmax = std::min(unsigned(impulse_response.size()), nsample_ - it);
         for(unsigned jt=0; jt<jmax; ++jt) {
           unsigned kt = it + jt;
-          v_waveform_(ipix, kt) += wt * impulse_response[jt];
+          v_waveform_(kt, ipix) += wt * impulse_response[jt];
         }
       }
     }
@@ -193,8 +197,8 @@ private:
   double time_resolution_ns_;
   double sampling_freq_ghz_;
   double time_advance_;
-  Eigen::MatrixXd pe_waveform_;
-  Eigen::MatrixXd v_waveform_;
+  Eigen::MatrixXd pe_waveform_; // shape (nsample_, npix_): access as (it, ipix)
+  Eigen::MatrixXd v_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
   RNG* rng_ = nullptr;
   bool adopt_rng_ = false;
 };  
