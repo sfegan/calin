@@ -84,10 +84,11 @@ public:
     }
   }
 
-  void transfer_scope_pes_to_waveform_slow(unsigned iscope)
+  void transfer_scope_pes_to_waveform(unsigned iscope)
   {
     // Non-vectorized version. Takes advantage of "approximate" ordering of PEs
-    // in time within each pixel to minimize memory accesses
+    // in time within each pixel to minimize memory accesses. Vectorized version
+    // was more complex and was tested to be not much faster.
     validate_iscope_ipix(iscope, 0);
     pe_waveform_.setZero();
     double t0 = get_t0_for_scope(iscope);    
@@ -113,81 +114,6 @@ public:
       if(it>=0 and it<int(nsample_)) {
         pe_waveform_(ipix, it) += wt;
       }
-    }
-  }
-
-  void transfer_scope_pes_to_waveform(unsigned iscope)
-  {
-    // Vectorized version. Takes advantage of "approximate" ordering of PEs
-    // in time within each pixel to minimize memory accesses
-    validate_iscope_ipix(iscope, 0);
-    pe_waveform_.setZero();
-    double t0 = get_t0_for_scope(iscope);
-    for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      auto pd = scopes_[iscope].pixel_data[ipix];
-      if(pd==nullptr) {
-        continue;
-      }
-      int32_t it = 0;
-      double w = 0;
-      unsigned ipe = 0;
-      unsigned jpe = VCLArchitecture::num_int64;
-      for(; jpe<=pd->npe; ipe=jpe,jpe+=VCLArchitecture::num_int64) {
-        double_vt t;
-        t.load(pd->t + ipe);
-        int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_ghz_);
-        if(horizontal_and(jt == jt[0])) {
-          // Fast path : all indices identical
-          if(jt[0]<0 or jt[0]>=int64_t(nsample_)) {
-            continue;
-          }
-          double_vt jw;
-          jw.load(pd->w + ipe);
-          if(jt[0] != it) {
-            pe_waveform_(ipix, it) += w;
-            it = jt[0];
-            w = vcl::horizontal_add(jw);
-          } else {
-            w += vcl::horizontal_add(jw);
-          }
-        } else {
-          // Slow path : indices not identical
-          double_at jta;
-          jt.store(jta);
-          for(unsigned koffset=0; koffset<VCLArchitecture::num_int64; ++ipe,++koffset) {
-            if(jta[koffset]<0 or jta[koffset]>=int64_t(nsample_)) {
-              continue;
-            }
-            if(jta[koffset] == it) {
-              w += pd->w[ipe];
-            } else {
-              pe_waveform_(ipix, it) += w;
-              it = jta[koffset];
-              w = pd->w[ipe];
-            }
-          }
-        }
-      }
-      double_vt t;
-      t.load(pd->t + ipe);
-      int64_vt jt = truncate_to_int64_limited((t - t0) * sampling_freq_ghz_);
-      double_at jta;
-      jt.store(jta);
-
-      for(unsigned koffset=0; ipe<pd->npe; ++ipe,++koffset) {        
-        if(jta[koffset]<0 or jta[koffset]>=int64_t(nsample_)) {
-          continue;
-        }
-        if(jta[koffset] == it) {
-          w += pd->w[ipe];
-        } else {
-          pe_waveform_(ipix, it) += w;
-          it = jta[koffset];
-          w = pd->w[ipe];
-        }
-      }
-      // Finalize last index
-      pe_waveform_(ipix, it) += w;
     }
   }
 
@@ -228,10 +154,10 @@ public:
 
   void convolve_impulse_response(const Eigen::VectorXd& impulse_response)
   {
+    v_waveform_.setZero();
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       for(unsigned it=0; it<nsample_; ++it) {
         double wt = pe_waveform_(ipix, it);
-        v_waveform_(ipix, it) = 0;
         if(wt==0) {
           continue;
         }
@@ -249,6 +175,7 @@ public:
     pe_waveform_.setZero();
     v_waveform_.setZero();
   }
+  
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
   const Eigen::MatrixXd& v_waveform() const { return v_waveform_; }
 
