@@ -68,7 +68,7 @@ public:
     nsample_(round_ndouble_to_vector(nsample)),  nadvance_(nsample_advance),
     time_resolution_ns_(time_resolution_ns), sampling_freq_ghz_(1.0/time_resolution_ns_),
     time_advance_(double(nadvance_)*time_resolution_ns_),
-    pe_waveform_(npix, nsample_),
+    pe_waveform_(npix, nsample_), v_waveform_(npix, nsample_),
     rng_(rng), adopt_rng_(adopt_rng)
   {
     if(rng_ == nullptr) {
@@ -194,6 +194,7 @@ public:
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
   {
+    double t_max = double(nsample_);
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       double rate_samples = sampling_freq_ghz_/nsb_freq_per_pixel_ghz[ipix];
       if(rate_samples<=0) {
@@ -201,7 +202,7 @@ public:
       }
 
       double t_samples = 0;
-      while(t_samples < double(nsample_)) {        
+      while(t_samples < t_max) {
         double_vt dt_samples = rng_->exponential_double() * rate_samples;
         double_vt charge = 1.0;
         if(pegen) {
@@ -225,9 +226,26 @@ public:
     }
   }
 
-  // void downsample_waveform(unsigned ipix, const Eigen::VectorXd& impulse_response, double offset);
+  void convolve_impulse_response(const Eigen::VectorXd& impulse_response)
+  {
+    for(unsigned ipix=0; ipix<npix_; ++ipix) {
+      for(unsigned it=0; it<nsample_; ++it) {
+        double wt = pe_waveform_(ipix, it);
+        v_waveform_(ipix, it) = 0;
+        if(wt==0) {
+          continue;
+        }
+        unsigned jmax = std::min(unsigned(impulse_response.size()), nsample_ - it);
+        for(unsigned jt=0; jt<jmax; ++jt) {
+          unsigned kt = it + jt;
+          v_waveform_(ipix, kt) += wt * impulse_response[jt];
+        }
+      }
+    }
+  }
 
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
+  const Eigen::MatrixXd& v_waveform() const { return v_waveform_; }
 
 private:
   static unsigned round_ndouble_to_vector(unsigned n) {
@@ -244,6 +262,7 @@ private:
   double sampling_freq_ghz_;
   double time_advance_;
   Eigen::MatrixXd pe_waveform_;
+  Eigen::MatrixXd v_waveform_;
   RNG* rng_ = nullptr;
   bool adopt_rng_ = false;
 };  
