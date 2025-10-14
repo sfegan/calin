@@ -992,7 +992,7 @@ template<typename VCLArchitecture> double VCLIACTArray<VCLArchitecture>::
 fixed_pe_bandwidth() const
 {
   double bandwidth = 0;
-  for(const auto ibandwidth_manager_cache_entry : bandwidth_manager_cache_) {
+  for(const auto& ibandwidth_manager_cache_entry : bandwidth_manager_cache_) {
     bandwidth = std::max(bandwidth, ibandwidth_manager_cache_entry.manager->bandwidth());
   }
   return bandwidth;
@@ -1007,7 +1007,7 @@ VCLIACTArray<VCLArchitecture>::new_height_dependent_pe_bandwidth_spline() const
   std::vector<double> heights = bandwidth_manager_cache_.front().manager->
     detector_bandwidth_spline()->xknot_as_stdvec();
   std::vector<double> bandwidths(heights.size(), 0.0);
-  for(const auto ibandwidth_manager_cache_entry : bandwidth_manager_cache_) {
+  for(const auto& ibandwidth_manager_cache_entry : bandwidth_manager_cache_) {
     std::vector<double> detector_bandwidths =
       ibandwidth_manager_cache_entry.manager->bandwidth_vs_height(heights, wmax_);
     std::transform(bandwidths.begin(), bandwidths.end(),

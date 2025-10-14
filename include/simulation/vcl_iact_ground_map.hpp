@@ -231,7 +231,7 @@ propagate_rays(calin::math::ray::VCLRay<double_real> ray, double_bvt ray_mask,
 
   double_vt u = VCLIACTTrackVisitor<VCLArchitecture>::rng_->uniform_double();
 
-  for(unsigned idetector=0;idetector<config_.detector_size();idetector++) {
+  for(int idetector=0;idetector<config_.detector_size();idetector++) {
     auto* detector = detector_[idetector];
     double_vt xrel = ray.x() - detector->config->x_gnd();
     double_vt yrel = ray.y() - detector->config->y_gnd();
