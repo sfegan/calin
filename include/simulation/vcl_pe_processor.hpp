@@ -291,14 +291,23 @@ public:
   }
 
   Eigen::VectorXd ac_coupling_offset(unsigned impulse_response_id, 
-    const Eigen::VectorXd& nsb)
+    const Eigen::VectorXd& nsb,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
   {
     if(impulse_response_id >= impulse_responses_.size()) {
       calin::util::log::LOG(calin::util::log::ERROR)
         << "Invalid impulse_response_id " << impulse_response_id;
       return Eigen::VectorXd();
     }
-    return nsb * time_resolution_ns_ * impulse_responses_[impulse_response_id].response.sum();
+    Eigen::VectorXd offset = nsb 
+      * time_resolution_ns_ 
+      * impulse_responses_[impulse_response_id].response.sum();
+    
+    if(pegen) {
+      offset *= pegen->mean_amplitude();
+    }
+
+    return offset;
   }
 
 
