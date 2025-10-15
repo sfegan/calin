@@ -80,6 +80,23 @@ public:
       adopt_rng_ = true;
     }
 
+    if((uintptr_t)(const void *)pe_waveform_.data() % VCLArchitecture::vec_bytes != 0) {
+      calin::util::log::LOG(calin::util::log::WARNING) 
+        << "pe_waveform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
+    }
+    if((uintptr_t)(const void *)pe_transform_.data() % VCLArchitecture::vec_bytes != 0) {
+      calin::util::log::LOG(calin::util::log::WARNING) 
+        << "pe_transform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
+    }
+    if((uintptr_t)(const void *)v_transform_.data() % VCLArchitecture::vec_bytes != 0) {
+      calin::util::log::LOG(calin::util::log::WARNING) 
+        << "v_transform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
+    }
+    if((uintptr_t)(const void *)v_waveform_.data() % VCLArchitecture::vec_bytes != 0) {
+      calin::util::log::LOG(calin::util::log::WARNING) 
+        << "v_waveform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
+    }
+
     int rank = 1;
     int n[] = { int(nsample_) };
     int howmany = npix_;
