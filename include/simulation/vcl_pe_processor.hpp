@@ -276,6 +276,22 @@ public:
     v_waveform_.setZero();
     pe_transform_valid_ = false;
   }
+
+  std::string fftw_plans_to_string() const
+  {
+    std::string os;
+    char* s = fftw_sprint_plan(fftw_plan_pe_fwd_);
+    os += "Photo-electron forward transformation:\n";
+    os += "--------------------------------------\n";
+    os += s;
+    fftw_free(s);
+    s = fftw_sprint_plan(fftw_plan_v_bwd_);
+    os += "\nVoltage backward transformation:\n";
+    os += "---------------------------------\n";
+    os += s;
+    fftw_free(s);
+    return os;
+  }
   
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
   const Eigen::MatrixXd& v_waveform() const { return v_waveform_; }
