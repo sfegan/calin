@@ -222,10 +222,12 @@ public:
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
   
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      double ped = (ipix<pedestal.size()) ? pedestal[ipix] : 0.0;
-      for(unsigned it=0; it<nsample_; ++it) {
-        v_waveform_(it, ipix) = ped;
-      }
+      double *__restrict__ v_waveform_ptr = &v_waveform_(0, ipix);
+      if(ipix<pedestal.size()) {
+        std::fill(v_waveform_ptr, v_waveform_ptr + nsample_, pedestal[ipix]);
+      } else {
+        std::fill(v_waveform_ptr, v_waveform_ptr + nsample_, 0.0);
+      } 
       for(unsigned it=0; it<nsample_; ++it) {
         double wt = pe_waveform_(it, ipix);
         if(wt==0) {
