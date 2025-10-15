@@ -266,13 +266,14 @@ public:
     }
 
     if(pedestal.size()>0) {
+      // Add pedestal in frequency domain as DC offset before inverse transform
       v_transform_.row(0).head(pedestal.size()) += pedestal;
     }
 
     fftw_execute(fftw_plan_v_bwd_);
   }
 
-  Eigen::VectorXd ac_coupling_constant(unsigned impulse_response_id, 
+  Eigen::VectorXd ac_coupling_offset(unsigned impulse_response_id, 
     const Eigen::VectorXd& nsb)
   {
     if(impulse_response_id >= impulse_responses_.size()) {
