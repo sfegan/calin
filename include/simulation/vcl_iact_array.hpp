@@ -1790,7 +1790,7 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::gr
     << "- Number of occupied cells : " << noccupied_cells << '\n'
     << "- Max number of detectors per cell : " << grid_ndetector_per_cell_ << '\n'
     << "- Grid separation : " << std::fixed << std::setprecision(2) 
-    << grid_sep_*0.01 << " m\n";
+    << grid_sep_*0.01 << " m";
 
   return stream.str();
 }
