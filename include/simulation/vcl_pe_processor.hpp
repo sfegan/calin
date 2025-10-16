@@ -206,6 +206,38 @@ public:
     pe_transform_valid_ = false;
   }
 
+  void integrate_pe_waveforms_for_window(Eigen::VectorXd& channel_integral,
+    unsigned iscope, unsigned window_size, unsigned window_start)
+  {
+    validate_iscope_ipix(iscope, 0);
+    if(window_size > nsample_) {
+      throw std::out_of_range("Window size longer than samples array: " + 
+        std::to_string(window_start) + ">" + std::to_string(nsample_));
+    }
+    if(window_size+window_start > nsample_) {
+      throw std::out_of_range("End of window exceeds samples array: " + 
+        std::to_string(window_size+window_start) + ">" + std::to_string(nsample_));
+    }
+    channel_integral.resize(npix_);
+    for(unsigned ipix=0; ipix<npix_; ++ipix) {
+      double max_integral = 0;
+      double integral = 0;
+      double *__restrict__ iptr = &pe_waveform_(window_start, ipix); 
+      double *__restrict__ jptr = iptr;
+      double *__restrict__ zptr = &pe_waveform_(nsample_, ipix);
+      for(unsigned ksample=0; ksample<window_size; ksample++) {
+        integral += *(jptr++);
+      }
+      max_integral = integral;
+      while(jptr < zptr) {
+        integral += *(jptr++);
+        integral -= *(iptr++);
+        max_integral = std::max(max_integral, integral);
+      }
+      channel_integral(ipix) = max_integral;
+    }
+  }
+
   unsigned register_impulse_response(const Eigen::VectorXd& impulse_response, 
     const std::string& units, double window_fraction=0.6)
   {
@@ -282,7 +314,7 @@ public:
     s += "@" + calin::util::string::to_string_with_commas(ir.response_peak_index*time_resolution_ns_,1) + "ns";
     s += " IntMax=" + calin::util::string::to_string_with_commas(ir.response_integral_peak_value*time_resolution_ns_,1) + ir.units + ".ns";
     s += "@" + calin::util::string::to_string_with_commas(ir.response_integral_peak_index*time_resolution_ns_,1) + "ns";
-    s += ", IntWin(" + calin::util::string::to_string_with_commas(ir.response_window_frac*100.0,0);
+    s += " IntWin(" + calin::util::string::to_string_with_commas(ir.response_window_frac*100.0,0);
     s += "%)=" + calin::util::string::to_string_with_commas(ir.response_window_lo*time_resolution_ns_,1);
     s += "->" + calin::util::string::to_string_with_commas(ir.response_window_hi*time_resolution_ns_,1) + "ns";
     return s;
