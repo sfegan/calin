@@ -3,5 +3,5 @@ cmake \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCTA_ADH_APIS_DIR=$HOME/local \
     -DCALIN_PYTHON_SUB_DIR=lib/python3.11 \
-    -DNO_CORSIKA8=OFF \
+    -DNO_CORSIKA8=ON \
     -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX ..
