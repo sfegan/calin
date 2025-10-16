@@ -28,10 +28,13 @@
 
 #include <util/log.hpp>
 #include <util/vcl.hpp>
+#include <util/string.hpp>
 #include <math/ray_vcl.hpp>
 #include <math/rng_vcl.hpp>
 #include <math/geometry_vcl.hpp>
 #include <math/fftw_util.hpp>
+#include <math/interpolation_1d.hpp>
+#include <math/brent.hpp>
 #include <simulation/pe_processor.hpp>
 
 namespace calin { namespace simulation { namespace vcl_pe_processor {
@@ -203,29 +206,81 @@ public:
     pe_transform_valid_ = false;
   }
 
-  unsigned register_impulse_response(const Eigen::VectorXd& impulse_response)
+  unsigned register_impulse_response(const Eigen::VectorXd& impulse_response, 
+    const std::string& units, double percentile=0.2)
   {
-    unsigned response_size = impulse_response.size();    
-    Eigen::VectorXd response(nsample_);
-    response.setZero();
-    if(response_size>nsample_) {
+    ImpulseResponse ir;
+
+    ir.response_size = impulse_response.size();    
+    if(ir.response_size>nsample_) {
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "Truncating impulse response of size "
         << impulse_response.size() << " to " << nsample_;
-      response_size = nsample_;
-      response = impulse_response.head(nsample_);
+      ir.response_size = nsample_;
+      ir.response = impulse_response.head(nsample_);
     } else {
-      response.head(response_size) = impulse_response;
+      ir.response.resize(nsample_);
+      ir.response.setZero();
+      ir.response.head(ir.response_size) = impulse_response;
     }
-    
+
+    std::vector<double> x(ir.response_size);
+    std::vector<double> y(ir.response_size);
+    for(unsigned i=0; i<ir.response_size; ++i) {
+      double ri = impulse_response(i);
+      ir.response_total_integral += ri;
+      x[i] = i;
+      y[i] = ir.response_total_integral;
+      if(ri > ir.response_peak_value) {
+        ir.response_peak_value = ri;
+        ir.response_peak_index = i;
+      }
+      if(ir.response_total_integral > ir.response_integral_peak_value) {
+        ir.response_integral_peak_value = ir.response_total_integral;
+        ir.response_integral_peak_index = i;
+      }
+    }
+
+    calin::math::interpolation_1d::InterpLinear1D f_of_x(x,y);
+    double target = ir.response_integral_peak_value * percentile;
+    ir.response_lo_percentile = 
+      calin::math::brent::brent_zero(0, ir.response_integral_peak_index, 
+        [&f_of_x,target](double x) { return f_of_x(x)-target; });
+    target = ir.response_integral_peak_value * (1.0-percentile);
+    ir.response_hi_percentile = 
+      calin::math::brent::brent_zero(ir.response_lo_percentile, ir.response_integral_peak_index, 
+        [&f_of_x,target](double x) { return f_of_x(x)-target; });
+
     Eigen::VectorXd transform(nsample_);
-    fftw_plan plan = fftw_plan_r2r_1d(nsample_, &response[0], &transform[0],
+    fftw_plan plan = fftw_plan_r2r_1d(nsample_, &ir.response[0], &ir.transform[0],
         FFTW_R2HC, FFTW_ESTIMATE);
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
-    impulse_responses_.emplace_back(response_size, response, transform);
+    ir.units = units;
+
+    impulse_responses_.emplace_back(ir);
     return impulse_responses_.size()-1;
+  }
+
+  std::string impulse_response_summary(unsigned impulse_response_id) const
+  {
+    if(impulse_response_id >= impulse_responses_.size()) {
+      calin::util::log::LOG(calin::util::log::ERROR)
+        << "Invalid impulse_response_id " << impulse_response_id;
+      return {};
+    }
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+    std::string s;
+    s += "IR:" + std::to_string(impulse_response_id);
+    s += " len:" + calin::util::string::to_string_with_commas(ir.response_size*time_resolution_ns_,1) + "ns";
+    s += " peak:" + calin::util::string::to_string_with_commas(ir.response_peak_value,1) + ir.units;
+    s += " @ " + calin::util::string::to_string_with_commas(ir.response_peak_index*time_resolution_ns_,1) + "ns";
+    s += " int:" + calin::util::string::to_string_with_commas(ir.response_integral_peak_value*time_resolution_ns_,1) + ir.units + " ns";
+    s += " @ " + calin::util::string::to_string_with_commas(ir.response_integral_peak_index*time_resolution_ns_,1) + "ns";
+    s += " window:" + calin::util::string::to_string_with_commas(ir.response_lo_percentile*time_resolution_ns_,1);
+    s += "->" + calin::util::string::to_string_with_commas(ir.response_hi_percentile*time_resolution_ns_,1) + "ns";
+    return s;
   }
 
   void convolve_impulse_response(unsigned impulse_response_id, 
@@ -318,7 +373,7 @@ public:
     pe_transform_valid_ = false;
   }
 
-  std::string fftw_plans_to_string() const
+  std::string fftw_plans_summary() const
   {
     std::string os;
     char* s = fftw_sprint_plan(fftw_plan_pe_fwd_);
@@ -347,13 +402,17 @@ private:
   }
 
   struct ImpulseResponse {
-    ImpulseResponse(unsigned response_size_,
-        const Eigen::VectorXd& response_,
-        const Eigen::VectorXd& transform_):
-      response_size(response_size_), response(response_), transform(transform_) {}
     unsigned response_size;
     Eigen::VectorXd response;
     Eigen::VectorXd transform;
+    int response_peak_index = 0;
+    double response_peak_value = -std::numeric_limits<double>::infinity();
+    int response_integral_peak_index = 0;
+    double response_integral_peak_value = -std::numeric_limits<double>::infinity();
+    double response_lo_percentile;
+    double response_hi_percentile;
+    double response_total_integral = 0;
+    std::string units = "";
   };
 
   unsigned nsample_;
