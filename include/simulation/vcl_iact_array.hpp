@@ -419,7 +419,7 @@ public:
 
   std::string banner();
   std::string detector_report() const;
-  std::string grid_report() const;
+  std::string grid_report();
 
   calin::math::spline_interpolation::CubicSpline* new_height_dependent_pe_bandwidth_spline() const;
   double fixed_pe_bandwidth() const;
@@ -1733,8 +1733,10 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::de
   return stream.str();
 }
 
-template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::grid_report() const
+template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::grid_report()
 {
+  make_detector_grid();
+
   std::ostringstream stream;
 
   unsigned hexid_len = 0;
