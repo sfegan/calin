@@ -207,10 +207,11 @@ public:
   }
 
   unsigned register_impulse_response(const Eigen::VectorXd& impulse_response, 
-    const std::string& units, double percentile=0.2)
+    const std::string& units, double window_fraction=0.6)
   {
     ImpulseResponse ir;
 
+    // 1. Store impulse response, truncating or extending if necessary
     ir.response_size = impulse_response.size();    
     if(ir.response_size>nsample_) {
       calin::util::log::LOG(calin::util::log::WARNING) 
@@ -224,6 +225,7 @@ public:
       ir.response.head(ir.response_size) = impulse_response;
     }
 
+    // 2. Calculate peak, integral and percentiles
     std::vector<double> x(ir.response_size);
     std::vector<double> y(ir.response_size);
     for(unsigned i=0; i<ir.response_size; ++i) {
@@ -242,21 +244,24 @@ public:
     }
 
     calin::math::interpolation_1d::InterpLinear1D f_of_x(x,y);
-    double target = ir.response_integral_peak_value * percentile;
-    ir.response_lo_percentile = 
+    ir.response_window_frac = window_fraction;
+    double target = ir.response_integral_peak_value * (1.0-window_fraction)/2.0;
+    ir.response_window_lo = 
       calin::math::brent::brent_zero(0, ir.response_integral_peak_index, 
         [&f_of_x,target](double x) { return f_of_x(x)-target; });
-    target = ir.response_integral_peak_value * (1.0-percentile);
-    ir.response_hi_percentile = 
-      calin::math::brent::brent_zero(ir.response_lo_percentile, ir.response_integral_peak_index, 
+    target = ir.response_integral_peak_value * (1.0+window_fraction)/2.0;
+    ir.response_window_hi = 
+      calin::math::brent::brent_zero(ir.response_window_lo, ir.response_integral_peak_index, 
         [&f_of_x,target](double x) { return f_of_x(x)-target; });
 
-    Eigen::VectorXd transform(nsample_);
+    // 3. Calculate FFT of response function
+    ir.transform.resize(nsample_);
     fftw_plan plan = fftw_plan_r2r_1d(nsample_, &ir.response[0], &ir.transform[0],
         FFTW_R2HC, FFTW_ESTIMATE);
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
+    // 4. Store data in IR array
     ir.units = units;
 
     impulse_responses_.emplace_back(ir);
@@ -272,14 +277,14 @@ public:
     }
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
     std::string s;
-    s += "IR:" + std::to_string(impulse_response_id);
-    s += " len:" + calin::util::string::to_string_with_commas(ir.response_size*time_resolution_ns_,1) + "ns";
-    s += " peak:" + calin::util::string::to_string_with_commas(ir.response_peak_value,1) + ir.units;
-    s += " @ " + calin::util::string::to_string_with_commas(ir.response_peak_index*time_resolution_ns_,1) + "ns";
-    s += " int:" + calin::util::string::to_string_with_commas(ir.response_integral_peak_value*time_resolution_ns_,1) + ir.units + " ns";
-    s += " @ " + calin::util::string::to_string_with_commas(ir.response_integral_peak_index*time_resolution_ns_,1) + "ns";
-    s += " window:" + calin::util::string::to_string_with_commas(ir.response_lo_percentile*time_resolution_ns_,1);
-    s += "->" + calin::util::string::to_string_with_commas(ir.response_hi_percentile*time_resolution_ns_,1) + "ns";
+    s += "Dur=" + calin::util::string::to_string_with_commas(ir.response_size*time_resolution_ns_,1) + "ns";
+    s += " Peak=" + calin::util::string::to_string_with_commas(ir.response_peak_value,1) + ir.units;
+    s += "@" + calin::util::string::to_string_with_commas(ir.response_peak_index*time_resolution_ns_,1) + "ns";
+    s += " IntMax=" + calin::util::string::to_string_with_commas(ir.response_integral_peak_value*time_resolution_ns_,1) + ir.units + ".ns";
+    s += "@" + calin::util::string::to_string_with_commas(ir.response_integral_peak_index*time_resolution_ns_,1) + "ns";
+    s += ", IntWin(" + calin::util::string::to_string_with_commas(ir.response_window_frac*100.0,0);
+    s += "%)=" + calin::util::string::to_string_with_commas(ir.response_window_lo*time_resolution_ns_,1);
+    s += "->" + calin::util::string::to_string_with_commas(ir.response_window_hi*time_resolution_ns_,1) + "ns";
     return s;
   }
 
@@ -409,8 +414,9 @@ private:
     double response_peak_value = -std::numeric_limits<double>::infinity();
     int response_integral_peak_index = 0;
     double response_integral_peak_value = -std::numeric_limits<double>::infinity();
-    double response_lo_percentile;
-    double response_hi_percentile;
+    double response_window_frac;
+    double response_window_lo;
+    double response_window_hi;
     double response_total_integral = 0;
     std::string units = "";
   };
