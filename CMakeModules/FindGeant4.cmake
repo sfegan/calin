@@ -49,11 +49,11 @@ if(GEANT4_CONFIG)
           ${GEANT4_PREFIX}/lib/Geant4/Geant4.${GEANT4_VERSION_MAJOR}/
           ${GEANT4_PREFIX}/lib/Geant4/Geant4.${GEANT4_VERSION_MAJOR}/Geant4)
 
-get_filename_component(GEANT4_LIBRARY_DIR ${GEANT4_G4RUN_LIB} DIRECTORY)
+  get_filename_component(GEANT4_LIBRARY_DIR ${GEANT4_G4RUN_LIB} DIRECTORY)
 
-execute_process(COMMAND ${GEANT4_CONFIG} --libs
-                OUTPUT_VARIABLE GEANT4_LIBRARIES
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(COMMAND ${GEANT4_CONFIG} --libs
+                  OUTPUT_VARIABLE GEANT4_LIBRARIES
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
 else()
   set(GEANT4_FOUND FALSE)
   message(WARNING "NOT Found Geant4: set GEANT4_INSTALL env.")
