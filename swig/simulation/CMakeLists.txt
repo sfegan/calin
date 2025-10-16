@@ -13,6 +13,8 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --save-temps")
+
 set(CALIN_SWIG_FILES atmosphere.i pmt.i vs_optics.i ray_processor.i tracker.i
 	detector_efficiency.i world_magnetic_model.i vcl_iact.i sct_optics.i
 	ray_propagator.i waveform_processor.i)
