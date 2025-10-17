@@ -407,8 +407,8 @@ public:
     os += s;
     fftw_free(s);
     s = fftw_sprint_plan(fftw_plan_v_bwd_);
-    os += "\nVoltage backward transformation:\n";
-    os += "---------------------------------\n";
+    os += "\nAmplitude backward transformation:\n";
+    os += "----------------------------------\n";
     os += s;
     fftw_free(s);
     return os;
@@ -425,7 +425,7 @@ private:
   inline double get_t0_for_scope(unsigned iscope) const {
     return scopes_[iscope].tmin - time_advance_;
   }
-  
+
   inline void validate_impulse_response_id(unsigned impulse_response_id) const {
     if(impulse_response_id >= impulse_responses_.size()) {
       throw std::out_of_range("Invalid impulse response id: " 
