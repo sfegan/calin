@@ -305,11 +305,7 @@ public:
 
   std::string impulse_response_summary(unsigned impulse_response_id) const
   {
-    if(impulse_response_id >= impulse_responses_.size()) {
-      calin::util::log::LOG(calin::util::log::ERROR)
-        << "Invalid impulse_response_id " << impulse_response_id;
-      return {};
-    }
+    validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
     std::string s;
     s += "Dur=" + calin::util::string::to_string_with_commas(ir.response_size*time_resolution_ns_,1) + "ns";
@@ -326,11 +322,7 @@ public:
   void convolve_impulse_response(unsigned impulse_response_id, 
     const Eigen::VectorXd& pedestal = Eigen::VectorXd())
   {
-    if(impulse_response_id >= impulse_responses_.size()) {
-      calin::util::log::LOG(calin::util::log::ERROR)
-        << "Invalid impulse_response_id " << impulse_response_id;
-      return;
-    }
+    validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
   
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
@@ -358,11 +350,7 @@ public:
   void convolve_impulse_response_fft(unsigned impulse_response_id,
     const Eigen::VectorXd& pedestal = Eigen::VectorXd())
   {
-    if(impulse_response_id >= impulse_responses_.size()) {
-      calin::util::log::LOG(calin::util::log::ERROR)
-        << "Invalid impulse_response_id " << impulse_response_id;
-      return;
-    }
+    validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
 
     if(not pe_transform_valid_) {
@@ -389,11 +377,8 @@ public:
     const Eigen::VectorXd& nsb,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
   {
-    if(impulse_response_id >= impulse_responses_.size()) {
-      calin::util::log::LOG(calin::util::log::ERROR)
-        << "Invalid impulse_response_id " << impulse_response_id;
-      return Eigen::VectorXd();
-    }
+    validate_impulse_response_id(impulse_response_id);
+
     Eigen::VectorXd offset = nsb 
       * time_resolution_ns_ 
       * impulse_responses_[impulse_response_id].response.sum();
@@ -433,12 +418,19 @@ public:
   const Eigen::MatrixXd& v_waveform() const { return v_waveform_; }
 
 private:
-  static unsigned round_ndouble_to_vector(unsigned n) {
+  static inline unsigned round_ndouble_to_vector(unsigned n) {
     return n + std::min(n%VCLArchitecture::num_double, 1U);
   } 
 
-  double get_t0_for_scope(unsigned iscope) const {
+  inline double get_t0_for_scope(unsigned iscope) const {
     return scopes_[iscope].tmin - time_advance_;
+  }
+  inline void validate_impulse_response_id(unsigned impulse_response_id) const {
+    if(impulse_response_id >= impulse_responses_.size()) {
+      throw std::out_of_range("Invalid impulse response id: " 
+        + std::to_string(impulse_response_id) 
+        + " >= " + std::to_string(impulse_responses_.size()));
+    }
   }
 
   struct ImpulseResponse {
