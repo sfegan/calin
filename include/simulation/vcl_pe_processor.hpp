@@ -206,10 +206,12 @@ public:
     pe_transform_valid_ = false;
   }
 
-  void integrate_pe_waveforms_for_window(Eigen::VectorXd& channel_integral,
-    unsigned iscope, unsigned window_size, unsigned window_start)
+  void estimate_pes_in_window(Eigen::VectorXd& pes_per_channel_in_window,
+    unsigned window_size, unsigned window_start=0)
   {
-    validate_iscope_ipix(iscope, 0);
+    if(window_size == 0) {
+      throw std::out_of_range("Window size must be non-zero");
+    }
     if(window_size > nsample_) {
       throw std::out_of_range("Window size longer than samples array: " + 
         std::to_string(window_start) + ">" + std::to_string(nsample_));
@@ -218,23 +220,24 @@ public:
       throw std::out_of_range("End of window exceeds samples array: " + 
         std::to_string(window_size+window_start) + ">" + std::to_string(nsample_));
     }
-    channel_integral.resize(npix_);
+    pes_per_channel_in_window.resize(npix_);
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       double max_integral = 0;
       double integral = 0;
       double *__restrict__ iptr = &pe_waveform_(window_start, ipix); 
       double *__restrict__ jptr = iptr;
-      double *__restrict__ zptr = &pe_waveform_(nsample_, ipix);
-      for(unsigned ksample=0; ksample<window_size; ksample++) {
-        integral += *(jptr++);
+      double *__restrict__ zptr = iptr + window_size;
+      while(iptr < zptr) {
+        integral += *(iptr++);
       }
+      zptr += nsample_ - window_size - window_start;
       max_integral = integral;
-      while(jptr < zptr) {
-        integral += *(jptr++);
-        integral -= *(iptr++);
+      while(iptr < zptr) {
+        integral += *(iptr++);
+        integral -= *(jptr++);
         max_integral = std::max(max_integral, integral);
       }
-      channel_integral(ipix) = max_integral;
+      pes_per_channel_in_window(ipix) = max_integral;
     }
   }
 

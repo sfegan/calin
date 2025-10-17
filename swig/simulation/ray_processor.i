@@ -50,6 +50,7 @@
 
 %apply double &OUTPUT { double& trace_t0 };
 %apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& trace_overflow };
+%apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& pes_per_channel_in_window };
 
 %import "simulation/pe_processor.pb.i"
 %include "simulation/pe_processor.hpp"
