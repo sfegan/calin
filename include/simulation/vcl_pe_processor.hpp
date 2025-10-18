@@ -400,17 +400,14 @@ public:
     double_vt* a_vec = calin::util::memory::aligned_calloc<double_vt>(nsample_);
     double_vt* b_vec = calin::util::memory::aligned_calloc<double_vt>(nsample_);
 
-    double *__restrict__ pe_waveform_ptr = &pe_waveform_(0, 0);
-    double *__restrict__ v_waveform_ptr = &v_waveform_(0, 0);
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLArchitecture::num_double) {
       // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
       for(unsigned isample=0; isample<nsample_; isample += VCLArchitecture::num_double) {
         double_vt block[VCLArchitecture::num_double]; // square matrix of doubles
         for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
-          block[jpix].load_a(pe_waveform_ptr + jpix*nsample_);
+          block[jpix].load_a(pe_waveform_.data() + (ipix+jpix)*nsample_ + isample);
         }
         calin::util::vcl::transpose(block);
-        pe_waveform_ptr += VCLArchitecture::num_double;
         for(unsigned jsample = 0; jsample<VCLArchitecture::num_double; jsample++) {
           a_vec[isample+jsample] = block[jsample];
         }
@@ -449,9 +446,8 @@ public:
         }
         calin::util::vcl::transpose(block);
         for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
-          block[jpix].store_a(v_waveform_ptr + jpix*nsample_);
+          block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
         }
-        v_waveform_ptr += VCLArchitecture::num_double;
       }
     }
     free(a_vec);
