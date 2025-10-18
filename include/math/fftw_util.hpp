@@ -91,6 +91,27 @@ void hcvec_scale_and_multiply(T* ovec, const T* ivec1,
   if(ro==co)(*ro) = (*ri1) * (*ri2) * scale;
 }
 
+template<typename TO, typename TI1, typename TI2, typename TS>
+void hcvec_scale_and_multiply_non_overlapping(TO* ovec, const TI1* ivec1,
+  const TI2* ivec2, unsigned nsample, TS scale = 1.0)
+{
+  TO *ro = ovec;
+  TO *co = ovec + nsample-1;
+  const TI1 *ri1 = ivec1;
+  const TI1 *ci1 = ivec1 + nsample-1;
+  const TI2 *ri2 = ivec2;
+  const TI2 *ci2 = ivec2 + nsample-1;
+
+  (*ro++) = (*ri1++) * (*ri2++) * scale;
+  while(ro < co)
+  {
+    (*ro++) = ((*ri1)*(*ri2) - (*ci1)*(*ci2)) * scale;
+    (*co--) = ((*ri1++)*(*ci2--) + (*ci1--)*(*ri2++)) * scale;
+  }
+  if(ro==co)(*ro) = (*ri1) * (*ri2) * scale;
+}
+
+
 template<typename VCLReal>
 void hcvec_scale_and_multiply_vcl(typename VCLReal::real_t* ovec,
   const typename VCLReal::real_t* ivec1, const typename VCLReal::real_t* ivec2,
@@ -1388,6 +1409,10 @@ public:
     ADD_CASE(56);
     ADD_CASE(60);
     ADD_CASE(64);
+    ADD_CASE(128);
+    ADD_CASE(256);
+    ADD_CASE(512);
+    ADD_CASE(1024);
 #undef ADD_CASE
     default:
       return false;
@@ -1413,6 +1438,10 @@ public:
     ADD_CASE(56);
     ADD_CASE(60);
     ADD_CASE(64);
+    ADD_CASE(128);
+    ADD_CASE(256);
+    ADD_CASE(512);
+    ADD_CASE(1024);
 #undef ADD_CASE
     default:
       throw std::runtime_error("No FFT codelet available for array size : " + std::to_string(size));
@@ -1438,6 +1467,10 @@ public:
     ADD_CASE(56);
     ADD_CASE(60);
     ADD_CASE(64);
+    ADD_CASE(128);
+    ADD_CASE(256);
+    ADD_CASE(512);
+    ADD_CASE(1024);
 #undef ADD_CASE
     default:
       throw std::runtime_error("No FFT codelet available for array size : " + std::to_string(size));
@@ -1486,6 +1519,14 @@ public:
   MAKE_HC2R(60);
   MAKE_R2HC(64);
   MAKE_HC2R(64);
+  MAKE_R2HC(128);
+  MAKE_HC2R(128);
+  MAKE_R2HC(256);
+  MAKE_HC2R(256);
+  MAKE_R2HC(512);
+  MAKE_HC2R(512);
+  MAKE_R2HC(1024);
+  MAKE_HC2R(1024);
 
 private:
   using E                 = typename VCLReal::real_vt;
@@ -1544,6 +1585,14 @@ private:
 #include "../../src/math/genfft_codelets/dft_r2cb_60.c"
 #include "../../src/math/genfft_codelets/dft_r2cf_64.c"
 #include "../../src/math/genfft_codelets/dft_r2cb_64.c"
+#include "../../src/math/genfft_codelets/dft_r2cf_128.c"
+#include "../../src/math/genfft_codelets/dft_r2cb_128.c"
+#include "../../src/math/genfft_codelets/dft_r2cf_256.c"
+#include "../../src/math/genfft_codelets/dft_r2cb_256.c"
+#include "../../src/math/genfft_codelets/dft_r2cf_512.c"
+#include "../../src/math/genfft_codelets/dft_r2cb_512.c"
+#include "../../src/math/genfft_codelets/dft_r2cf_1024.c"
+#include "../../src/math/genfft_codelets/dft_r2cb_1024.c"
 
 };
 
