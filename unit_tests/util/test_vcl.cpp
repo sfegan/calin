@@ -156,6 +156,31 @@ TEST(TestVCL, Transpose512_U16) {
       EXPECT_EQ(x[j][i], i*32+j);
 }
 
+TEST(TestVCL, Transpose512_DBL) {
+  Vec8d x[8];
+
+  for(unsigned i=0;i<8;i++)
+    x[i] = Vec8d(i+0,i+0.1,i+0.2,i+0.3,i+0.4,i+0.5,i+0.6,i+0.7);
+  for(unsigned j=0;j<8;j++) {
+    for(unsigned i=0;i<8;i++) {
+      std::cout << " " << x[j][i];
+    }
+    std::cout << '\n';
+  }
+  transpose(x);
+  std::cout << "\n";
+  for(unsigned j=0;j<8;j++) {
+    for(unsigned i=0;i<8;i++) {
+      std::cout << " " << x[j][i];
+    }
+    std::cout << '\n';
+  }
+
+  // for(unsigned j=0;j<8;j++)
+  //   for(unsigned i=0;i<8;i++)
+  //     EXPECT_NEAR(x[j][i], i+0.1*j, 0.01);
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
