@@ -527,6 +527,35 @@ template<> inline void dft_hc2r<64>(float_type* r_out, float_type* c_in, int rs,
 }
 
 
+// ********************************* N = 120 *********************************
+
+#include "dft_r2cf_120.c"
+#include "dft_r2cb_120.c"
+//#include "dft_c2c_120.c"
+
+template<> inline void dft_r2c<120>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  c_out[1] = ZERO();
+  c_out[120*cs+1] = ZERO();
+  dft_codelet_r2cf_120(r_in, r_in+rs, c_out, c_out+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_c2r<120>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_120(r_out, r_out+rs, c_in, c_in+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_r2hc<120>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  dft_codelet_r2cf_120(r_in, r_in+rs, c_out, c_out+120*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+template<> inline void dft_hc2r<120>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_120(r_out, r_out+rs, c_in, c_in+120*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+
 // ********************************* N = 128 *********************************
 
 #include "dft_r2cf_128.c"
@@ -556,6 +585,35 @@ template<> inline void dft_hc2r<128>(float_type* r_out, float_type* c_in, int rs
 }
 
 
+// ********************************* N = 240 *********************************
+
+#include "dft_r2cf_240.c"
+#include "dft_r2cb_240.c"
+//#include "dft_c2c_240.c"
+
+template<> inline void dft_r2c<240>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  c_out[1] = ZERO();
+  c_out[240*cs+1] = ZERO();
+  dft_codelet_r2cf_240(r_in, r_in+rs, c_out, c_out+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_c2r<240>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_240(r_out, r_out+rs, c_in, c_in+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_r2hc<240>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  dft_codelet_r2cf_240(r_in, r_in+rs, c_out, c_out+240*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+template<> inline void dft_hc2r<240>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_240(r_out, r_out+rs, c_in, c_in+240*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+
 // ********************************* N = 256 *********************************
 
 #include "dft_r2cf_256.c"
@@ -582,6 +640,122 @@ template<> inline void dft_r2hc<256>(float_type* r_in, float_type* c_out, int rs
 template<> inline void dft_hc2r<256>(float_type* r_out, float_type* c_in, int rs, int cs)
 {
   dft_codelet_r2cb_256(r_out, r_out+rs, c_in, c_in+256*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+
+// ********************************* N = 480 *********************************
+
+#include "dft_r2cf_480.c"
+#include "dft_r2cb_480.c"
+//#include "dft_c2c_480.c"
+
+template<> inline void dft_r2c<480>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  c_out[1] = ZERO();
+  c_out[480*cs+1] = ZERO();
+  dft_codelet_r2cf_480(r_in, r_in+rs, c_out, c_out+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_c2r<480>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_480(r_out, r_out+rs, c_in, c_in+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_r2hc<480>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  dft_codelet_r2cf_480(r_in, r_in+rs, c_out, c_out+480*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+template<> inline void dft_hc2r<480>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_480(r_out, r_out+rs, c_in, c_in+480*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+
+// ********************************* N = 512 *********************************
+
+#include "dft_r2cf_512.c"
+#include "dft_r2cb_512.c"
+//#include "dft_c2c_512.c"
+
+template<> inline void dft_r2c<512>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  c_out[1] = ZERO();
+  c_out[512*cs+1] = ZERO();
+  dft_codelet_r2cf_512(r_in, r_in+rs, c_out, c_out+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_c2r<512>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_512(r_out, r_out+rs, c_in, c_in+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_r2hc<512>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  dft_codelet_r2cf_512(r_in, r_in+rs, c_out, c_out+512*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+template<> inline void dft_hc2r<512>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_512(r_out, r_out+rs, c_in, c_in+512*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+
+// ********************************* N = 960 *********************************
+
+#include "dft_r2cf_960.c"
+#include "dft_r2cb_960.c"
+//#include "dft_c2c_960.c"
+
+template<> inline void dft_r2c<960>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  c_out[1] = ZERO();
+  c_out[960*cs+1] = ZERO();
+  dft_codelet_r2cf_960(r_in, r_in+rs, c_out, c_out+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_c2r<960>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_960(r_out, r_out+rs, c_in, c_in+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_r2hc<960>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  dft_codelet_r2cf_960(r_in, r_in+rs, c_out, c_out+960*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+template<> inline void dft_hc2r<960>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_960(r_out, r_out+rs, c_in, c_in+960*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+
+// ********************************* N = 1024 *********************************
+
+#include "dft_r2cf_1024.c"
+#include "dft_r2cb_1024.c"
+//#include "dft_c2c_1024.c"
+
+template<> inline void dft_r2c<1024>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  c_out[1] = ZERO();
+  c_out[1024*cs+1] = ZERO();
+  dft_codelet_r2cf_1024(r_in, r_in+rs, c_out, c_out+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_c2r<1024>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_1024(r_out, r_out+rs, c_in, c_in+1, 2*rs, 2*cs, 2*cs, 1, 0, 0);
+}
+
+template<> inline void dft_r2hc<1024>(float_type* r_in, float_type* c_out, int rs, int cs)
+{
+  dft_codelet_r2cf_1024(r_in, r_in+rs, c_out, c_out+1024*cs, 2*rs, cs, -cs, 1, 0, 0);
+}
+
+template<> inline void dft_hc2r<1024>(float_type* r_out, float_type* c_in, int rs, int cs)
+{
+  dft_codelet_r2cb_1024(r_out, r_out+rs, c_in, c_in+1024*cs, 2*rs, cs, -cs, 1, 0, 0);
 }
 
 
@@ -639,8 +813,14 @@ FixedSizeRealToComplexDFT<R>* new_codelet_r2c_dft(unsigned N,
   case 56: return new Codelet_FixedSizeRealToComplexDFT<56>(real_stride, complex_stride);
   case 60: return new Codelet_FixedSizeRealToComplexDFT<60>(real_stride, complex_stride);
   case 64: return new Codelet_FixedSizeRealToComplexDFT<64>(real_stride, complex_stride);
+  case 120: return new Codelet_FixedSizeRealToComplexDFT<120>(real_stride, complex_stride);
   case 128: return new Codelet_FixedSizeRealToComplexDFT<128>(real_stride, complex_stride);
+  case 240: return new Codelet_FixedSizeRealToComplexDFT<240>(real_stride, complex_stride);
   case 256: return new Codelet_FixedSizeRealToComplexDFT<256>(real_stride, complex_stride);
+  case 480: return new Codelet_FixedSizeRealToComplexDFT<480>(real_stride, complex_stride);
+  case 512: return new Codelet_FixedSizeRealToComplexDFT<512>(real_stride, complex_stride);
+  case 960: return new Codelet_FixedSizeRealToComplexDFT<960>(real_stride, complex_stride);
+  case 1024: return new Codelet_FixedSizeRealToComplexDFT<1024>(real_stride, complex_stride);
   default: return nullptr;
   }
 }
@@ -667,13 +847,19 @@ FixedSizeRealToHalfComplexDFT<R>* new_codelet_r2hc_dft(unsigned N,
   case 56: return new Codelet_FixedSizeRealToHalfComplexDFT<56>(real_stride, half_complex_stride);
   case 60: return new Codelet_FixedSizeRealToHalfComplexDFT<60>(real_stride, half_complex_stride);
   case 64: return new Codelet_FixedSizeRealToHalfComplexDFT<64>(real_stride, half_complex_stride);
+  case 120: return new Codelet_FixedSizeRealToHalfComplexDFT<120>(real_stride, half_complex_stride);
   case 128: return new Codelet_FixedSizeRealToHalfComplexDFT<128>(real_stride, half_complex_stride);
+  case 240: return new Codelet_FixedSizeRealToHalfComplexDFT<240>(real_stride, half_complex_stride);
   case 256: return new Codelet_FixedSizeRealToHalfComplexDFT<256>(real_stride, half_complex_stride);
+  case 480: return new Codelet_FixedSizeRealToHalfComplexDFT<480>(real_stride, half_complex_stride);
+  case 512: return new Codelet_FixedSizeRealToHalfComplexDFT<512>(real_stride, half_complex_stride);
+  case 960: return new Codelet_FixedSizeRealToHalfComplexDFT<960>(real_stride, half_complex_stride);
+  case 1024: return new Codelet_FixedSizeRealToHalfComplexDFT<1024>(real_stride, half_complex_stride);
   default: return nullptr;
   }
 }
 
 std::vector<unsigned> list_available_codelets()
 {
-  return { 2,4,8,12,15,16,18,20,24,28,30,32,36,40,48,56,60,64,128,256 };
+  return { 2,4,8,12,15,16,18,20,24,28,30,32,36,40,48,56,60,64,120,128,240,256,480,512,960,1024 };
 }
