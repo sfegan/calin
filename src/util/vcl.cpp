@@ -527,35 +527,46 @@ namespace {
     b = tmp;
   }
 
-  // template<typename T> inline void do_one_512_swizzle_ps(T& a, T& b) {
-  //   T tmp = _mm512_unpackhi_ps(a, b);
-  //   a = _mm512_unpacklo_ps(a, b);
-  //   b = tmp;
-  // }
-  //
-  // inline void do_one_512_swizzle_pd(Vec16f& a, Vec16f& b) {
-  //   __m512d tmp = _mm512_unpackhi_pd(vcl::reinterpret_d(a), vcl::reinterpret_d(b));
-  //   a = _mm512_castpd_ps(_mm512_unpacklo_pd(vcl::reinterpret_d(a), vcl::reinterpret_d(b)));
-  //   b = _mm512_castpd_ps(tmp);
-  // }
-  //
-  // inline void do_one_512_swizzle_pd(Vec8d& a, Vec8d& b) {
-  //   __m512d tmp = _mm512_unpackhi_pd(a, b);
-  //   a = _mm512_unpacklo_pd(a, b);
-  //   b = tmp;
-  // }
-  //
-  // inline void do_one_512_swizzle_flt128(Vec16f& a, Vec16f& b) {
-  //   __m512 tmp =  _mm512_shuffle_f32x4(a, b, 0xdd);
-  //   a = _mm512_shuffle_f32x4(a, b, 0x88);
-  //   b = tmp;
-  // }
-  //
-  // inline void do_one_512_swizzle_flt128(Vec8d& a, Vec8d& b) {
-  //   __m512 tmp =  _mm512_shuffle_d64x2(a, b, 0xdd);
-  //   a = _mm512_shuffle_d64x2(a, b, 0x88);
-  //   b = tmp;
-  // }
+  template<typename T> inline void do_one_512_swizzle_ps(T& a, T& b) {
+    T tmp = _mm512_unpackhi_ps(a, b);
+    a = _mm512_unpacklo_ps(a, b);
+    b = tmp;
+  }
+  inline void do_one_512_swizzle_pd(Vec16f& a, Vec16f& b) {
+    __m512d tmp = _mm512_unpackhi_pd(vcl::reinterpret_d(a), vcl::reinterpret_d(b));
+    a = _mm512_castpd_ps(_mm512_unpacklo_pd(vcl::reinterpret_d(a), vcl::reinterpret_d(b)));
+    b = _mm512_castpd_ps(tmp);
+  }
+
+  inline void do_one_512_swizzle_pd(Vec8d& a, Vec8d& b) {
+    __m512d tmp = _mm512_unpackhi_pd(a, b);
+    a = _mm512_unpacklo_pd(a, b);
+    b = tmp;
+  }
+  
+  inline void do_one_512_swizzle_flt128(Vec16f& a, Vec16f& b) {
+    __m512 tmp =  _mm512_shuffle_f32x4(a, b, 0xdd);
+    a = _mm512_shuffle_f32x4(a, b, 0x88);
+    b = tmp;
+  }
+  
+  inline void do_one_512_swizzle_flt128(Vec8d& a, Vec8d& b) {
+    __m512d tmp =  _mm512_shuffle_f64x2(a, b, 0xdd);
+    a = _mm512_shuffle_f64x2(a, b, 0x88);
+    b = tmp;
+  }
+
+  inline void do_one_512_swizzle_flt256(Vec16f& a, Vec16f& b) {
+    __m512 tmp =  _mm512_shuffle_f32x4(a, b, 0xdd);
+    a = _mm512_shuffle_f32x4(a, b, 0x88);
+    b = tmp;
+  }
+  
+  inline void do_one_512_swizzle_flt256(Vec8d& a, Vec8d& b) {
+    __m512d tmp =  _mm512_shuffle_f64x2(a, b, 0xd8);
+    a = _mm512_shuffle_f64x2(a, b, 0xd8);
+    b = tmp;
+  }
 
 #else // INSTRSET >= 9
   template<typename T> inline void do_one_512_swizzle_16(T& a, T& b) {
@@ -834,5 +845,25 @@ void calin::util::vcl::transpose(Vec32us* x)
 // void transpose(Vec8uq* x);
 // void transpose(Vec16f* x);
 // void transpose(Vec8d* x);
+
+#include<iostream>
+
+void calin::util::vcl::transpose(Vec8d* x)
+{
+  do_one_512_swizzle_pd(x[0],   x[1]);
+  do_one_512_swizzle_pd(x[2],   x[3]);
+  do_one_512_swizzle_pd(x[4],   x[5]);
+  do_one_512_swizzle_pd(x[6],   x[7]);
+
+  do_one_512_swizzle_flt128(x[0],  x[2]);
+  do_one_512_swizzle_flt128(x[1],  x[3]);
+  do_one_512_swizzle_flt128(x[4],  x[6]);
+  do_one_512_swizzle_flt128(x[5],  x[7]);
+
+  do_one_512_swizzle_flt128(x[0],  x[4]);
+  do_one_512_swizzle_flt128(x[1],  x[5]);
+  do_one_512_swizzle_flt128(x[2],  x[6]);
+  do_one_512_swizzle_flt128(x[3],  x[7]);
+}
 
 #endif // MAX_VECTOR_SIZE >= 512
