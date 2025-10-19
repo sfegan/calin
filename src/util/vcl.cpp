@@ -556,18 +556,6 @@ namespace {
     b = tmp;
   }
 
-  inline void do_one_512_swizzle_flt256(Vec16f& a, Vec16f& b) {
-    __m512 tmp =  _mm512_shuffle_f32x4(a, b, 0xdd);
-    a = _mm512_shuffle_f32x4(a, b, 0x88);
-    b = tmp;
-  }
-  
-  inline void do_one_512_swizzle_flt256(Vec8d& a, Vec8d& b) {
-    __m512d tmp =  _mm512_shuffle_f64x2(a, b, 0xd8);
-    a = _mm512_shuffle_f64x2(a, b, 0xd8);
-    b = tmp;
-  }
-
 #else // INSTRSET >= 9
   template<typename T> inline void do_one_512_swizzle_16(T& a, T& b) {
     auto a_lo = a.get_low();
