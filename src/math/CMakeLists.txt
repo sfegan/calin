@@ -19,12 +19,15 @@ set(CALIN_TARGET_LIBRARY calin_math)
 set(CALIN_SOURCES accumulator.cpp histogram.cpp function.cpp
 	pdf_1d.cpp pdf_1d_gaussian.cpp pdf_1d_limited_exponential.cpp
 	pdf_1d_two_component.cpp pdf_1d_binned_gaussian.cpp
-  pdf_1d_two_component_constrained.cpp
+  	pdf_1d_two_component_constrained.cpp
 	hessian.cpp brent.cpp
 	log_quadratic_spline_pdf_1d.cpp covariance_calc.cpp
 	special.cpp hex_array.cpp hex_array_vvv.cpp square_array.cpp
 	geometry.cpp vector3d_util.cpp ray.cpp
-	rng.cpp fftw_util.cpp healpix_array.cpp position_generator.cpp
+	rng.cpp healpix_array.cpp position_generator.cpp
+	fftw_util.cpp 
+	fftw_codelet_128d.cpp fftw_codelet_256d.cpp fftw_codelet_512d.cpp
+	fftw_codelet_128f.cpp fftw_codelet_256f.cpp fftw_codelet_512f.cpp
 	direction_generator.cpp ray_generator.cpp data_modeling.cpp m_estimate.cpp
 	regular_grid.cpp lomb_scargle.cpp	b_spline.cpp
 	spline_interpolation.cpp spline_interpolation_2d.cpp least_squares.cpp nspace.cpp

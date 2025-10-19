@@ -1391,7 +1391,7 @@ public:
   using float_type        = typename VCLReal::real_vt;
   bool has_codelet(unsigned size);
   void r2hc(unsigned size, const float_type* r, float_type* c);
-  void hc2r(unsigned size, float_type* r, const float_type* c);
+  void hc2r(unsigned size, const float_type* c, float_type* r);
 };
 
 // *****************************************************************************

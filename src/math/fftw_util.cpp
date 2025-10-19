@@ -457,6 +457,7 @@ Eigen::VectorXd calin::math::fftw_util::fftw_codelet_hc2r_float(const Eigen::Vec
   ::free(c);
   return x;
 }
+ #if 0
 
 namespace {
 
@@ -523,9 +524,9 @@ namespace {
       }
     }
 
-    void hc2r(unsigned size, float_type* r, const float_type* c) {
+    void hc2r(unsigned size, const float_type* c, float_type* r) {
       switch(size) {
-  #define ADD_CASE(n) case n : return hc2r_##n(r,c)
+  #define ADD_CASE(n) case n : return hc2r_##n(c,r)
       ADD_CASE(8);
       ADD_CASE(12);
       ADD_CASE(15);
@@ -558,7 +559,7 @@ namespace {
     }
 
   #define MAKE_HC2R(n) \
-    void hc2r_##n(float_type* r, const float_type* c) { \
+    void hc2r_##n(const float_type* c, float_type* r) { \
       dft_codelet_r2cb_##n(r, r+1, const_cast<float_type*>(c), const_cast<float_type*>(c+n), 2, 1, -1, 1, 0, 0); \
     }
 
@@ -677,9 +678,9 @@ namespace {
   template class FFTWCodelet_Container<calin::util::vcl::VCL128FloatReal>;
   template class FFTWCodelet_Container<calin::util::vcl::VCL256FloatReal>;
   template class FFTWCodelet_Container<calin::util::vcl::VCL512FloatReal>;
-  template class FFTWCodelet_Container<calin::util::vcl::VCL128DoubleReal>;
-  template class FFTWCodelet_Container<calin::util::vcl::VCL256DoubleReal>;
-  template class FFTWCodelet_Container<calin::util::vcl::VCL512DoubleReal>;
+  // template class FFTWCodelet_Container<calin::util::vcl::VCL128DoubleReal>;
+  // template class FFTWCodelet_Container<calin::util::vcl::VCL256DoubleReal>;
+  // template class FFTWCodelet_Container<calin::util::vcl::VCL512DoubleReal>;
 }
 
 template<typename VCLReal> bool 
@@ -697,15 +698,17 @@ calin::math::fftw_util::FFTWCodelet<VCLReal>::r2hc(unsigned size, const float_ty
 }
 
 template<typename VCLReal> void 
-calin::math::fftw_util::FFTWCodelet<VCLReal>::hc2r(unsigned size, float_type* r, const float_type* c)
+calin::math::fftw_util::FFTWCodelet<VCLReal>::hc2r(unsigned size, const float_type* c, float_type* r)
 {
   FFTWCodelet_Container<VCLReal> fftwcc;
-  return fftwcc.hc2r(size, r, c);
+  return fftwcc.hc2r(size, c, r);
 }
 
 template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL128FloatReal>;
 template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL256FloatReal>;
 template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL512FloatReal>;
-template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL128DoubleReal>;
-template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL256DoubleReal>;
-template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL512DoubleReal>;
+// template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL128DoubleReal>;
+// template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL256DoubleReal>;
+// template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL512DoubleReal>;
+
+#endif

@@ -436,7 +436,7 @@ public:
       }
 
       // Do inverse-FFT of "a_vec" into "b_vec"
-      fft.hc2r(nsample_, b_vec, a_vec);
+      fft.hc2r(nsample_, a_vec, b_vec);
 
       // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
       for(unsigned isample=0; isample<nsample_; isample += VCLArchitecture::num_double) {
