@@ -613,35 +613,44 @@ namespace {
     b = T(a_hi, b_hi);
   }
 
-  // inline void do_one_512_swizzle_ps(Vec8f& a, Vec8f& b) {
-  //   Vec8f tmp(_mm_unpackhi_ps(a.get_low(), b.get_low()),
-  //         _mm_unpackhi_ps(a.get_high(), b.get_high()));
-  //   a = Vec8f(_mm_unpacklo_ps(a.get_low(), b.get_low()),
-  //         _mm_unpacklo_ps(a.get_high(), b.get_high()));
-  //   b = tmp;
-  // }
-  //
-  // inline void do_one_512_swizzle_pd(Vec8f& a, Vec8f& b) {
-  //   Vec8f tmp(_mm_castpd_ps(_mm_unpackhi_pd(vcl::reinterpret_d(a.get_low()), vcl::reinterpret_d(b.get_low()))),
-  //             _mm_castpd_ps(_mm_unpackhi_pd(vcl::reinterpret_d(a.get_high()), vcl::reinterpret_d(b.get_high()))));
-  //   a = Vec8f(_mm_castpd_ps(_mm_unpacklo_pd(vcl::reinterpret_d(a.get_low()), vcl::reinterpret_d(b.get_low()))),
-  //             _mm_castpd_ps(_mm_unpacklo_pd(vcl::reinterpret_d(a.get_high()), vcl::reinterpret_d(b.get_high()))));
-  //   b = tmp;
-  // }
-  //
-  // inline void do_one_512_swizzle_pd(Vec4d& a, Vec4d& b) {
-  //   Vec4d tmp(_mm_unpackhi_pd(a.get_low(), b.get_low()),
-  //             _mm_unpackhi_pd(a.get_high(), b.get_high()));
-  //   a = Vec4d(_mm_unpacklo_pd(a.get_low(), b.get_low()),
-  //             _mm_unpacklo_pd(a.get_high(), b.get_high()));
-  //   b = tmp;
-  // }
-  //
-  // template<typename T> inline void do_one_512_swizzle_flt128(T& a, T& b) {
-  //   T tmp(a.get_high(), b.get_high());
-  //   a = T(a.get_low(), b.get_low());
-  //   b = tmp;
-  // }
+  inline void do_one_512_swizzle_ps(Vec8f& a, Vec8f& b) {
+    auto a_lo = a.get_low();
+    auto b_lo = b.get_low();
+    auto a_hi = a.get_high();
+    auto b_hi = b.get_high();
+    do_one_256_swizzle_ps(a_lo,a_hi);
+    do_one_256_swizzle_ps(b_lo,b_hi);
+    a = T(a_lo, b_lo);
+    b = T(a_hi, b_hi);
+  }
+
+  inline void do_one_512_swizzle_pd(Vec8f& a, Vec8f& b) {
+    auto a_lo = a.get_low();
+    auto b_lo = b.get_low();
+    auto a_hi = a.get_high();
+    auto b_hi = b.get_high();
+    do_one_256_swizzle_pd(a_lo,a_hi);
+    do_one_256_swizzle_pd(b_lo,b_hi);
+    a = T(a_lo, b_lo);
+    b = T(a_hi, b_hi);
+  }
+
+  inline void do_one_512_swizzle_pd(Vec4d& a, Vec4d& b) {
+    auto a_lo = a.get_low();
+    auto b_lo = b.get_low();
+    auto a_hi = a.get_high();
+    auto b_hi = b.get_high();
+    do_one_256_swizzle_pd(a_lo,a_hi);
+    do_one_256_swizzle_pd(b_lo,b_hi);
+    a = T(a_lo, b_lo);
+    b = T(a_hi, b_hi);
+  }
+
+  template<typename T> inline void do_one_512_swizzle_flt128(T& a, T& b) {
+    T tmp(a.get_high(), b.get_high());
+    a = T(a.get_low(), b.get_low());
+    b = tmp;
+  }
 #endif // INSTRSET >= 9
 }
 
