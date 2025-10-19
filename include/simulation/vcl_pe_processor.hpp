@@ -75,8 +75,7 @@ public:
     nsample_(round_ndouble_to_vector(nsample)),  nadvance_(nsample_advance),
     time_resolution_ns_(time_resolution_ns), sampling_freq_ghz_(1.0/time_resolution_ns_),
     time_advance_(double(nadvance_)*time_resolution_ns_),
-    pe_waveform_(nsample_, npix_), pe_transform_(nsample_, npix_), 
-    v_transform_(nsample_, npix_), v_waveform_(nsample_, npix_), 
+    pe_waveform_(nsample_, npix_), v_waveform_(nsample_, npix_), 
     rng_(rng), adopt_rng_(adopt_rng)
   {
     if(rng_ == nullptr) {
@@ -88,48 +87,14 @@ public:
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "pe_waveform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
     }
-    if((uintptr_t)(const void *)pe_transform_.data() % VCLArchitecture::vec_bytes != 0) {
-      calin::util::log::LOG(calin::util::log::WARNING) 
-        << "pe_transform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
-    }
-    if((uintptr_t)(const void *)v_transform_.data() % VCLArchitecture::vec_bytes != 0) {
-      calin::util::log::LOG(calin::util::log::WARNING) 
-        << "v_transform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
-    }
     if((uintptr_t)(const void *)v_waveform_.data() % VCLArchitecture::vec_bytes != 0) {
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "v_waveform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
     }
-
-    int rank = 1;
-    int n[] = { int(nsample_) };
-    int howmany = npix_;
-    int* inembed = n;
-    int istride = 1;
-    int idist = nsample_;
-    int* onembed = n;
-    int ostride = 1;
-    int odist = nsample_;
-    
-    double* in = pe_waveform_.data();
-    double* out = pe_transform_.data();
-    fftw_r2r_kind kind[] = { FFTW_R2HC };
-
-    fftw_plan_pe_fwd_ = fftw_plan_many_r2r(rank, n, howmany,
-      in, inembed, istride, idist, out, onembed, ostride, odist, kind, 0);
-
-    in = v_transform_.data();
-    out = v_waveform_.data();
-    kind[0] = FFTW_HC2R;
-
-    fftw_plan_v_bwd_ = fftw_plan_many_r2r(rank, n, howmany,
-      in, inembed, istride, idist, out, onembed, ostride, odist, kind, 0);
   }
 
   virtual ~VCLWaveformPEProcessor() 
   {
-    fftw_destroy_plan(fftw_plan_pe_fwd_);
-    fftw_destroy_plan(fftw_plan_v_bwd_);
     if(adopt_rng_) {
       delete rng_;
     }
@@ -354,24 +319,28 @@ public:
     validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
 
-    if(not pe_transform_valid_) {
-      fftw_execute(fftw_plan_pe_fwd_);
-      pe_transform_valid_ = true;
-    }
+    double* a_vec = calin::util::memory::aligned_calloc<double>(nsample_);
+    double* b_vec = calin::util::memory::aligned_calloc<double>(nsample_);
+
+    fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_ESTIMATE);
+    fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_ESTIMATE);
 
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      calin::math::fftw_util::hcvec_scale_and_multiply(
-        &v_transform_(0, ipix),
-        &pe_transform_(0, ipix), ir.transform.data(),
-        nsample_, 1.0/nsample_);      
+      std::copy(&pe_waveform_(0,ipix), &pe_waveform_(0,ipix)+nsample_, a_vec);
+      fftw_execute(fwd);
+      calin::math::fftw_util::hcvec_scale_and_multiply(a_vec, b_vec, ir.transform.data(),
+        nsample_, 1.0/nsample_);
+      if(pedestal.size() > ipix) {
+        a_vec[0] += pedestal(ipix);
+      }
+      fftw_execute(bwd);
+      std::copy(b_vec, b_vec+nsample_, &v_waveform_(0,ipix));
     }
 
-    if(pedestal.size()>0) {
-      // Add pedestal in frequency domain as DC offset before inverse transform
-      v_transform_.row(0).head(pedestal.size()) += pedestal;
-    }
-
-    fftw_execute(fftw_plan_v_bwd_);
+    fftw_destroy_plan(bwd);
+    fftw_destroy_plan(fwd);
+    free(a_vec);
+    free(b_vec);
   }
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
@@ -417,7 +386,7 @@ public:
       fft.r2hc(nsample_, a_vec, b_vec);
 
       // Multiply FFT in "b_vec" by impulse response back into "a_vec"
-      calin::math::fftw_util::hcvec_scale_and_multiply_non_overlapping(a_vec, b_vec, ir.response.data(), 
+      calin::math::fftw_util::hcvec_scale_and_multiply_non_overlapping(a_vec, b_vec, ir.transform.data(), 
         nsample_, 1.0/nsample_);
 
       // Add pedestal in frequency domain as DC offset before inverse transform
@@ -481,20 +450,43 @@ public:
 
   std::string fftw_plans_summary() const
   {
+    double* a_vec = calin::util::memory::aligned_calloc<double>(nsample_);
+    double* b_vec = calin::util::memory::aligned_calloc<double>(nsample_);
+    fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_ESTIMATE);
+    fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_ESTIMATE);
+
     std::string os;
-    char* s = fftw_sprint_plan(fftw_plan_pe_fwd_);
+    char* s = fftw_sprint_plan(fwd);
     os += "Photo-electron forward transformation:\n";
     os += "--------------------------------------\n";
     os += s;
     fftw_free(s);
-    s = fftw_sprint_plan(fftw_plan_v_bwd_);
+    s = fftw_sprint_plan(bwd);
     os += "\nAmplitude backward transformation:\n";
     os += "----------------------------------\n";
     os += s;
     fftw_free(s);
+
+    fftw_destroy_plan(bwd);
+    fftw_destroy_plan(fwd);
+    free(a_vec);
+    free(b_vec);
+
     return os;
   }
   
+  void inject_pe(unsigned ipix, unsigned isample, double amplitude = 1.0) {
+    if(ipix>=npix_) {
+      throw std::out_of_range("Pixel index out of range in inject_pe: " 
+        + std::to_string(ipix) + " >= " + std::to_string(npix_));
+    }
+    if(isample>=nsample_) {
+      throw std::out_of_range("Sample index out of range in inject_pe: " 
+        + std::to_string(isample) + " >= " + std::to_string(nsample_));
+    }
+    pe_waveform_(isample, ipix) += amplitude;
+  }
+
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
   const Eigen::MatrixXd& v_waveform() const { return v_waveform_; }
 
@@ -536,11 +528,7 @@ private:
   double sampling_freq_ghz_;
   double time_advance_;
   bool pe_transform_valid_ = false;
-  fftw_plan fftw_plan_pe_fwd_;
-  fftw_plan fftw_plan_v_bwd_;
   Eigen::MatrixXd pe_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
-  Eigen::MatrixXd pe_transform_; // shape (nsample_, npix_): access as (it, ipix)
-  Eigen::MatrixXd v_transform_;  // shape (nsample_, npix_): access as (it, ipix)
   Eigen::MatrixXd v_waveform_;   // shape (nsample_, npix_): access as (it, ipix)
   std::vector<ImpulseResponse> impulse_responses_;
   RNG* rng_ = nullptr;
