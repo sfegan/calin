@@ -620,8 +620,8 @@ namespace {
     auto b_hi = b.get_high();
     do_one_256_swizzle_ps(a_lo,a_hi);
     do_one_256_swizzle_ps(b_lo,b_hi);
-    a = T(a_lo, b_lo);
-    b = T(a_hi, b_hi);
+    a = Vec16f(a_lo, b_lo);
+    b = Vec16f(a_hi, b_hi);
   }
 
   inline void do_one_512_swizzle_pd(Vec16f& a, Vec16f& b) {
@@ -631,8 +631,8 @@ namespace {
     auto b_hi = b.get_high();
     do_one_256_swizzle_pd(a_lo,a_hi);
     do_one_256_swizzle_pd(b_lo,b_hi);
-    a = T(a_lo, b_lo);
-    b = T(a_hi, b_hi);
+    a = Vec16f(a_lo, b_lo);
+    b = Vec16f(a_hi, b_hi);
   }
 
   inline void do_one_512_swizzle_pd(Vec8d& a, Vec8d& b) {
@@ -642,8 +642,8 @@ namespace {
     auto b_hi = b.get_high();
     do_one_256_swizzle_pd(a_lo,a_hi);
     do_one_256_swizzle_pd(b_lo,b_hi);
-    a = T(a_lo, b_lo);
-    b = T(a_hi, b_hi);
+    a = Vec8d(a_lo, b_lo);
+    b = Vec8d(a_hi, b_hi);
   }
 
   template<typename T> inline void do_one_512_swizzle_flt128(T& a, T& b) {
