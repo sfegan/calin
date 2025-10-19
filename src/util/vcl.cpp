@@ -613,7 +613,7 @@ namespace {
     b = T(a_hi, b_hi);
   }
 
-  inline void do_one_512_swizzle_ps(Vec8f& a, Vec8f& b) {
+  inline void do_one_512_swizzle_ps(Vec16f& a, Vec16f& b) {
     auto a_lo = a.get_low();
     auto b_lo = b.get_low();
     auto a_hi = a.get_high();
@@ -624,7 +624,7 @@ namespace {
     b = T(a_hi, b_hi);
   }
 
-  inline void do_one_512_swizzle_pd(Vec8f& a, Vec8f& b) {
+  inline void do_one_512_swizzle_pd(Vec16f& a, Vec16f& b) {
     auto a_lo = a.get_low();
     auto b_lo = b.get_low();
     auto a_hi = a.get_high();
@@ -635,7 +635,7 @@ namespace {
     b = T(a_hi, b_hi);
   }
 
-  inline void do_one_512_swizzle_pd(Vec4d& a, Vec4d& b) {
+  inline void do_one_512_swizzle_pd(Vec8d& a, Vec8d& b) {
     auto a_lo = a.get_low();
     auto b_lo = b.get_low();
     auto a_hi = a.get_high();
