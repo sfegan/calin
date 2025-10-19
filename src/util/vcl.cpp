@@ -848,14 +848,173 @@ void calin::util::vcl::transpose(Vec32us* x)
   std::swap(x[27], x[30]);
 }
 
-// void transpose(Vec16i* x);
-// void transpose(Vec16ui* x);
-// void transpose(Vec8q* x);
-// void transpose(Vec8uq* x);
-// void transpose(Vec16f* x);
-// void transpose(Vec8d* x);
+void calin::util::vcl::transpose(Vec16i* x)
+{
+  do_one_512_swizzle_32(x[0],   x[1]);
+  do_one_512_swizzle_32(x[2],   x[3]);
+  do_one_512_swizzle_32(x[4],   x[5]);
+  do_one_512_swizzle_32(x[6],   x[7]);
+  do_one_512_swizzle_32(x[8],   x[9]);
+  do_one_512_swizzle_32(x[10],  x[11]);
+  do_one_512_swizzle_32(x[12],  x[13]);
+  do_one_512_swizzle_32(x[14],  x[15]);
 
-#include<iostream>
+  do_one_512_swizzle_64(x[0],   x[2]);
+  do_one_512_swizzle_64(x[1],   x[3]);
+  do_one_512_swizzle_64(x[4],   x[6]);
+  do_one_512_swizzle_64(x[5],   x[7]);
+  do_one_512_swizzle_64(x[8],   x[10]);
+  do_one_512_swizzle_64(x[9],   x[11]);
+  do_one_512_swizzle_64(x[12],  x[14]);
+  do_one_512_swizzle_64(x[13],  x[15]);
+
+  do_one_512_swizzle_128(x[0],  x[4]);
+  do_one_512_swizzle_128(x[1],  x[5]);
+  do_one_512_swizzle_128(x[2],  x[6]);
+  do_one_512_swizzle_128(x[3],  x[7]);
+  do_one_512_swizzle_128(x[8],  x[12]);
+  do_one_512_swizzle_128(x[9],  x[13]);
+  do_one_512_swizzle_128(x[10], x[14]);
+  do_one_512_swizzle_128(x[11], x[15]);
+
+  do_one_512_swizzle_128(x[0],  x[8]);
+  do_one_512_swizzle_128(x[1],  x[9]);
+  do_one_512_swizzle_128(x[2],  x[10]);
+  do_one_512_swizzle_128(x[3],  x[11]);
+  do_one_512_swizzle_128(x[4],  x[12]);
+  do_one_512_swizzle_128(x[5],  x[13]);
+  do_one_512_swizzle_128(x[6],  x[14]);
+  do_one_512_swizzle_128(x[7],  x[15]);
+
+  std::swap(x[ 1], x[ 2]);
+  std::swap(x[ 5], x[ 6]);
+  std::swap(x[ 9], x[10]);
+  std::swap(x[13], x[14]);
+}
+
+void calin::util::vcl::transpose(Vec16ui* x)
+{
+  do_one_512_swizzle_32(x[0],   x[1]);
+  do_one_512_swizzle_32(x[2],   x[3]);
+  do_one_512_swizzle_32(x[4],   x[5]);
+  do_one_512_swizzle_32(x[6],   x[7]);
+  do_one_512_swizzle_32(x[8],   x[9]);
+  do_one_512_swizzle_32(x[10],  x[11]);
+  do_one_512_swizzle_32(x[12],  x[13]);
+  do_one_512_swizzle_32(x[14],  x[15]);
+
+  do_one_512_swizzle_64(x[0],   x[2]);
+  do_one_512_swizzle_64(x[1],   x[3]);
+  do_one_512_swizzle_64(x[4],   x[6]);
+  do_one_512_swizzle_64(x[5],   x[7]);
+  do_one_512_swizzle_64(x[8],   x[10]);
+  do_one_512_swizzle_64(x[9],   x[11]);
+  do_one_512_swizzle_64(x[12],  x[14]);
+  do_one_512_swizzle_64(x[13],  x[15]);
+
+  do_one_512_swizzle_128(x[0],  x[4]);
+  do_one_512_swizzle_128(x[1],  x[5]);
+  do_one_512_swizzle_128(x[2],  x[6]);
+  do_one_512_swizzle_128(x[3],  x[7]);
+  do_one_512_swizzle_128(x[8],  x[12]);
+  do_one_512_swizzle_128(x[9],  x[13]);
+  do_one_512_swizzle_128(x[10], x[14]);
+  do_one_512_swizzle_128(x[11], x[15]);
+
+  do_one_512_swizzle_128(x[0],  x[8]);
+  do_one_512_swizzle_128(x[1],  x[9]);
+  do_one_512_swizzle_128(x[2],  x[10]);
+  do_one_512_swizzle_128(x[3],  x[11]);
+  do_one_512_swizzle_128(x[4],  x[12]);
+  do_one_512_swizzle_128(x[5],  x[13]);
+  do_one_512_swizzle_128(x[6],  x[14]);
+  do_one_512_swizzle_128(x[7],  x[15]);
+
+  std::swap(x[ 1], x[ 2]);
+  std::swap(x[ 5], x[ 6]);
+  std::swap(x[ 9], x[10]);
+  std::swap(x[13], x[14]);
+}
+
+void calin::util::vcl::transpose(Vec8q* x)
+{
+  do_one_512_swizzle_64(x[0],   x[1]);
+  do_one_512_swizzle_64(x[2],   x[3]);
+  do_one_512_swizzle_64(x[4],   x[5]);
+  do_one_512_swizzle_64(x[6],   x[7]);
+
+  do_one_512_swizzle_128(x[0],  x[2]);
+  do_one_512_swizzle_128(x[1],  x[3]);
+  do_one_512_swizzle_128(x[4],  x[6]);
+  do_one_512_swizzle_128(x[5],  x[7]);
+
+  do_one_512_swizzle_128(x[0],  x[4]);
+  do_one_512_swizzle_128(x[1],  x[5]);
+  do_one_512_swizzle_128(x[2],  x[6]);
+  do_one_512_swizzle_128(x[3],  x[7]);
+}
+
+void calin::util::vcl::transpose(Vec8uq* x) 
+{
+  do_one_512_swizzle_64(x[0],   x[1]);
+  do_one_512_swizzle_64(x[2],   x[3]);
+  do_one_512_swizzle_64(x[4],   x[5]);
+  do_one_512_swizzle_64(x[6],   x[7]);
+
+  do_one_512_swizzle_128(x[0],  x[2]);
+  do_one_512_swizzle_128(x[1],  x[3]);
+  do_one_512_swizzle_128(x[4],  x[6]);
+  do_one_512_swizzle_128(x[5],  x[7]);
+
+  do_one_512_swizzle_128(x[0],  x[4]);
+  do_one_512_swizzle_128(x[1],  x[5]);
+  do_one_512_swizzle_128(x[2],  x[6]);
+  do_one_512_swizzle_128(x[3],  x[7]);
+}
+
+void calin::util::vcl::transpose(Vec16f* x)
+{
+  do_one_512_swizzle_ps(x[0],   x[1]);
+  do_one_512_swizzle_ps(x[2],   x[3]);
+  do_one_512_swizzle_ps(x[4],   x[5]);
+  do_one_512_swizzle_ps(x[6],   x[7]);
+  do_one_512_swizzle_ps(x[8],   x[9]);
+  do_one_512_swizzle_ps(x[10],  x[11]);
+  do_one_512_swizzle_ps(x[12],  x[13]);
+  do_one_512_swizzle_ps(x[14],  x[15]);
+
+  do_one_512_swizzle_pd(x[0],   x[2]);
+  do_one_512_swizzle_pd(x[1],   x[3]);
+  do_one_512_swizzle_pd(x[4],   x[6]);
+  do_one_512_swizzle_pd(x[5],   x[7]);
+  do_one_512_swizzle_pd(x[8],   x[10]);
+  do_one_512_swizzle_pd(x[9],   x[11]);
+  do_one_512_swizzle_pd(x[12],  x[14]);
+  do_one_512_swizzle_pd(x[13],  x[15]);
+
+  do_one_512_swizzle_flt128(x[0],  x[4]);
+  do_one_512_swizzle_flt128(x[1],  x[5]);
+  do_one_512_swizzle_flt128(x[2],  x[6]);
+  do_one_512_swizzle_flt128(x[3],  x[7]);
+  do_one_512_swizzle_flt128(x[8],  x[12]);
+  do_one_512_swizzle_flt128(x[9],  x[13]);
+  do_one_512_swizzle_flt128(x[10], x[14]);
+  do_one_512_swizzle_flt128(x[11], x[15]);
+
+  do_one_512_swizzle_flt128(x[0],  x[8]);
+  do_one_512_swizzle_flt128(x[1],  x[9]);
+  do_one_512_swizzle_flt128(x[2],  x[10]);
+  do_one_512_swizzle_flt128(x[3],  x[11]);
+  do_one_512_swizzle_flt128(x[4],  x[12]);
+  do_one_512_swizzle_flt128(x[5],  x[13]);
+  do_one_512_swizzle_flt128(x[6],  x[14]);
+  do_one_512_swizzle_flt128(x[7],  x[15]);
+
+  std::swap(x[ 1], x[ 2]);
+  std::swap(x[ 5], x[ 6]);
+  std::swap(x[ 9], x[10]);
+  std::swap(x[13], x[14]);
+}
 
 void calin::util::vcl::transpose(Vec8d* x)
 {

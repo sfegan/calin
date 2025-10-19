@@ -156,29 +156,59 @@ TEST(TestVCL, Transpose512_U16) {
       EXPECT_EQ(x[j][i], i*32+j);
 }
 
+TEST(TestVCL, Transpose512_U32) {
+  Vec16ui x[16];
+  for(unsigned i=0;i<16;i++)
+    x[i] = Vec16ui(i*16+0,i*16+1,i*16+2,i*16+3,i*16+4,i*16+5,i*16+6,i*16+7,
+      i*16+8,i*16+9,i*16+10,i*16+11,i*16+12,i*16+13,i*16+14,i*16+15);
+  transpose(x);
+  for(unsigned j=0;j<16;j++)
+    for(unsigned i=0;i<16;i++)
+      EXPECT_EQ(x[j][i], i*16+j);
+}
+
+TEST(TestVCL, Transpose512_U64) {
+  Vec8uq x[8];
+  for(unsigned i=0;i<8;i++)
+    x[i] = Vec8uq(i*8+0,i*8+1,i*8+2,i*8+3,i*8+4,i*8+5,i*8+6,i*8+7);
+  transpose(x);
+  for(unsigned j=0;j<8;j++)
+    for(unsigned i=0;i<8;i++)
+      EXPECT_EQ(x[j][i], i*8+j);
+}
+
+TEST(TestVCL, Transpose512_FLT) {
+  Vec16f x[16];
+  for(unsigned i=0;i<16;i++)
+    x[i] = Vec16f(i+0.00,i+0.01,i+0.02,i+0.03,i+0.04,i+0.05,i+0.06,i+0.07,
+                  i+0.08,i+0.09,i+0.10,i+0.11,i+0.12,i+0.13,i+0.14,i+0.15);
+  // for(unsigned j=0;j<16;j++) {
+  //   for(unsigned i=0;i<16;i++) {
+  //     std::cout  << " " << std::fixed << std::setw(5) << std::setprecision(2) << x[j][i];
+  //   }
+  //   std::cout << '\n';
+  // }
+  transpose(x);
+  // std::cout << "\n";
+  // for(unsigned j=0;j<16;j++) {
+  //   for(unsigned i=0;i<16;i++) {
+  //     std::cout  << " " << std::fixed << std::setw(5) << std::setprecision(5) << x[j][i];
+  //   }
+  //   std::cout << '\n';
+  // }
+  for(unsigned j=0;j<16;j++)
+    for(unsigned i=0;i<16;i++)
+      EXPECT_NEAR(x[j][i], i+0.01*j, 0.001);
+}
+
 TEST(TestVCL, Transpose512_DBL) {
   Vec8d x[8];
-
   for(unsigned i=0;i<8;i++)
     x[i] = Vec8d(i+0,i+0.1,i+0.2,i+0.3,i+0.4,i+0.5,i+0.6,i+0.7);
-  for(unsigned j=0;j<8;j++) {
-    for(unsigned i=0;i<8;i++) {
-      std::cout << " " << x[j][i];
-    }
-    std::cout << '\n';
-  }
   transpose(x);
-  std::cout << "\n";
-  for(unsigned j=0;j<8;j++) {
-    for(unsigned i=0;i<8;i++) {
-      std::cout << " " << x[j][i];
-    }
-    std::cout << '\n';
-  }
-
-  // for(unsigned j=0;j<8;j++)
-  //   for(unsigned i=0;i<8;i++)
-  //     EXPECT_NEAR(x[j][i], i+0.1*j, 0.01);
+  for(unsigned j=0;j<8;j++)
+    for(unsigned i=0;i<8;i++)
+      EXPECT_NEAR(x[j][i], i+0.1*j, 0.01);
 }
 
 int main(int argc, char **argv) {
