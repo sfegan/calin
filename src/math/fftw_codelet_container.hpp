@@ -20,7 +20,7 @@
 
 */
 
-namespace {
+namespace calin::math::fftw_codelet_container {
 
   template<typename VCLReal> class alignas(VCLReal::vec_bytes) FFTWCodelet_Container
   {
@@ -235,25 +235,25 @@ namespace {
 #undef DK
 #undef MAKE_R2HC
 #undef MAKE_HC2R
-}
+} // namespace calin::math::fftw_codelet_container
 
 template<typename VCLReal> bool 
 calin::math::fftw_util::FFTWCodelet<VCLReal>::has_codelet(unsigned size)
 {
-  FFTWCodelet_Container<VCLReal> fftwcc;
+  calin::math::fftw_codelet_container::FFTWCodelet_Container<VCLReal> fftwcc;
   return fftwcc.has_codelet(size);
 }
 
 template<typename VCLReal> void 
 calin::math::fftw_util::FFTWCodelet<VCLReal>::r2hc(unsigned size, const float_type* r, float_type* c)
 {
-  FFTWCodelet_Container<VCLReal> fftwcc;
+  calin::math::fftw_codelet_container::FFTWCodelet_Container<VCLReal> fftwcc;
   return fftwcc.r2hc(size, r, c);
 }
 
 template<typename VCLReal> void 
 calin::math::fftw_util::FFTWCodelet<VCLReal>::hc2r(unsigned size, const float_type* c, float_type* r)
 {
-  FFTWCodelet_Container<VCLReal> fftwcc;
+  calin::math::fftw_codelet_container::FFTWCodelet_Container<VCLReal> fftwcc;
   return fftwcc.hc2r(size, c, r);
 }

@@ -27,5 +27,10 @@
 
 #include "fftw_codelet_container.hpp"
 
-template class FFTWCodelet_Container<calin::util::vcl::VCL256DoubleReal>;
-template class calin::math::fftw_util::FFTWCodelet<calin::util::vcl::VCL256DoubleReal>;
+namespace calin::math::fftw_codelet_container {
+   template class FFTWCodelet_Container<calin::util::vcl::VCL256DoubleReal>;
+}
+
+namespace calin::math::fftw_util {
+   template class FFTWCodelet<calin::util::vcl::VCL256DoubleReal>;
+}
