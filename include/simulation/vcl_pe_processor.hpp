@@ -137,6 +137,8 @@ public:
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
   {
+    // Non-vectorized version - a vectorized version would have to use scatter/gather
+    // possibly not worth it
     double t_max = double(nsample_);
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       double rate_samples = sampling_freq_ghz_/nsb_freq_per_pixel_ghz[ipix];
@@ -170,6 +172,11 @@ public:
     }
   }
 
+  // ==========================================================================
+  // **************************************************************************
+  // OBSOLETE - use vectorized version
+  // **************************************************************************
+  // ==========================================================================
   void estimate_pes_in_window_scalar(Eigen::VectorXd& pes_per_channel_in_window,
     unsigned window_size, unsigned window_start=0)
   {
@@ -317,7 +324,7 @@ public:
     // 3. Calculate FFT of response function
     ir.transform.resize(nsample_);
     fftw_plan plan = fftw_plan_r2r_1d(nsample_, &ir.response[0], &ir.transform[0],
-        FFTW_R2HC, FFTW_ESTIMATE);
+        FFTW_R2HC, FFTW_MEASURE);
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
@@ -378,11 +385,11 @@ public:
     validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
 
-    double* a_vec = calin::util::memory::aligned_calloc<double>(nsample_);
-    double* b_vec = calin::util::memory::aligned_calloc<double>(nsample_);
+    double* a_vec = fftw_alloc_real(nsample_);
+    double* b_vec = fftw_alloc_real(nsample_);
 
-    fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_ESTIMATE);
-    fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_ESTIMATE);
+    fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_MEASURE);
+    fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_MEASURE);
 
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       std::copy(&pe_waveform_(0,ipix), &pe_waveform_(0,ipix)+nsample_, a_vec);
@@ -398,8 +405,8 @@ public:
 
     fftw_destroy_plan(bwd);
     fftw_destroy_plan(fwd);
-    free(a_vec);
-    free(b_vec);
+    fftw_free(a_vec);
+    fftw_free(b_vec);
   }
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
@@ -508,10 +515,10 @@ public:
 
   std::string fftw_plans_summary() const
   {
-    double* a_vec = calin::util::memory::aligned_calloc<double>(nsample_);
-    double* b_vec = calin::util::memory::aligned_calloc<double>(nsample_);
-    fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_ESTIMATE);
-    fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_ESTIMATE);
+    double* a_vec = fftw_alloc_real(nsample_);
+    double* b_vec = fftw_alloc_real(nsample_);
+    fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_MEASURE);
+    fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_MEASURE);
 
     std::string os;
     char* s = fftw_sprint_plan(fwd);
@@ -527,8 +534,8 @@ public:
 
     fftw_destroy_plan(bwd);
     fftw_destroy_plan(fwd);
-    free(a_vec);
-    free(b_vec);
+    fftw_free(a_vec);
+    fftw_free(b_vec);
 
     return os;
   }
