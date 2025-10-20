@@ -108,9 +108,8 @@ public:
     validate_iscope_ipix(iscope, 0);
     double t0 = get_t0_for_scope(iscope);    
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      for(unsigned it=0; it<nsample_; ++it) {
-        pe_waveform_(it, ipix) = 0;
-      }
+      double *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
+      std::fill(pe_waveform_ptr_, pe_waveform_ptr_+nsample_, 0);
       auto pd = scopes_[iscope].pixel_data[ipix];
       if(pd==nullptr) {
         continue;
@@ -123,17 +122,16 @@ public:
           wt += pd->w[ipe];
         } else {
           if(it>=0 and it<int(nsample_)) {
-            pe_waveform_(it, ipix) += wt;
+            pe_waveform_ptr_[it] += wt;
           }
           it = jt;
           wt = pd->w[ipe];
         }
       }
       if(it>=0 and it<int(nsample_)) {
-        pe_waveform_(it, ipix) += wt;
+        pe_waveform_ptr_[it] += wt;
       }
     }
-    pe_transform_valid_ = false;
   }
 
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
@@ -146,6 +144,7 @@ public:
         continue;
       }
 
+      double *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
       double t_samples = 0;
       while(t_samples < t_max) {
         double_vt dt_samples = rng_->exponential_double() * rate_samples;
@@ -159,20 +158,19 @@ public:
         charge.store(charge_a);
         for(unsigned insb=0; insb<VCLArchitecture::num_double; ++insb) {
           t_samples += dt_samples_a[insb];
-          if(t_samples >= double(nsample_)) {
+          if(t_samples >= t_max) {
             goto next_pixel;
           }
           int it = int(floor(t_samples));
-          pe_waveform_(it, ipix) += charge_a[insb];
+          pe_waveform_ptr_[it] += charge_a[insb];
         }
       }
       next_pixel:
       ;
     }
-    pe_transform_valid_ = false;
   }
 
-  void estimate_pes_in_window(Eigen::VectorXd& pes_per_channel_in_window,
+  void estimate_pes_in_window_scalar(Eigen::VectorXd& pes_per_channel_in_window,
     unsigned window_size, unsigned window_start=0)
   {
     if(window_size == 0) {
@@ -204,6 +202,67 @@ public:
         max_integral = std::max(max_integral, integral);
       }
       pes_per_channel_in_window(ipix) = max_integral;
+    }
+  }
+
+  void estimate_pes_in_window(Eigen::VectorXd& pes_per_channel_in_window,
+    unsigned window_size, unsigned window_start=0)
+  {
+    if(window_size == 0) {
+      throw std::out_of_range("Window size must be non-zero");
+    }
+    if(window_size > nsample_) {
+      throw std::out_of_range("Window size longer than samples array: " + 
+        std::to_string(window_start) + ">" + std::to_string(nsample_));
+    }
+    if(window_size+window_start > nsample_) {
+      throw std::out_of_range("End of window exceeds samples array: " + 
+        std::to_string(window_size+window_start) + ">" + std::to_string(nsample_));
+    }
+    if(nsample_ % VCLArchitecture::num_double != 0) {
+      throw std::domain_error("Number of samples " + std::to_string(nsample_) 
+        + " is not a multiple of vector size " 
+        + std::to_string(VCLArchitecture::num_double));
+    }
+    pes_per_channel_in_window.resize(npix_);
+
+    unsigned isample0 = window_start - window_start%VCLArchitecture::num_double;
+    double_vt* a_vec = calin::util::memory::aligned_calloc<double_vt>(nsample_);
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLArchitecture::num_double) {
+      // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
+      for(unsigned isample=isample0; isample<nsample_; isample+=VCLArchitecture::num_double) {
+        double_vt block[VCLArchitecture::num_double]; // square matrix of doubles
+        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
+          block[jpix].load_a(pe_waveform_.data() + (ipix+jpix)*nsample_ + isample);
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jsample = 0; jsample<VCLArchitecture::num_double; jsample++) {
+          a_vec[isample+jsample] = block[jsample];
+        }
+      }
+
+      double_vt max_integral = 0;
+      double_vt integral = 0;
+
+      double_vt *__restrict__ iptr = a_vec + window_start;
+      double_vt *__restrict__ jptr = iptr;
+      double_vt *__restrict__ zptr = iptr + window_size;
+      while(iptr < zptr) {
+        integral += *(iptr++);
+      }
+      zptr += nsample_ - window_size - window_start;
+      max_integral = integral;
+      while(iptr < zptr) {
+        integral += *(iptr++);
+        integral -= *(jptr++);
+        max_integral = vcl::max(max_integral, integral);
+      }
+
+      double_at max_integral_array;
+      max_integral.store(max_integral_array);
+      for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
+        pes_per_channel_in_window(ipix+jpix) = max_integral_array[jpix];
+      }
     }
   }
 
@@ -445,7 +504,6 @@ public:
   {
     pe_waveform_.setZero();
     v_waveform_.setZero();
-    pe_transform_valid_ = false;
   }
 
   std::string fftw_plans_summary() const
@@ -527,7 +585,6 @@ private:
   double time_resolution_ns_;
   double sampling_freq_ghz_;
   double time_advance_;
-  bool pe_transform_valid_ = false;
   Eigen::MatrixXd pe_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
   Eigen::MatrixXd v_waveform_;   // shape (nsample_, npix_): access as (it, ipix)
   std::vector<ImpulseResponse> impulse_responses_;
