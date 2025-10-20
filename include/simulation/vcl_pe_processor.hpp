@@ -278,6 +278,11 @@ public:
   {
     ImpulseResponse ir;
 
+    ir.response.resize(nsample_);
+    ir.transform.resize(nsample_);
+    fftw_plan plan = fftw_plan_r2r_1d(nsample_, &ir.response[0], &ir.transform[0],
+      FFTW_R2HC, FFTW_MEASURE);
+
     // 1. Store impulse response, truncating or extending if necessary
     ir.response_size = impulse_response.size();    
     if(ir.response_size>nsample_) {
@@ -287,7 +292,6 @@ public:
       ir.response_size = nsample_;
       ir.response = impulse_response.head(nsample_);
     } else {
-      ir.response.resize(nsample_);
       ir.response.setZero();
       ir.response.head(ir.response_size) = impulse_response;
     }
@@ -323,8 +327,6 @@ public:
 
     // 3. Calculate FFT of response function
     ir.transform.resize(nsample_);
-    fftw_plan plan = fftw_plan_r2r_1d(nsample_, &ir.response[0], &ir.transform[0],
-        FFTW_R2HC, FFTW_MEASURE);
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
@@ -333,6 +335,20 @@ public:
 
     impulse_responses_.emplace_back(ir);
     return impulse_responses_.size()-1;
+  }
+
+  Eigen::VectorXd impulse_response(unsigned impulse_response_id) const
+  {
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+    return ir.response;
+  }
+
+  Eigen::VectorXd impulse_response_fft(unsigned impulse_response_id) const
+  {
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+    return ir.transform;
   }
 
   std::string impulse_response_summary(unsigned impulse_response_id) const
@@ -359,7 +375,7 @@ public:
   
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       double *__restrict__ v_waveform_ptr = &v_waveform_(0, ipix);
-      if(ipix<pedestal.size()) {
+      if(ipix<pedestal.size())  {
         std::fill(v_waveform_ptr, v_waveform_ptr + nsample_, pedestal[ipix]);
       } else {
         std::fill(v_waveform_ptr, v_waveform_ptr + nsample_, 0.0);
