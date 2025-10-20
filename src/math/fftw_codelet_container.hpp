@@ -115,13 +115,13 @@ namespace calin::math::fftw_codelet_container {
     }
 
   #define MAKE_R2HC(n) \
-    void r2hc_##n(const float_type* r, float_type* c) { \
-      dft_codelet_r2cf_##n(const_cast<float_type*>(r), const_cast<float_type*>(r+1), c, c+n, 2, 1, -1, 1, 0, 0); \
+    inline void r2hc_##n(const float_type* r, float_type* c) { \
+      dft_codelet_r2hc_##n(r, r+1, c, c+n); \
     }
 
   #define MAKE_HC2R(n) \
-    void hc2r_##n(const float_type* c, float_type* r) { \
-      dft_codelet_r2cb_##n(r, r+1, const_cast<float_type*>(c), const_cast<float_type*>(c+n), 2, 1, -1, 1, 0, 0); \
+    inline void hc2r_##n(const float_type* c, float_type* r) { \
+      dft_codelet_hc2r_##n(r, r+1, c, c+n); \
     }
 
     MAKE_R2HC(8);
@@ -171,7 +171,9 @@ namespace calin::math::fftw_codelet_container {
     using INT               = int;
     using stride            = int;
 
-    inline int WS(const stride s, const stride i) { return s*i; }
+    inline int WSR(const stride i) { return 2*i; }
+    inline int WSCR(stride i) { return i; }
+    inline int WSCI(stride i) { return -i; }
 
     inline E ADD(const E& a, const E& b) { return a+b; }
     inline E SUB(const E& a, const E& b) { return a-b; }
@@ -190,46 +192,46 @@ namespace calin::math::fftw_codelet_container {
 
     inline E ZERO() { return 0; }
 
-  #include "../../src/math/genfft_codelets/dft_r2cf_8.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_8.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_12.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_12.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_15.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_15.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_16.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_16.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_18.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_18.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_20.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_20.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_24.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_24.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_28.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_28.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_30.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_30.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_32.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_32.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_36.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_36.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_40.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_40.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_48.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_48.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_56.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_56.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_60.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_60.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_64.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_64.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_128.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_128.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_256.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_256.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_512.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_512.c"
-  #include "../../src/math/genfft_codelets/dft_r2cf_1024.c"
-  #include "../../src/math/genfft_codelets/dft_r2cb_1024.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_8.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_8.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_12.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_12.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_15.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_15.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_16.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_16.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_18.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_18.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_20.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_20.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_24.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_24.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_28.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_28.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_30.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_30.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_32.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_32.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_36.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_36.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_40.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_40.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_48.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_48.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_56.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_56.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_60.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_60.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_64.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_64.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_128.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_128.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_256.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_256.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_512.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_512.c"
+  #include "../../src/math/genfft_codelets/dft_r2hc_1024.c"
+  #include "../../src/math/genfft_codelets/dft_hc2r_1024.c"
   };
 
 #undef DK
