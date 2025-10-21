@@ -1264,6 +1264,8 @@ do_propagate_rays_for_detector(DetectorInfo* detector)
 
     if(detector->pe_time_spread > 0) {
       fp_parameters.fplane_t += this->rng_->normal_double() * detector->pe_time_spread;
+    } else if (detector->pe_time_spread < 0) {
+      fp_parameters.fplane_t += this->rng_->uniform_double_zc(detector->pe_time_spread);
     }
 
     fp_parameters.fplane_x.store(fplane_x);
@@ -1669,12 +1671,17 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
     if(ipropagator->pe_generator != nullptr) {
       banner = ipropagator->pe_generator->banner("- "+ipropagator->name+": ", "  ");
     }
-    if(ipropagator->pe_time_spread > 0) {
+    if(ipropagator->pe_time_spread != 0.0) {
       if(banner == "") {
         banner = "- "+ipropagator->name+":";
       }
-      banner += "\n  Time spread : Normal, RMS=" 
-        + double_to_string_with_commas(ipropagator->pe_time_spread,3) + " ns";
+      if(ipropagator->pe_time_spread > 0.0) {
+        banner += "\n  Time spread : Normal, RMS=" 
+          + double_to_string_with_commas(ipropagator->pe_time_spread,3) + " ns";
+      } else {  
+        banner += "\n  Time spread : Uniform, width=" 
+          + double_to_string_with_commas(-ipropagator->pe_time_spread,3) + " ns";        
+      }
     }
     if(banner != "") {
       bool banner_found = false;
