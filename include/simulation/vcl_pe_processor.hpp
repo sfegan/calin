@@ -79,18 +79,25 @@ public:
     pe_waveform_(nsample_, npix_), v_waveform_(nsample_, npix_), 
     rng_(rng), adopt_rng_(adopt_rng)
   {
-    if(rng_ == nullptr) {
-      rng_ = new RNG(__PRETTY_FUNCTION__, "VCLWaveformPEProcessor RNG");
-      adopt_rng_ = true;
+    if(nsample_ % VCLArchitecture::num_double != 0) {
+      throw std::domain_error("Number of samples " + std::to_string(nsample_) 
+        + " is not a multiple of vector size " 
+        + std::to_string(VCLArchitecture::num_double));
     }
 
     if((uintptr_t)(const void *)pe_waveform_.data() % VCLArchitecture::vec_bytes != 0) {
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "pe_waveform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
     }
+
     if((uintptr_t)(const void *)v_waveform_.data() % VCLArchitecture::vec_bytes != 0) {
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "v_waveform_ not aligned on " << VCLArchitecture::vec_bytes << " boundary.";
+    }
+
+    if(rng_ == nullptr) {
+      rng_ = new RNG(__PRETTY_FUNCTION__, "VCLWaveformPEProcessor RNG");
+      adopt_rng_ = true;
     }
   }
 
@@ -369,27 +376,40 @@ public:
   }
 
   void convolve_impulse_response(unsigned impulse_response_id, 
-    const Eigen::VectorXd& pedestal = Eigen::VectorXd())
+    const Eigen::VectorXd& pedestal = Eigen::VectorXd(), double white_noise_rms = 0.0)
   {
+    if(pedestal.size()!=0 and pedestal.size()!=npix_) {
+      throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
+        + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
     validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
   
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       double *__restrict__ v_waveform_ptr = &v_waveform_(0, ipix);
-      if(ipix<pedestal.size())  {
-        std::fill(v_waveform_ptr, v_waveform_ptr + nsample_, pedestal[ipix]);
-      } else {
-        std::fill(v_waveform_ptr, v_waveform_ptr + nsample_, 0.0);
-      } 
-      for(unsigned it=0; it<nsample_; ++it) {
-        double wt = pe_waveform_(it, ipix);
+      for(unsigned isample=0;isample<nsample_;isample+=VCLArchitecture::num_double) {
+        double_vt x;
+        if(pedestal.size()) {
+          x.load_a(&pedestal[isample]);
+        } else {
+          x = 0;
+        }
+        if(white_noise_rms != 0.0) {
+          x += white_noise_rms * rng_->normal_double();
+        }
+        x.store_a(v_waveform_ptr + isample);
+      }
+      
+      for(unsigned isample=0; isample<nsample_; ++isample) {
+        double wt = pe_waveform_(isample, ipix);
         if(wt==0) {
           continue;
         }
-        unsigned jmax = std::min(unsigned(ir.response_size), nsample_ - it);
-        double *__restrict__ v_waveform_ptr = &v_waveform_(it, ipix);
+        unsigned jmax = std::min(unsigned(ir.response_size), nsample_ - isample);
+        double *__restrict__ v_waveform_ptr = &v_waveform_(isample, ipix);
         const double *__restrict__ impulse_response_ptr = &ir.response[0];
-        for(unsigned jt=0; jt<jmax; ++jt) {
+        for(unsigned jsample=0; jsample<jmax; ++jsample) {
           *(v_waveform_ptr++) += wt * (*(impulse_response_ptr++));
         }
       }
@@ -397,33 +417,61 @@ public:
   }
 
   void convolve_impulse_response_fft(unsigned impulse_response_id,
-    const Eigen::VectorXd& pedestal = Eigen::VectorXd())
+    const Eigen::VectorXd& pedestal = Eigen::VectorXd(),
+    const Eigen::VectorXd& noise_spectrum = Eigen::VectorXd())
   {
+    if(pedestal.size()!=0 and pedestal.size()!=npix_) {
+      throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
+        + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(noise_spectrum.size()!=0 and noise_spectrum.size()!=nsample_) {
+      throw std::domain_error("Noise spectrum vector length is not equal to number of samples " 
+        + std::to_string(noise_spectrum.size()) + " != " + std::to_string(nsample_));
+    }
+
     validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
 
-    double* a_vec = fftw_alloc_real(nsample_);
-    double* b_vec = fftw_alloc_real(nsample_);
+    double* a_vec = calin::util::memory::aligned_calloc<double>(nsample_);
+    double* b_vec = calin::util::memory::aligned_calloc<double>(nsample_);
 
     fftw_plan fwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_R2HC, FFTW_MEASURE);
     fftw_plan bwd = fftw_plan_r2r_1d(nsample_, a_vec, b_vec, FFTW_HC2R, FFTW_MEASURE);
 
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       std::copy(&pe_waveform_(0,ipix), &pe_waveform_(0,ipix)+nsample_, a_vec);
+
       fftw_execute(fwd);
       calin::math::fftw_util::hcvec_scale_and_multiply(a_vec, b_vec, ir.transform.data(),
         nsample_, 1.0/nsample_);
+
       if(pedestal.size() > ipix) {
         a_vec[0] += pedestal(ipix);
       }
+
+      if(noise_spectrum.size()) {
+        for(unsigned isample=0;isample<nsample_;isample+=VCLArchitecture::num_double) {
+          double_vt x;
+          x.load(&noise_spectrum[isample]);
+          if(to_bits(x != 0.0)) {
+            x *= rng_->normal_double();
+            double_vt a;
+            a.load_a(&a_vec[isample]);
+            a += x;
+            a.store_a(&a_vec[isample]);
+          }
+        }
+      }
+
       fftw_execute(bwd);
       std::copy(b_vec, b_vec+nsample_, &v_waveform_(0,ipix));
     }
 
     fftw_destroy_plan(bwd);
     fftw_destroy_plan(fwd);
-    fftw_free(a_vec);
-    fftw_free(b_vec);
+    free(a_vec);
+    free(b_vec);
   }
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
@@ -434,12 +482,6 @@ public:
     if(!fft.has_codelet(nsample_)) {
       throw std::domain_error("FFTW codelet for size " + std::to_string(nsample_) 
         + " not available.");
-    }
-
-    if(nsample_ % VCLArchitecture::num_double != 0) {
-      throw std::domain_error("Number of samples " + std::to_string(nsample_) 
-        + " is not a multiple of vector size " 
-        + std::to_string(VCLArchitecture::num_double));
     }
 
     if(pedestal.size()!=0 and pedestal.size()!=npix_) {
