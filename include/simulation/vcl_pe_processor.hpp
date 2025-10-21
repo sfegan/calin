@@ -30,6 +30,7 @@
 #include <util/vcl.hpp>
 #include <util/memory.hpp>
 #include <util/string.hpp>
+#include <math/special.hpp>
 #include <math/ray_vcl.hpp>
 #include <math/rng_vcl.hpp>
 #include <math/geometry_vcl.hpp>
@@ -426,7 +427,8 @@ public:
   }
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
-    const Eigen::VectorXd& pedestal = Eigen::VectorXd())
+    const Eigen::VectorXd& pedestal = Eigen::VectorXd(),
+    const Eigen::VectorXd& noise_spectrum = Eigen::VectorXd())
   {
     calin::math::fftw_util::FFTWCodelet<typename VCLArchitecture::double_real> fft;
     if(!fft.has_codelet(nsample_)) {
@@ -443,6 +445,11 @@ public:
     if(pedestal.size()!=0 and pedestal.size()!=npix_) {
       throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
         + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(noise_spectrum.size()!=0 and noise_spectrum.size()!=nsample_) {
+      throw std::domain_error("Noise spectrum vector length is not equal to number of samples " 
+        + std::to_string(noise_spectrum.size()) + " != " + std::to_string(nsample_));
     }
 
     validate_impulse_response_id(impulse_response_id);
@@ -486,6 +493,17 @@ public:
         *a_vec += ped;
       }
 
+      // Add Gaussian noise with given spectrum
+      if(noise_spectrum.size()) {
+        for(unsigned isample=0; isample<nsample_; isample++) {
+          double_vt x = noise_spectrum[isample];
+          if(x[0]) {
+            x *= rng_->normal_double();
+            a_vec[isample] += x;
+          }
+        }
+      }
+
       // Do inverse-FFT of "a_vec" into "b_vec"
       fft.hc2r(nsample_, a_vec, b_vec);
 
@@ -522,7 +540,6 @@ public:
     return offset;
   }
 
-
   void clear_waveforms()
   {
     pe_waveform_.setZero();
@@ -556,7 +573,8 @@ public:
     return os;
   }
   
-  void inject_pe(unsigned ipix, unsigned isample, double amplitude = 1.0) {
+  void inject_pe(unsigned ipix, unsigned isample, double amplitude = 1.0) 
+  {
     if(ipix>=npix_) {
       throw std::out_of_range("Pixel index out of range in inject_pe: " 
         + std::to_string(ipix) + " >= " + std::to_string(npix_));
@@ -566,6 +584,27 @@ public:
         + std::to_string(isample) + " >= " + std::to_string(nsample_));
     }
     pe_waveform_(isample, ipix) += amplitude;
+  }
+
+  double noise_spectrum_var(const Eigen::VectorXd& noise_spectrum) const 
+  {
+    using calin::math::special::SQR;
+    if(noise_spectrum.size()!=nsample_) {
+      throw std::domain_error("Noise spectrum vector length is not equal to number of samples " 
+        + std::to_string(noise_spectrum.size()) + " != " + std::to_string(nsample_));
+    }
+    double var = SQR(noise_spectrum[0]);
+    for(unsigned i=1;i<nsample_;i++) {
+      var += SQR(noise_spectrum[i]);
+    }
+    return var;
+  }
+
+  Eigen::VectorXd spectral_frequencies_ghz(bool imaginary_negative = true) const 
+  {
+    Eigen::VectorXd freq(nsample_);
+    calin::math::fftw_util::hcvec_fftfreq(freq.data(), nsample_, time_resolution_ns_, imaginary_negative);
+    return freq;
   }
 
   const Eigen::MatrixXd& pe_waveform() const { return pe_waveform_; }
