@@ -595,7 +595,7 @@ public:
     }
     double var = SQR(noise_spectrum[0]);
     for(unsigned i=1;i<nsample_;i++) {
-      var += SQR(noise_spectrum[i]);
+      var += 2.0*SQR(noise_spectrum[i]);
     }
     return var;
   }
