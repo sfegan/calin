@@ -356,7 +356,7 @@ public:
     shifted_impulse_response.tail(std::min(iro.response_size, nsample_-ishift)) =
       iro.response.head(std::min(iro.response_size, nsample_-ishift)) * scale;
 
-    return register_impulse_response(shifted_impulse_response, iro.units);
+    return register_impulse_response(shifted_impulse_response, iro.units, iro.response_window_frac);
   }
   
   Eigen::VectorXd impulse_response(unsigned impulse_response_id) const
@@ -676,6 +676,7 @@ public:
 
       // Add Gaussian noise with given spectrum
       if(noise_spectrum.cols() == 1) {
+        // Unique noise specdtrum for all channels
         for(unsigned isample=0; isample<nsample_; isample++) {
           double_vt x = noise_spectrum(isample,0);
           if(x[0]) {
