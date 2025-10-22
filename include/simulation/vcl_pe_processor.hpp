@@ -345,6 +345,20 @@ public:
     return impulse_responses_.size()-1;
   }
 
+  unsigned copy_and_shift_impulse_response(unsigned impulse_response_id, 
+    unsigned ishift, double scale = 1.0)
+  {
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& iro = impulse_responses_[impulse_response_id];
+
+    Eigen::VectorXd shifted_impulse_response(std::min(iro.response_size+ishift, nsample_));
+    shifted_impulse_response.setZero();
+    shifted_impulse_response.tail(std::min(iro.response_size, nsample_-ishift)) =
+      iro.response.head(std::min(iro.response_size, nsample_-ishift)) * scale;
+
+    return register_impulse_response(shifted_impulse_response, iro.units);
+  }
+  
   Eigen::VectorXd impulse_response(unsigned impulse_response_id) const
   {
     validate_impulse_response_id(impulse_response_id);
@@ -563,6 +577,148 @@ public:
     }
     free(a_vec);
     free(b_vec);
+  }
+
+  void convolve_multiple_impulse_response_fftw_codelet(
+    const Eigen::VectorXi& impulse_response_id,
+    const Eigen::VectorXd& pedestal = Eigen::VectorXd(),
+    const Eigen::MatrixXd& noise_spectrum = Eigen::MatrixXd())
+  {
+    calin::math::fftw_util::FFTWCodelet<typename VCLArchitecture::double_real> fft;
+    if(!fft.has_codelet(nsample_)) {
+      throw std::domain_error("FFTW codelet for size " + std::to_string(nsample_) 
+        + " not available.");
+    }
+
+    if(impulse_response_id.size() != npix_) {
+      throw std::domain_error("Impulse response id vector length is not equal to number of pixels " 
+        + std::to_string(impulse_response_id.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(pedestal.size()!=0 and pedestal.size()!=npix_) {
+      throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
+        + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(noise_spectrum.size()!=0 and (noise_spectrum.rows()!=nsample_
+        or (noise_spectrum.cols()!=1 and noise_spectrum.cols()!=npix_))) {
+      throw std::domain_error("Noise spectrum matrix has incoorect size: [" 
+        + std::to_string(noise_spectrum.rows()) + "," + std::to_string(noise_spectrum.cols()) + "] != ["
+        + std::to_string(nsample_) + ",1] or ["
+        + std::to_string(nsample_) + "," + std::to_string(npix_) + "]");
+    }
+
+    int iri_max = std::numeric_limits<int>::min();
+    int iri_min = std::numeric_limits<int>::max();
+    for(unsigned ipix=0; ipix<npix_; ipix++) {
+      int iri = impulse_response_id(ipix);
+      iri_max = std::max(iri_max, iri);
+      iri_min = std::min(iri_min, iri);
+    }
+
+    validate_impulse_response_id(iri_max);
+    if(iri_min<0) {
+      throw std::out_of_range("Invalid impulse response id cannot be negative: " 
+        + std::to_string(iri_min));
+    }
+
+    double_vt* a_vec = calin::util::memory::aligned_calloc<double_vt>(nsample_);
+    double_vt* b_vec = calin::util::memory::aligned_calloc<double_vt>(nsample_);
+    double_vt* c_vec = calin::util::memory::aligned_calloc<double_vt>(nsample_);
+  
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLArchitecture::num_double) {
+      // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
+      for(unsigned isample=0; isample<nsample_; isample += VCLArchitecture::num_double) {
+        double_vt block[VCLArchitecture::num_double]; // square matrix of doubles
+        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
+          block[jpix].load_a(pe_waveform_.data() + (ipix+jpix)*nsample_ + isample);
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jsample = 0; jsample<VCLArchitecture::num_double; jsample++) {
+          a_vec[isample+jsample] = block[jsample];
+        }
+      }
+    
+      // Do FFT of "a_vec" into "b_vec"
+      fft.r2hc(nsample_, a_vec, b_vec);
+
+      // Load data from "impulse_respose" into "c_vec", block by block, transposing as we go along
+      for(unsigned isample=0; isample<nsample_; isample += VCLArchitecture::num_double) {
+        double_vt block[VCLArchitecture::num_double]; // square matrix of doubles
+        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
+          int irid = impulse_response_id[ipix + jpix];
+          block[jpix].load_a(impulse_responses_[irid].transform.data() + isample);
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jsample = 0; jsample<VCLArchitecture::num_double; jsample++) {
+          c_vec[isample+jsample] = block[jsample];
+        }
+      }
+
+      // Multiply FFT in "b_vec" by impulse response in "c_vec" and transfer back into "a_vec"
+      calin::math::fftw_util::hcvec_scale_and_multiply_non_overlapping(a_vec, b_vec, c_vec, 
+        nsample_, 1.0/nsample_);
+
+      // Add pedestal in frequency domain as DC offset before inverse transform
+      if(pedestal.size()) {
+        double_vt ped;
+        if(ipix + VCLArchitecture::num_double <= npix_) {
+          ped.load(pedestal.data() + ipix);
+        } else {
+          double_at ped_array;
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            ped_array[i] = pedestal(ipix+i);
+          }
+          ped.load(ped_array);
+        }
+        *a_vec += ped;
+      }
+
+      // Add Gaussian noise with given spectrum
+      if(noise_spectrum.cols() == 1) {
+        for(unsigned isample=0; isample<nsample_; isample++) {
+          double_vt x = noise_spectrum(isample,0);
+          if(x[0]) {
+            x *= rng_->normal_double();
+            a_vec[isample] += x;
+          }
+        }
+      } else if (noise_spectrum.size()) {
+        // Load data from "noise_spectrum", block by block, transposing as we go along
+        for(unsigned isample=0; isample<nsample_; isample += VCLArchitecture::num_double) {
+          double_vt block[VCLArchitecture::num_double]; // square matrix of doubles
+          for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
+            block[jpix].load_a(noise_spectrum.data() + (ipix+jpix)*nsample_ + isample);
+          }
+          calin::util::vcl::transpose(block);
+          for(unsigned jsample = 0; jsample<VCLArchitecture::num_double; jsample++) {
+            double_vt x = block[jsample];
+            if(to_bits(x != 0)) {
+              x *= rng_->normal_double();
+              a_vec[isample] += x;
+            }
+          }
+        }
+      }
+
+      // Do inverse-FFT of "a_vec" into "b_vec"
+      fft.hc2r(nsample_, a_vec, b_vec);
+
+      // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
+      for(unsigned isample=0; isample<nsample_; isample += VCLArchitecture::num_double) {
+        double_vt block[VCLArchitecture::num_double]; // square matrix of doubles
+        for(unsigned jsample = 0; jsample<VCLArchitecture::num_double; jsample++) {
+          block[jsample] = b_vec[isample+jsample];
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLArchitecture::num_double); jpix<mpix; jpix++) {
+          block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
+        }
+      }
+    }
+    free(a_vec);
+    free(b_vec);
+    free(c_vec);
   }
 
   Eigen::VectorXd ac_coupling_offset(unsigned impulse_response_id, 
