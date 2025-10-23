@@ -794,14 +794,11 @@ public:
     pe_waveform_(isample, ipix) += amplitude;
   }
 
-  void inject_poisson_pes(unsigned ipix, double lambda, double t0_samples,
+  void inject_n_pes(unsigned ipix, unsigned npe, double t0_samples,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
     double time_spread_ns = 0.0)
   {
-    calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
-    calin::math::rng::RNG scalar_rng(&scalar_core);
     double t0 = t0_samples;
-    unsigned npe = scalar_rng.poisson(lambda);
     double *__restrict__ pe_waveform_ptr = &pe_waveform_(0,ipix);
     while(npe) {
       double_vt t = t0;
@@ -831,6 +828,16 @@ public:
     }
   }
 
+  void inject_poisson_pes(unsigned ipix, double lambda, double t0_samples,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    double time_spread_ns = 0.0)
+  {
+    calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
+    calin::math::rng::RNG scalar_rng(&scalar_core);
+    unsigned npe = scalar_rng.poisson(lambda);
+    inject_n_pes(ipix, npe, t0_samples, pegen, time_spread_ns);
+  }
+
   void inject_poisson_pes(const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_samples, 
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
     double time_spread_ns = 0.0)
@@ -843,8 +850,10 @@ public:
       throw std::domain_error("t0_samples vector length is not equal to number of pixels " 
         + std::to_string(t0_samples.size()) + " != " + std::to_string(npix_));
     }
+    calin::math::rng::RNG& scalar_rng(rng_->scalar_rng());
     for(unsigned ipix=0; ipix<npix_; ipix++) {
-      inject_poisson_pes(ipix, lambda[ipix], t0_samples[ipix], pegen, time_spread_ns);
+      unsigned npe = scalar_rng.poisson(lambda[ipix]);
+      inject_n_pes(ipix, npe, t0_samples[ipix], pegen, time_spread_ns);
     }
   }
 
