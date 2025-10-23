@@ -108,24 +108,33 @@ public:
     }
   }
 
-  void transfer_scope_pes_to_waveform(unsigned iscope)
+  void transfer_scope_pes_to_waveform(unsigned iscope, const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd())
   {
     // Non-vectorized version. Takes advantage of "approximate" ordering of PEs
     // in time within each pixel to minimize memory accesses. Vectorized version
     // was more complex and was tested to be not much faster.
     validate_iscope_ipix(iscope, 0);
+    if(channel_time_offset_ns.size()!=0 or channel_time_offset_ns.size()!=npix_) {
+      throw std::domain_error("Time offset vector length is not equal to number of pixels " 
+        + std::to_string(channel_time_offset_ns.size()) + " != " + std::to_string(npix_));
+    }
+
     double t0 = get_t0_for_scope(iscope);    
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
+      double t0ipix = t0;
+      if(channel_time_offset_ns.size()) {
+        t0ipix -= channel_time_offset_ns[ipix];
+      }
       double *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
       std::fill(pe_waveform_ptr_, pe_waveform_ptr_+nsample_, 0);
       auto pd = scopes_[iscope].pixel_data[ipix];
       if(pd==nullptr) {
         continue;
       }
-      int it = int(floor((pd->t[0] - t0) * sampling_freq_ghz_));
+      int it = int(floor((pd->t[0] - t0ipix) * sampling_freq_ghz_));
       double wt = pd->w[0];
       for(unsigned ipe=1; ipe<pd->npe; ++ipe) {
-        int jt = int(floor((pd->t[ipe] - t0) * sampling_freq_ghz_));
+        int jt = int(floor((pd->t[ipe] - t0ipix) * sampling_freq_ghz_));
         if(it==jt) {
           wt += pd->w[ipe];
         } else {
@@ -783,6 +792,60 @@ public:
         + std::to_string(isample) + " >= " + std::to_string(nsample_));
     }
     pe_waveform_(isample, ipix) += amplitude;
+  }
+
+  void inject_poisson_pes(unsigned ipix, double lambda, double t0_samples,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    double time_spread_ns = 0.0)
+  {
+    calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
+    calin::math::rng::RNG scalar_rng(&scalar_core);
+    double t0 = t0_samples;
+    unsigned npe = scalar_rng.poisson(lambda);
+    double *__restrict__ pe_waveform_ptr = &pe_waveform_(0,ipix);
+    while(npe) {
+      double_vt t = t0;
+      if(time_spread_ns > 0) {
+        t += rng_->normal_double() * time_spread_ns;
+      } else if (time_spread_ns < 0) {
+        t -= rng_->uniform_double_zc(time_spread_ns);
+      }        
+      double_vt q;
+      if(pegen) {
+        q = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
+      } else {
+        q = 1.0;
+      }        
+      int64_vt it = truncate_to_int64(t);
+
+      double_at q_a;
+      int64_at it_a;
+      q.store_a(q_a);
+      it.store_a(it_a);
+      for(unsigned jvec=0;jvec<VCLArchitecture::num_double && npe; jvec++,npe--) {
+        unsigned isample = it_a[jvec];
+        if(isample>=0 and isample<nsample_) {
+          pe_waveform_ptr[isample] += q[jvec];
+        }
+      }
+    }
+  }
+
+  void inject_poisson_pes(const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_samples, 
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    double time_spread_ns = 0.0)
+  {
+    if(lambda.size() != npix_) {
+      throw std::domain_error("Lambda vector length is not equal to number of pixels " 
+        + std::to_string(lambda.size()) + " != " + std::to_string(npix_));
+    }
+    if(t0_samples.size() != npix_) {
+      throw std::domain_error("t0_samples vector length is not equal to number of pixels " 
+        + std::to_string(t0_samples.size()) + " != " + std::to_string(npix_));
+    }
+    for(unsigned ipix=0; ipix<npix_; ipix++) {
+      inject_poisson_pes(ipix, lambda[ipix], t0_samples[ipix], pegen, time_spread_ns);
+    }
   }
 
   double noise_spectrum_var(const Eigen::VectorXd& noise_spectrum) const 
