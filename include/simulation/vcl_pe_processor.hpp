@@ -414,7 +414,7 @@ public:
       for(unsigned isample=0;isample<nsample_;isample+=VCLArchitecture::num_double) {
         double_vt x;
         if(pedestal.size()) {
-          x.load_a(&pedestal[isample]);
+          x = pedestal[ipix];
         } else {
           x = 0;
         }
