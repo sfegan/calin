@@ -871,7 +871,7 @@ public:
     return var;
   }
 
-  Eigen::VectorXd spectral_frequencies_ghz(bool imaginary_negative = true) const 
+  Eigen::VectorXd spectral_frequencies_ghz(bool imaginary_negative = false) const 
   {
     Eigen::VectorXd freq(nsample_);
     calin::math::fftw_util::hcvec_fftfreq(freq.data(), nsample_, time_resolution_ns_, imaginary_negative);
