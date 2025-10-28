@@ -119,6 +119,9 @@ public:
   {
     static constexpr unsigned num_double = VCLArchitecture::num_double;
     if(has_codelet_) {
+      std::vector<double> psd_w(nsamp_);
+      calin::math::fftw_util::hcvec_psd_weight(psd_w.data(), nsamp_);
+
       for(unsigned ichan=0; ichan<nchan_; ++ichan) {
         unsigned ichan_block = ichan / num_double;
         unsigned ichan_offset = ichan - ichan_block*num_double;
@@ -127,7 +130,7 @@ public:
         chan_results->set_dc_sum(chan_results->dc_sum() + dc_sum_hg_[ichan]);
         for(unsigned ifreq=0; ifreq<nfreq_; ++ifreq) {
           chan_results->set_psd_sum(ifreq, chan_results->psd_sum(ifreq) +
-            psd_sum_hg_[(ichan_block*nfreq_ + ifreq) * num_double + ichan_offset]);
+            psd_w[ifreq] * psd_sum_hg_[(ichan_block*nfreq_ + ifreq) * num_double + ichan_offset]);
         }
       }
 
@@ -140,7 +143,7 @@ public:
           chan_results->set_dc_sum(chan_results->dc_sum() + dc_sum_lg_[ichan]);
           for(unsigned ifreq=0; ifreq<nfreq_; ++ifreq) {
             chan_results->set_psd_sum(ifreq, chan_results->psd_sum(ifreq) +
-              psd_sum_lg_[(ichan_block*nfreq_ + ifreq) * num_double + ichan_offset]);
+              psd_w[ifreq] * psd_sum_lg_[(ichan_block*nfreq_ + ifreq) * num_double + ichan_offset]);
           }
         }
       }
