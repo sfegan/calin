@@ -36,7 +36,7 @@
 {
   static bool calin_python_to_eigen_flt_vec(PyObject* input, Eigen::VectorXf* vec)
   {
-    const int typecode = NPT_FLOAT;
+    const int typecode = NPY_FLOAT;
 
     if(!_swig_numpy_is_array(input))
       {
@@ -95,7 +95,7 @@
   static bool calin_eigen_flt_vec_to_python(Eigen::VectorXf* vec,
                                         PyObject* output)
   {
-    const int typecode = NPT_FLOAT;
+    const int typecode = NPY_FLOAT;
 
     if(!_swig_numpy_is_array(output))
       {
@@ -152,7 +152,7 @@
 {
   // typemap(out) const Eigen::VectorXf& -- calin_typemap_VectorXf.i
   npy_intp size[1] { $1->size() };
-  $result = PyArray_EMPTY(1, size, NPT_FLOAT, 0);
+  $result = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!$result)SWIG_fail;
   if(!calin_eigen_flt_vec_to_python($1, $result))SWIG_fail;
 }
@@ -203,7 +203,7 @@
 {
   // typemap(argout) Eigen::VectorXf &OUTPUT -- calin_typemap_VectorXf.i
   npy_intp size[1] { $1->size() };
-  PyObject* temp_array = PyArray_EMPTY(1, size, NPT_FLOAT, 0);
+  PyObject* temp_array = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!temp_array)SWIG_fail;
   if(!calin_eigen_flt_vec_to_python($1, temp_array))
   {
@@ -227,7 +227,7 @@
 {
   // typemap(argout) Eigen::VectorXf &INOUT -- calin_typemap_VectorXf.i
   npy_intp size[1] { $1->size() };
-  PyObject* temp_array = PyArray_EMPTY(1, size, NPT_FLOAT, 0);
+  PyObject* temp_array = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!temp_array)SWIG_fail;
   if(!calin_eigen_flt_vec_to_python($1, temp_array))
   {
@@ -243,7 +243,7 @@
 {
   // typemap(out) Eigen::VectorXf -- calin_typemap_VectorXf.i
   npy_intp size[1] { $1.size() };
-  $result = PyArray_EMPTY(1, size, NPT_FLOAT, 0);
+  $result = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!$result)SWIG_fail;
   if(!calin_eigen_flt_vec_to_python(&$1, $result))SWIG_fail;
 }
