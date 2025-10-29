@@ -24,10 +24,10 @@
 #include <stdint.h>
 #include <math/rng.hpp>
 
-#define ZIGGURAT_TYPE double
+#define ZIGGURAT_TYPE float
 
-namespace calin { namespace math { namespace rng { namespace gaussian_ziggurat {
+namespace calin { namespace math { namespace rng { namespace gaussian_ziggurat_float {
 
 #include "rng_gaussian_ziggurat.inc"
 
-} } } } // namespace calin::math::rng::gaussian_ziggurat
+} } } } // namespace calin::math::rng::gaussian_ziggurat_float
