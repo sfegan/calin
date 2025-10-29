@@ -45,6 +45,7 @@
 %import "calin_global_definitions.i"
 
 %import "math/ray.i"
+%import "util/vcl.i"
 %import "math/ray_generator.i"
 %import "math/moments_calc.i"
 
@@ -78,6 +79,14 @@
 %template (VCLWaveformPEProcessor128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL128Architecture>;
 %template (VCLWaveformPEProcessor256) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL256Architecture>;
 %template (VCLWaveformPEProcessor512) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL512Architecture>;
+
+%template (VCLWaveformPEProcessorDouble128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor_NEW<calin::util::vcl::VCL128DoubleReal>;
+%template (VCLWaveformPEProcessorDouble256) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor_NEW<calin::util::vcl::VCL256DoubleReal>;
+%template (VCLWaveformPEProcessorDouble512) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor_NEW<calin::util::vcl::VCL512DoubleReal>;
+
+%template (VCLWaveformPEProcessorFloat128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor_NEW<calin::util::vcl::VCL128FloatReal>;
+%template (VCLWaveformPEProcessorFloat256) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor_NEW<calin::util::vcl::VCL256FloatReal>;
+%template (VCLWaveformPEProcessorFloat512) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor_NEW<calin::util::vcl::VCL512FloatReal>;
 
 %template (VCLRayTracerRayProcessorDouble128) calin::simulation::vcl_ray_processor::VCLRayTracerRayProcessorDouble<calin::util::vcl::VCL128Architecture>;
 %template (VCLRayTracerRayProcessorDouble256) calin::simulation::vcl_ray_processor::VCLRayTracerRayProcessorDouble<calin::util::vcl::VCL256Architecture>;
