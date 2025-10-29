@@ -497,6 +497,14 @@ namespace gaussian_ziggurat {
   extern double yi[257];
 } // namespace calin::math::rng::gaussian_ziggurat
 
+namespace gaussian_ziggurat_float {
+  extern float v;
+  extern float r;
+  extern float r_inv;
+  extern float xi[257];
+  extern float yi[257];
+} // namespace calin::math::rng::gaussian_ziggurat_float
+
 namespace exponential_ziggurat {
   extern double v;
   extern double r;
