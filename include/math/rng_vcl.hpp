@@ -466,6 +466,13 @@ public:
     x = normal_float();
   }
 
+  template<typename VCLReal> inline typename VCLReal::real_vt normal_real()
+  {
+    typename VCLReal::real_vt x;
+    normal_real(x);
+    return x;
+  }
+
   double_vt normal_double_ziggurat()
   {
     constexpr uint64_t MASK_SIGN = 1ULL<<63;
