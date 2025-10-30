@@ -358,11 +358,16 @@ public:
   }
 
   void convolve_impulse_response(unsigned impulse_response_id, 
-    const vecX_t& pedestal = vecX_t(), double white_noise_rms = 0.0)
+    const vecX_t& pedestal = vecX_t(), const vecX_t& relative_gain = vecX_t(), double white_noise_rms = 0.0)
   {
     if(pedestal.size()!=0 and pedestal.size()!=npix_) {
       throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
         + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(relative_gain.size()!=0 and relative_gain.size()!=npix_) {
+      throw std::domain_error("Relative gain vector length is not equal to number of pixels " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(npix_));
     }
 
     validate_impulse_response_id(impulse_response_id);
@@ -384,8 +389,12 @@ public:
         x.store_a(v_waveform_ptr + isample);
       }
       
+      real_t gain = 1.0;
+      if(relative_gain.size()) {
+        gain = relative_gain[ipix];
+      }
       for(unsigned isample=0; isample<nsample_; ++isample) {
-        real_t wt = pe_waveform_ptr[isample];
+        real_t wt = gain * pe_waveform_ptr[isample];
         if(wt==0) {
           continue;
         }
@@ -401,11 +410,17 @@ public:
 
   void convolve_impulse_response_fft(unsigned impulse_response_id,
     const vecX_t& pedestal = vecX_t(),
+    const vecX_t& relative_gain = vecX_t(),
     const vecX_t& noise_spectrum = vecX_t())
   {
     if(pedestal.size()!=0 and pedestal.size()!=npix_) {
       throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
         + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(relative_gain.size()!=0 and relative_gain.size()!=npix_) {
+      throw std::domain_error("Relative gain vector length is not equal to number of pixels " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(npix_));
     }
 
     if(noise_spectrum.size()!=0 and noise_spectrum.size()!=nsample_) {
@@ -427,8 +442,14 @@ public:
       std::copy(&pe_waveform_(0,ipix), &pe_waveform_(0,ipix)+nsample_, a_vec);
 
       fwd.execute();
+
+      real_t gain = 1.0;
+      if(relative_gain.size()) {
+        gain = relative_gain[ipix];
+      }
+
       calin::math::fftw_util::hcvec_scale_and_multiply(a_vec, b_vec, ir.transform.data(),
-        nsample_, scale);
+        nsample_, scale*gain);
 
       if(pedestal.size() > ipix) {
         a_vec[0] += pedestal(ipix);
@@ -458,6 +479,7 @@ public:
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
     const vecX_t& pedestal = vecX_t(),
+    const vecX_t& relative_gain = vecX_t(),
     const vecX_t& noise_spectrum = vecX_t())
   {
     calin::math::fftw_util::FFTWCodelet<VCLReal> fft;
@@ -471,6 +493,11 @@ public:
         + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
     }
 
+    if(relative_gain.size()!=0 and relative_gain.size()!=npix_) {
+      throw std::domain_error("Relative gain vector length is not equal to number of pixels " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(npix_));
+    }
+
     if(noise_spectrum.size()!=0 and noise_spectrum.size()!=nsample_) {
       throw std::domain_error("Noise spectrum vector length is not equal to number of samples " 
         + std::to_string(noise_spectrum.size()) + " != " + std::to_string(nsample_));
@@ -481,6 +508,8 @@ public:
 
     real_vt* a_vec = calin::util::memory::aligned_calloc<real_vt>(nsample_);
     real_vt* b_vec = calin::util::memory::aligned_calloc<real_vt>(nsample_);
+
+    real_t scale = 1.0/nsample_;
 
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
       // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
@@ -498,9 +527,23 @@ public:
       // Do FFT of "a_vec" into "b_vec"
       fft.r2hc(nsample_, a_vec, b_vec);
 
-      // Multiply FFT in "b_vec" by impulse response back into "a_vec"
+      // Extract relative gain from array
+      real_vt gain = 1.0;
+      if(relative_gain.size()) {
+        if(ipix + VCLReal::num_real <= npix_) {
+          gain.load(relative_gain.data() + ipix);
+        } else {
+          real_at gain_array;
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            gain_array[i] = relative_gain(ipix+i);
+          }
+          gain.load(gain_array);
+        }
+      }
+
+      // Multiply FFT in "b_vec" by impulse response and gain, tranferring back into "a_vec"
       calin::math::fftw_util::hcvec_scale_and_multiply_non_overlapping(a_vec, b_vec, ir.transform.data(), 
-        nsample_, 1.0/nsample_);
+        nsample_, gain*scale);
 
       // Add pedestal in frequency domain as DC offset before inverse transform
       if(pedestal.size()) {
@@ -550,6 +593,7 @@ public:
   void convolve_multiple_impulse_response_fftw_codelet(
     const Eigen::VectorXi& impulse_response_id,
     const vecX_t& pedestal = vecX_t(),
+    const vecX_t& relative_gain = vecX_t(),
     const matX_t& noise_spectrum = matX_t())
   {
     calin::math::fftw_util::FFTWCodelet<VCLReal> fft;
@@ -566,6 +610,11 @@ public:
     if(pedestal.size()!=0 and pedestal.size()!=npix_) {
       throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
         + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+    
+    if(relative_gain.size()!=0 and relative_gain.size()!=npix_) {
+      throw std::domain_error("Relative gain vector length is not equal to number of pixels " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(npix_));
     }
 
     if(noise_spectrum.size()!=0 and (noise_spectrum.rows()!=nsample_
@@ -594,6 +643,8 @@ public:
     real_vt* b_vec = calin::util::memory::aligned_calloc<real_vt>(nsample_);
     real_vt* c_vec = calin::util::memory::aligned_calloc<real_vt>(nsample_);
   
+    real_t scale = 1.0/nsample_;
+
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
       // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
       for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
@@ -623,9 +674,23 @@ public:
         }
       }
 
-      // Multiply FFT in "b_vec" by impulse response in "c_vec" and transfer back into "a_vec"
+      // Extract relative gain from array
+      real_vt gain = 1.0;
+      if(relative_gain.size()) {
+        if(ipix + VCLReal::num_real <= npix_) {
+          gain.load(relative_gain.data() + ipix);
+        } else {
+          real_at gain_array;
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            gain_array[i] = relative_gain(ipix+i);
+          }
+          gain.load(gain_array);
+        }
+      }
+
+      // Multiply FFT in "b_vec" by impulse response in "c_vec" and gain, then transfer back into "a_vec"
       calin::math::fftw_util::hcvec_scale_and_multiply_non_overlapping(a_vec, b_vec, c_vec, 
-        nsample_, 1.0/nsample_);
+        nsample_, gain*scale);
 
       // Add pedestal in frequency domain as DC offset before inverse transform
       if(pedestal.size()) {
@@ -692,14 +757,24 @@ public:
 
   vecX_t ac_coupling_offset(unsigned impulse_response_id, 
     const vecX_t& nsb,
+    const vecX_t& relative_gain = vecX_t(),
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
   {
     validate_impulse_response_id(impulse_response_id);
+
+    if(relative_gain.size()!=0 and relative_gain.size()!=nsb.size()) {
+      throw std::domain_error("Relative gain and pedestal vectors must have same lengths " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(nsb.size()));
+    }
 
     vecX_t offset = nsb 
       * time_resolution_ns_ 
       * impulse_responses_[impulse_response_id].response.sum();
     
+    if(relative_gain.size()) {
+      offset *= relative_gain;
+    }
+
     if(pegen) {
       offset *= pegen->mean_amplitude();
     }
