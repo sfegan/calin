@@ -216,7 +216,10 @@ public:
   ~BlockSparseNSpace();
 
   BlockSparseNSpace(const BlockSparseNSpace& o);
+
+#ifndef SWIG
   BlockSparseNSpace& operator=(const BlockSparseNSpace& o);
+#endif // #ifndef SWIG
 
   BlockSparseNSpace& operator+=(const BlockSparseNSpace& o);
   BlockSparseNSpace& operator-=(const BlockSparseNSpace& o);
