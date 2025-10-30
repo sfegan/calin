@@ -1254,6 +1254,7 @@ public:
   
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       real_t *__restrict__ v_waveform_ptr = &v_waveform_(0, ipix);
+      real_t *__restrict__ pe_waveform_ptr = &pe_waveform_(0, ipix);
       for(unsigned isample=0;isample<nsample_;isample+=VCLReal::num_real) {
         real_vt x;
         if(pedestal.size()) {
@@ -1268,15 +1269,15 @@ public:
       }
       
       for(unsigned isample=0; isample<nsample_; ++isample) {
-        double wt = pe_waveform_(isample, ipix);
+        real_t wt = pe_waveform_ptr[isample];
         if(wt==0) {
           continue;
         }
         unsigned jmax = std::min(unsigned(ir.response_size), nsample_ - isample);
-        real_t *__restrict__ v_waveform_ptr = &v_waveform_(isample, ipix);
+        real_t *__restrict__ w_waveform_ptr = v_waveform_ptr + isample;
         const real_t *__restrict__ impulse_response_ptr = &ir.response[0];
         for(unsigned jsample=0; jsample<jmax; ++jsample) {
-          *(v_waveform_ptr++) += wt * (*(impulse_response_ptr++));
+          *(w_waveform_ptr++) += wt * (*(impulse_response_ptr++));
         }
       }
     }
