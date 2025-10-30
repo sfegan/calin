@@ -152,6 +152,11 @@ public:
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
   {
+    if(nsb_freq_per_pixel_ghz.size() != int(npix_)) {
+      throw std::domain_error("NSB frequency vector length is not equal to number of pixels " 
+        + std::to_string(nsb_freq_per_pixel_ghz.size()) + " != " + std::to_string(npix_));
+    }
+
     // Non-vectorized version - a vectorized version would have to use scatter/gather
     // possibly not worth it
     double t_max = double(nsample_);
@@ -755,31 +760,61 @@ public:
     free(c_vec);
   }
 
-  vecX_t ac_coupling_offset(unsigned impulse_response_id, 
-    const vecX_t& nsb,
+  vecX_t ac_coupling_offset(const Eigen::VectorXi& impulse_response_id, 
+    const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
     const vecX_t& relative_gain = vecX_t())
   {
-    validate_impulse_response_id(impulse_response_id);
-
-    if(relative_gain.size()!=0 and relative_gain.size()!=nsb.size()) {
-      throw std::domain_error("Relative gain and pedestal vectors must have same lengths " 
-        + std::to_string(relative_gain.size()) + " != " + std::to_string(nsb.size()));
+    int iri_max = std::numeric_limits<int>::min();
+    int iri_min = std::numeric_limits<int>::max();
+    for(unsigned ipix=0; ipix<impulse_response_id.size(); ipix++) {
+      int iri = impulse_response_id(ipix);
+      iri_max = std::max(iri_max, iri);
+      iri_min = std::min(iri_min, iri);
     }
 
-    vecX_t offset = nsb 
-      * time_resolution_ns_ 
-      * impulse_responses_[impulse_response_id].response.sum();
+    validate_impulse_response_id(iri_max);
+    if(iri_min<0) {
+      throw std::out_of_range("Invalid impulse response id cannot be negative: " 
+        + std::to_string(iri_min));
+    }
+
+    if(nsb_freq_per_pixel_ghz.size() != impulse_response_id.size()) {
+      throw std::domain_error("NSB frequency and impulse response vectors must have same size " 
+        + std::to_string(nsb_freq_per_pixel_ghz.size()) + " != " + std::to_string(impulse_response_id.size()));
+    }
+
+    if(relative_gain.size()!=0 and relative_gain.size()!=impulse_response_id.size()) {
+      throw std::domain_error("Relative gain and impulse response vectors must have same lengths " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(impulse_response_id.size()));
+    }
+
+    double pe_amp = 1.0;
+    if(pegen) {
+      pe_amp = pegen->mean_amplitude();
+    }
+
+    vecX_t offset = (nsb_freq_per_pixel_ghz * time_resolution_ns_ * pe_amp).cast<real_t>();
+
+    for(unsigned iir=0; iir<impulse_response_id.size(); iir++) {
+      offset[iir] *= impulse_responses_[impulse_response_id[iir]].response.sum();
+    }
     
     if(relative_gain.size()) {
       offset *= relative_gain;
     }
 
-    if(pegen) {
-      offset *= pegen->mean_amplitude();
-    }
-
     return offset;
+  }
+
+  vecX_t ac_coupling_offset(int impulse_response_id, 
+    const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    const vecX_t& relative_gain = vecX_t())
+  {
+    Eigen::VectorXi all_impulse_response_id(nsb_freq_per_pixel_ghz.size());
+    all_impulse_response_id.setConstant(impulse_response_id);
+    return ac_coupling_offset(all_impulse_response_id, nsb_freq_per_pixel_ghz, pegen = nullptr,relative_gain);
   }
 
   void clear_waveforms()
@@ -918,7 +953,87 @@ public:
   const matX_t& pe_waveform() const { return pe_waveform_; }
   const matX_t& v_waveform() const { return v_waveform_; }
 
+  unsigned register_camera_response(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
+    const Eigen::VectorXi& impulse_response_id,
+    const vecX_t& pedestal,
+    const vecX_t& relative_gain,
+    const matX_t& noise_spectrum,
+    bool add_ac_coupling_offset,
+    bool adopt_pegen = false)
+  {
+    if(nsb_freq_per_pixel_ghz.size() != int(npix_)) {
+      throw std::domain_error("NSB frequency vector length is not equal to number of pixels " 
+        + std::to_string(nsb_freq_per_pixel_ghz.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(impulse_response_id.size() != 1 and impulse_response_id.size() != npix_) {
+      throw std::domain_error("Impulse response id must be scalar or vector of length equal to number of pixels " 
+        + std::to_string(impulse_response_id.size()) + " != 1 or " + std::to_string(npix_));
+    }
+
+    if(pedestal.size()!=0 and pedestal.size()!=npix_) {
+      throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
+        + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+    
+    if(relative_gain.size()!=0 and relative_gain.size()!=npix_) {
+      throw std::domain_error("Relative gain vector length is not equal to number of pixels " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(noise_spectrum.size()!=0 and (noise_spectrum.rows()!=nsample_
+        or (noise_spectrum.cols()!=1 and noise_spectrum.cols()!=npix_))) {
+      throw std::domain_error("Noise spectrum matrix has incoorect size: [" 
+        + std::to_string(noise_spectrum.rows()) + "," + std::to_string(noise_spectrum.cols()) + "] != ["
+        + std::to_string(nsample_) + ",1] or ["
+        + std::to_string(nsample_) + "," + std::to_string(npix_) + "]");
+    }
+
+    CameraResponse cr;
+    cr.nsb_freq_per_pixel_ghz    = nsb_freq_per_pixel_ghz;
+    cr.pegen                     = pegen;
+    cr.impulse_response_id       = impulse_response_id;
+    cr.pedestal                  = pedestal;
+    cr.relative_gain             = relative_gain;
+    cr.noise_spectrum            = noise_spectrum;
+    cr.adopt_pegen               = adopt_pegen;
+
+    if(add_ac_coupling_offset) {
+      vecX_t offset;
+      if(impulse_response_id.size() == 1) {
+        offset = ac_coupling_offset(impulse_response_id[0], nsb_freq_per_pixel_ghz, pegen, relative_gain);
+      } else {
+        offset = ac_coupling_offset(impulse_response_id, nsb_freq_per_pixel_ghz, pegen, relative_gain);
+      }
+      if(cr.pedestal.size() == 0) {
+        cr.pedestal = -offset;
+      } else {
+        cr.pedestal -= offset;
+      }
+    }
+    camera_responses_.emplace_back(std::move(cr));
+    return camera_responses_.size() - 1;
+  }
+
+  void convolve_camera_response_fftw_codelet(unsigned camera_response_id, bool add_nsb) 
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    if(add_nsb) {
+      add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.pegen);
+    }
+    if(cr.impulse_response_id.size() == 1) {
+      convolve_impulse_response_fftw_codelet(
+        cr.impulse_response_id[0], cr.pedestal, cr.relative_gain, cr.noise_spectrum);
+    } else {
+      convolve_multiple_impulse_response_fftw_codelet(
+        cr.impulse_response_id, cr.pedestal, cr.relative_gain, cr.noise_spectrum);
+    }
+  }
+
 private:
+#ifndef SWIG
   static inline unsigned round_nreal_to_vector(unsigned n) {
     return n + std::min(n%VCLReal::num_real, 1U);
   } 
@@ -932,6 +1047,14 @@ private:
       throw std::out_of_range("Invalid impulse response id: " 
         + std::to_string(impulse_response_id) 
         + " >= " + std::to_string(impulse_responses_.size()));
+    }
+  }
+
+  inline void validate_camera_response_id(unsigned camera_response_id) const {
+    if(camera_response_id >= camera_responses_.size()) {
+      throw std::out_of_range("Camera impulse response id: " 
+        + std::to_string(camera_response_id) 
+        + " >= " + std::to_string(camera_responses_.size()));
     }
   }
 
@@ -950,6 +1073,45 @@ private:
     std::string units = "";
   };
 
+  struct CameraResponse {
+    CameraResponse() = default;
+    CameraResponse(CameraResponse&& o): 
+      nsb_freq_per_pixel_ghz(o.nsb_freq_per_pixel_ghz),
+      pegen(o.pegen), impulse_response_id(o.impulse_response_id),
+      pedestal(std::move(o.pedestal)),
+      relative_gain(std::move(o.relative_gain)),
+      noise_spectrum(std::move(o.noise_spectrum)),
+      adopt_pegen(o.adopt_pegen)
+    {
+      o.pegen = nullptr;
+    }
+    CameraResponse& operator=(CameraResponse&& o) {
+      if(this != &o) {
+        nsb_freq_per_pixel_ghz = o.nsb_freq_per_pixel_ghz;
+        pegen = o.pegen;
+        impulse_response_id = o.impulse_response_id;
+        pedestal = std::move(o.pedestal);
+        relative_gain = std::move(o.relative_gain);
+        noise_spectrum = std::move(o.noise_spectrum);
+        adopt_pegen = o.adopt_pegen;
+        o.pegen = nullptr;
+      }
+      return *this;
+    }
+    ~CameraResponse() {
+      if(adopt_pegen) {
+        delete pegen;
+      }
+    }
+    Eigen::VectorXd nsb_freq_per_pixel_ghz;
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr;
+    Eigen::VectorXi impulse_response_id;
+    vecX_t pedestal;
+    vecX_t relative_gain;
+    matX_t noise_spectrum;
+    bool adopt_pegen = false;
+  };
+
   unsigned nsample_;
   unsigned nadvance_;
   double time_resolution_ns_;
@@ -958,8 +1120,10 @@ private:
   matX_t pe_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
   matX_t v_waveform_;   // shape (nsample_, npix_): access as (it, ipix)
   std::vector<ImpulseResponse> impulse_responses_;
+  std::vector<CameraResponse> camera_responses_;
   RNG* rng_ = nullptr;
   bool adopt_rng_ = false;
+#endif // ifndef SWIG
 };
 
 
