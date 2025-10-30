@@ -757,8 +757,8 @@ public:
 
   vecX_t ac_coupling_offset(unsigned impulse_response_id, 
     const vecX_t& nsb,
-    const vecX_t& relative_gain = vecX_t(),
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    const vecX_t& relative_gain = vecX_t())
   {
     validate_impulse_response_id(impulse_response_id);
 
