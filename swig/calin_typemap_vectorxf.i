@@ -1,6 +1,6 @@
 /*
 
-   calin/calin_typemaps_VectorXf.i -- Stephen Fegan -- 2017-01-19
+   calin/calin_typemaps_vectorxf.i -- Stephen Fegan -- 2025-10-29
 
    SWIG interface file for common calin typemaps : Eigen::VectorXf
 
@@ -143,14 +143,14 @@
 %typemap(in, fragment="Calin_Python_to_EigenFltVec")
      const Eigen::VectorXf& (Eigen::VectorXf temp)
 {
-  // typemap(in) const Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(in) const Eigen::VectorXf& -- calin_typemap_vectorxf.i
   $1 = &temp;
   if(!calin_python_to_eigen_flt_vec($input, $1))SWIG_fail;
 }
 
 %typemap(out, fragment="Calin_EigenFltVec_to_Python") const Eigen::VectorXf&
 {
-  // typemap(out) const Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(out) const Eigen::VectorXf& -- calin_typemap_vectorxf.i
   npy_intp size[1] { $1->size() };
   $result = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!$result)SWIG_fail;
@@ -159,13 +159,13 @@
 
 %typemap(argout) const Eigen::VectorXf&
 {
-  // typemap(argout) const Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(argout) const Eigen::VectorXf& -- calin_typemap_vectorxf.i
   // nothing to see here
 }
 
 %typemap(typecheck, precedence=5000) const Eigen::VectorXf&
 {
-  // typemap(typecheck) const Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(typecheck) const Eigen::VectorXf& -- calin_typemap_vectorxf.i
   $1 = _swig_numpy_is_array($input) ? 1 : 0;
 }
 
@@ -174,20 +174,20 @@
 %typemap(in, fragment="Calin_Python_to_EigenFltVec")
      Eigen::VectorXf& (Eigen::VectorXf temp)
 {
-  // typemap(in) Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(in) Eigen::VectorXf& -- calin_typemap_vectorxf.i
   $1 = &temp;
   if(!calin_python_to_eigen_flt_vec($input, $1))SWIG_fail;
 }
 
 %typemap(argout, fragment="Calin_EigenFltVec_to_Python") Eigen::VectorXf&
 {
-  // typemap(argout) Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(argout) Eigen::VectorXf& -- calin_typemap_vectorxf.i
   if(!calin_eigen_flt_vec_to_python($1, $input))SWIG_fail;
 }
 
 %typemap(typecheck, precedence=5000) Eigen::VectorXf&
 {
-  // typemap(typecheck) Eigen::VectorXf& -- calin_typemap_VectorXf.i
+  // typemap(typecheck) Eigen::VectorXf& -- calin_typemap_vectorxf.i
   $1 = _swig_numpy_is_array($input) ? 1 : 0;
 }
 
@@ -195,13 +195,13 @@
 
 %typemap(in, numinputs=0) Eigen::VectorXf &OUTPUT (Eigen::VectorXf temp)
 {
-  // typemap(in) Eigen::VectorXf &OUTPUT -- calin_typemap_VectorXf.i
+  // typemap(in) Eigen::VectorXf &OUTPUT -- calin_typemap_vectorxf.i
   $1 = &temp;
 }
 
 %typemap(argout, fragment="Calin_EigenFltVec_to_Python") Eigen::VectorXf &OUTPUT
 {
-  // typemap(argout) Eigen::VectorXf &OUTPUT -- calin_typemap_VectorXf.i
+  // typemap(argout) Eigen::VectorXf &OUTPUT -- calin_typemap_vectorxf.i
   npy_intp size[1] { $1->size() };
   PyObject* temp_array = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!temp_array)SWIG_fail;
@@ -218,14 +218,14 @@
 %typemap(in, fragment="Calin_Python_to_EigenFltVec")
   Eigen::VectorXf &INOUT (Eigen::VectorXf temp)
 {
-  // typemap(in) const Eigen::VectorXf &INOUT -- calin_typemap_VectorXf.i
+  // typemap(in) const Eigen::VectorXf &INOUT -- calin_typemap_vectorxf.i
   $1 = &temp;
   if(!calin_python_to_eigen_flt_vec($input, $1))SWIG_fail;
 }
 
 %typemap(argout, fragment="Calin_EigenFltVec_to_Python") Eigen::VectorXf &INOUT
 {
-  // typemap(argout) Eigen::VectorXf &INOUT -- calin_typemap_VectorXf.i
+  // typemap(argout) Eigen::VectorXf &INOUT -- calin_typemap_vectorxf.i
   npy_intp size[1] { $1->size() };
   PyObject* temp_array = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!temp_array)SWIG_fail;
@@ -241,7 +241,7 @@
 
 %typemap(out, fragment="Calin_EigenFltVec_to_Python") Eigen::VectorXf
 {
-  // typemap(out) Eigen::VectorXf -- calin_typemap_VectorXf.i
+  // typemap(out) Eigen::VectorXf -- calin_typemap_vectorxf.i
   npy_intp size[1] { $1.size() };
   $result = PyArray_EMPTY(1, size, NPY_FLOAT, 0);
   if(!$result)SWIG_fail;
@@ -250,6 +250,6 @@
 
 %typemap(typecheck, precedence=5000) Eigen::VectorXf
 {
-  // typemap(typecheck) Eigen::VectorXf -- calin_typemap_VectorXf.i
+  // typemap(typecheck) Eigen::VectorXf -- calin_typemap_vectorxf.i
   $1 = _swig_numpy_is_array($input) ? 1 : 0;
 }
