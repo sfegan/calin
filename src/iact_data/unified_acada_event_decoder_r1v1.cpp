@@ -106,7 +106,7 @@ decode(calin::ix::iact_data::telescope_event::TelescopeEvent* calin_event,
   {
     unsigned ngain = cta_event->num_channels();
     unsigned nsample = cta_event->num_samples();
-    if(cta_event->num_pixels() != nchan_configured_) {
+    if(int32_t(cta_event->num_pixels()) != nchan_configured_) {
       throw std::runtime_error("Unified_ACADACameraEventDecoder_R1v1::decode: "
         "Number of pixels in event (" + std::to_string(cta_event->num_pixels()) + 
         ") differs from header (" + std::to_string(nchan_configured_) + ")");
@@ -442,7 +442,7 @@ decode_run_config(
         calin_run_config->camera_layout().module_size(), -1);
       const uint16_t* mod_id = reinterpret_cast<const uint16_t*>(
         &cta_run_header->module_id_map().data().front());
-      for(unsigned imod=0;imod<nmod_configured_;imod++) {
+      for(int32_t imod=0;imod<nmod_configured_;imod++) {
         if(mod_id[imod] >= calin_run_config->configured_module_index_size()) {
           throw std::runtime_error("bool Unified_ACADACameraEventDecoder_R1v1::decode_run_config: "
             "module id out of range :" + std::to_string(mod_id[imod]));
@@ -469,7 +469,7 @@ decode_run_config(
         calin_run_config->camera_layout().channel_size(), -1);
       const uint16_t* chan_id = reinterpret_cast<const uint16_t*>(
         &cta_run_header->pixel_id_map().data().front());
-      for(unsigned ichan=0;ichan<nchan_configured_;ichan++) {
+      for(int32_t ichan=0;ichan<nchan_configured_;ichan++) {
         if(chan_id[ichan] >= calin_run_config->configured_channel_index_size()) {
           throw std::runtime_error("bool Unified_ACADACameraEventDecoder_R1v1::decode_run_config: "
             "channel id out of range :" + std::to_string(chan_id[ichan]));
@@ -557,7 +557,7 @@ copy_single_gain_waveforms(
   std::fill(cp+nsample*nchan_configured_*sizeof(int16_t), cp+calin_wf_raw_data_string->size(), int8_t(0));
   int16_t* calin_wf_raw_data = reinterpret_cast<int16_t*>(cp);
 
-  for(unsigned ichan=0;ichan<nchan_configured_;ichan++)
+  for(int32_t ichan=0;ichan<nchan_configured_;ichan++)
   {
     if(auto selected_gain_mask = cta_pixel_mask[ichan] & has_gain_mask) {
       std::copy(cta_waveforms, cta_waveforms+nsample, calin_wf_raw_data);

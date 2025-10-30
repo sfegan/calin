@@ -124,6 +124,7 @@ static StandardEllipse reference_ellipse[] = {
   { "WGS 1984",                "WE", 6378137,     ECC2(298.257223563) }
 };
 
+#if 0 // Suppress warning that "datum_transformation" unused
 static DatumTransformationParameters datum_transformation[] = {
 
   /* APPENDIX B */
@@ -562,6 +563,7 @@ static DatumTransformationParameters datum_transformation[] = {
   { "YACARE, Uruguay",                 "YAC",   ELLIPSE_IN, -155,  171,   37 },
 
 };
+#endif // #if 0
 
 const StandardEllipse* _precompiled_ellipse(EllipseID id)
 {

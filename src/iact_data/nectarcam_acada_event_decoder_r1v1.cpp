@@ -101,7 +101,7 @@ bool NectarCam_ACADACameraEventDecoder_R1v1::decode(
       calin_event->mutable_module_index()->Resize(nmod_configured_,-1);
       calin_event->mutable_module_id()->Resize(nmod_configured_,-1);
 
-      if(nmod_configured_ != cta_status.data().size())
+      if(nmod_configured_ != int32_t(cta_status.data().size()))
         throw std::runtime_error("NectarCam_ACADACameraEventDecoder_R1v1::decode: "
           "Module status array size does not match number of modules (" + 
           std::to_string(cta_status.data().size()) + " != " + 
@@ -109,7 +109,7 @@ bool NectarCam_ACADACameraEventDecoder_R1v1::decode(
     
       const auto* mod_status = reinterpret_cast<const uint8_t*>(&cta_status.data().front());
       unsigned mod_index=0;
-      for(unsigned imod=0;imod<nmod_configured_;imod++)
+      for(int32_t imod=0;imod<nmod_configured_;imod++)
       {
         if(*(mod_status++)&0x01)
         {
@@ -168,11 +168,11 @@ bool NectarCam_ACADACameraEventDecoder_R1v1::decode(
       trigger_map->mutable_trigger_image()->Resize(nmod_configured_ * 7, 0x80000000);
 
       const auto* mod_data_string = cta_counters.data().data();
-      for(unsigned imod=0;imod<nmod_configured_;imod++, mod_data_string+=raw_data_size)
+      for(int32_t imod=0;imod<nmod_configured_;imod++, mod_data_string+=raw_data_size)
       {
         const auto* mod_data_struct = reinterpret_cast<const NectarCountersWithTriggerPattern*>(mod_data_string);
 
-        if(imod >= static_cast<unsigned>(calin_event->module_index_size()) or
+        if(imod >= calin_event->module_index_size() or
           calin_event->module_index(imod) == -1)continue;
 
         auto* module_counters = calin_event->add_module_counter();

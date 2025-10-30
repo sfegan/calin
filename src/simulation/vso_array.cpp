@@ -146,7 +146,7 @@ generateFromArrayParameters(const IsotropicDCArrayParameters& param,
                    rng.normal() * layout.scope_position_dispersion_xy();
         pos.y()  = pos.y() * spacing +
                    rng.normal() * layout.scope_position_dispersion_xy();
-        pos.z() += rng.normal() * layout.scope_position_dispersion_z();
+        pos.z()  = rng.normal() * layout.scope_position_dispersion_z();
         scope_pos.push_back(pos);
       }
   }
