@@ -56,71 +56,65 @@ inline unsigned hcvec_num_imag(unsigned nsample) {
 void hcvec_fftfreq(double* ovec, unsigned nsample, double d=1.0,  bool imaginary_negative = false);
 void hcvec_fftindex(int* ovec, unsigned nsample, bool imaginary_negative = false);
 
-class FFTW_Planned_R2HC_Dbl {
-public:
-  FFTW_Planned_R2HC_Dbl(FFTW_Planned_R2HC_Dbl&& o) { r2hc_plan_ = o.r2hc_plan_; o.r2hc_plan_ = NULL; }
-  FFTW_Planned_R2HC_Dbl(unsigned nsample, double* r, double *c, unsigned flags = FFTW_ESTIMATE) { 
-    r2hc_plan_ = fftw_plan_r2r_1d(nsample, r, c, FFTW_R2HC, flags); }
-  ~FFTW_Planned_R2HC_Dbl() { if(r2hc_plan_)fftw_destroy_plan(r2hc_plan_); }
-  inline void execute() { fftw_execute(r2hc_plan_); }
-  std::string print() { std::string os; char* s = fftw_sprint_plan(r2hc_plan_); os = s; fftw_free(s); return os; }
-private:
-  fftw_plan r2hc_plan_;
-};
-
-class FFTW_Planned_HC2R_Dbl {
-public:  
-  FFTW_Planned_HC2R_Dbl(FFTW_Planned_HC2R_Dbl&& o) { hc2r_plan_ = o.hc2r_plan_; o.hc2r_plan_ = NULL; }
-  FFTW_Planned_HC2R_Dbl(unsigned nsample, double* c, double *r, unsigned flags = FFTW_ESTIMATE) { 
-    hc2r_plan_ = fftw_plan_r2r_1d(nsample, c, r, FFTW_HC2R, flags); }
-  ~FFTW_Planned_HC2R_Dbl() { if(hc2r_plan_)fftw_destroy_plan(hc2r_plan_); }
-  inline void execute() { fftw_execute(hc2r_plan_); }
-  std::string print() { std::string os; char* s = fftw_sprint_plan(hc2r_plan_); os = s; fftw_free(s); return os; }
-private:
-  fftw_plan hc2r_plan_;
-};
-
-class FFTW_Planned_R2HC_Flt {
-public:  
-  FFTW_Planned_R2HC_Flt(FFTW_Planned_R2HC_Flt&& o) { r2hc_plan_ = o.r2hc_plan_; o.r2hc_plan_ = NULL; }
-  FFTW_Planned_R2HC_Flt(unsigned nsample, float* r, float *c, unsigned flags = FFTW_ESTIMATE) { 
-    r2hc_plan_ = fftwf_plan_r2r_1d(nsample, r, c, FFTW_R2HC, flags); }
-  ~FFTW_Planned_R2HC_Flt() { if(r2hc_plan_)fftwf_destroy_plan(r2hc_plan_); }
-  inline void execute() { fftwf_execute(r2hc_plan_); }
-  std::string print() { std::string os; char* s = fftwf_sprint_plan(r2hc_plan_); os = s; fftwf_free(s); return os; }
-private:
-  fftwf_plan r2hc_plan_;
-};
-
-class FFTW_Planned_HC2R_Flt {
-public:  
-  FFTW_Planned_HC2R_Flt(FFTW_Planned_HC2R_Flt&& o) { hc2r_plan_ = o.hc2r_plan_; o.hc2r_plan_ = NULL; }
-  FFTW_Planned_HC2R_Flt(unsigned nsample, float* c, float *r, unsigned flags = FFTW_ESTIMATE) { 
-    hc2r_plan_ = fftwf_plan_r2r_1d(nsample, c, r, FFTW_HC2R, flags); }
-  ~FFTW_Planned_HC2R_Flt() { if(hc2r_plan_)fftwf_destroy_plan(hc2r_plan_); }
-  inline void execute() { fftwf_execute(hc2r_plan_); }
-  std::string print() { std::string os; char* s = fftwf_sprint_plan(hc2r_plan_); os = s; fftwf_free(s); return os; }
-private:
-  fftwf_plan hc2r_plan_;
-};
-
-inline FFTW_Planned_R2HC_Dbl plan_r2hc(unsigned nsample, double* r, double *c, unsigned flags = FFTW_ESTIMATE) {
-  return FFTW_Planned_R2HC_Dbl(nsample, r, c, flags);
-}
-
-inline FFTW_Planned_HC2R_Dbl plan_hc2r(unsigned nsample, double* c, double *r, unsigned flags = FFTW_ESTIMATE) {
-  return FFTW_Planned_HC2R_Dbl(nsample, c, r, flags);
-}
-
-inline FFTW_Planned_R2HC_Flt plan_r2hc(unsigned nsample, float* r, float *c, unsigned flags = FFTW_ESTIMATE) {
-  return FFTW_Planned_R2HC_Flt(nsample, r, c, flags);
-}
-
-inline FFTW_Planned_HC2R_Flt plan_hc2r(unsigned nsample, float* c, float *r, unsigned flags = FFTW_ESTIMATE) {
-  return FFTW_Planned_HC2R_Flt(nsample, c, r, flags);
-}
-
 #ifndef SWIG
+
+class FFTW_Planned_R2R_Dbl {
+public:
+  FFTW_Planned_R2R_Dbl(FFTW_Planned_R2R_Dbl&& o) noexcept { plan_ = std::exchange(o.plan_, nullptr); }
+  explicit FFTW_Planned_R2R_Dbl(unsigned nsample, double* in, double *out, fftw_r2r_kind kind, unsigned flags = FFTW_ESTIMATE) noexcept { 
+    plan_ = fftw_plan_r2r_1d(nsample, in, out, kind, flags); }
+  ~FFTW_Planned_R2R_Dbl() { if(plan_)fftw_destroy_plan(plan_); }
+  FFTW_Planned_R2R_Dbl& operator=(FFTW_Planned_R2R_Dbl&& other) noexcept {
+    if (this != &other) {
+      if (plan_) fftw_destroy_plan(plan_);
+        plan_ = std::exchange(other.plan_, nullptr);
+    }
+    return *this;
+  }
+  FFTW_Planned_R2R_Dbl(const FFTW_Planned_R2R_Dbl&) = delete;
+  FFTW_Planned_R2R_Dbl& operator=(const FFTW_Planned_R2R_Dbl&) = delete;
+  inline void execute() { fftw_execute(plan_); }
+  std::string print() { std::string os; char* s = fftw_sprint_plan(plan_); os = s; fftw_free(s); return os; }
+private:
+  fftw_plan plan_;
+};
+
+class FFTW_Planned_R2R_Flt {
+public:  
+  FFTW_Planned_R2R_Flt(FFTW_Planned_R2R_Flt&& o) noexcept { plan_ = std::exchange(o.plan_, nullptr); }
+  explicit FFTW_Planned_R2R_Flt(unsigned nsample, float* in, float *out, fftwf_r2r_kind kind, unsigned flags = FFTW_ESTIMATE) noexcept { 
+    plan_ = fftwf_plan_r2r_1d(nsample, in, out, kind, flags); }
+  ~FFTW_Planned_R2R_Flt() { if(plan_)fftwf_destroy_plan(plan_); }
+  FFTW_Planned_R2R_Flt& operator=(FFTW_Planned_R2R_Flt&& o) noexcept {
+    if (this != &o) {
+      if (plan_) fftwf_destroy_plan(plan_);
+        plan_ = std::exchange(o.plan_, nullptr);
+    }
+    return *this;
+  }
+  FFTW_Planned_R2R_Flt(const FFTW_Planned_R2R_Flt&) = delete;
+  FFTW_Planned_R2R_Flt& operator=(const FFTW_Planned_R2R_Flt&) = delete;
+  inline void execute() { fftwf_execute(plan_); }
+  std::string print() { std::string os; char* s = fftwf_sprint_plan(plan_); os = s; fftwf_free(s); return os; }
+private:
+  fftwf_plan plan_;
+};
+
+inline FFTW_Planned_R2R_Dbl plan_r2hc(unsigned nsample, double* r, double *c, unsigned flags = FFTW_ESTIMATE) {
+  return FFTW_Planned_R2R_Dbl(nsample, r, c, FFTW_R2HC, flags);
+}
+
+inline FFTW_Planned_R2R_Dbl plan_hc2r(unsigned nsample, double* c, double *r, unsigned flags = FFTW_ESTIMATE) {
+  return FFTW_Planned_R2R_Dbl(nsample, c, r, FFTW_HC2R, flags);
+}
+
+inline FFTW_Planned_R2R_Flt plan_r2hc(unsigned nsample, float* r, float *c, unsigned flags = FFTW_ESTIMATE) {
+  return FFTW_Planned_R2R_Flt(nsample, r, c, FFTW_R2HC, flags);
+}
+
+inline FFTW_Planned_R2R_Flt plan_hc2r(unsigned nsample, float* c, float *r, unsigned flags = FFTW_ESTIMATE) {
+  return FFTW_Planned_R2R_Flt(nsample, c, r, FFTW_HC2R, flags);
+}
 
 template<typename T>
 void hcvec_scale_and_multiply(T* ovec, const T* ivec1,
