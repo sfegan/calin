@@ -956,10 +956,10 @@ public:
   unsigned register_camera_response(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
     const Eigen::VectorXi& impulse_response_id,
-    const vecX_t& pedestal,
-    const vecX_t& relative_gain,
-    const matX_t& noise_spectrum,
     bool add_ac_coupling_offset,
+    const vecX_t& relative_gain = vecX_t(),
+    const vecX_t& pedestal = vecX_t(),
+    const matX_t& noise_spectrum = matX_t(),
     bool adopt_pegen = false)
   {
     if(nsb_freq_per_pixel_ghz.size() != int(npix_)) {
@@ -1016,13 +1016,23 @@ public:
     return camera_responses_.size() - 1;
   }
 
-  void convolve_camera_response_fftw_codelet(unsigned camera_response_id, bool add_nsb) 
+  void apply_camera_response_fftw_codelet(unsigned iscope, unsigned camera_response_id, bool transfer_pes_and_add_nsb = true,
+    const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd()) 
   {
-    validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
-    if(add_nsb) {
+    if(transfer_pes_and_add_nsb) {
+      validate_iscope_ipix(iscope, 0);
+      if(channel_time_offset_ns.size()!=0 and channel_time_offset_ns.size()!=npix_) {
+        throw std::domain_error("Time offset vector length is not equal to number of pixels " 
+          + std::to_string(channel_time_offset_ns.size()) + " != " + std::to_string(npix_));
+      }
+
+      pe_waveform_.setZero();
+      transfer_scope_pes_to_waveform(iscope, channel_time_offset_ns);
       add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.pegen);
     }
+
+    validate_camera_response_id(camera_response_id);
     if(cr.impulse_response_id.size() == 1) {
       convolve_impulse_response_fftw_codelet(
         cr.impulse_response_id[0], cr.pedestal, cr.relative_gain, cr.noise_spectrum);
@@ -1031,6 +1041,12 @@ public:
         cr.impulse_response_id, cr.pedestal, cr.relative_gain, cr.noise_spectrum);
     }
   }
+
+  Eigen::VectorXd zero_nsb() const { return Eigen::VectorXd::Zero(npix_); }
+  vecX_t no_pedestal() const { return vecX_t(); }
+  vecX_t no_relative_gain() const { return vecX_t(); }
+  vecX_t unity_relative_gain() const { return vecX_t::Ones(npix_); }
+  matX_t no_noise_spectrum() const { return matX_t(); }
 
 private:
 #ifndef SWIG
