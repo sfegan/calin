@@ -173,7 +173,7 @@
 
 %typemap(typecheck, precedence=5000) const Eigen::MatrixXi&
 {
-  // typemap(typecheck) const Eigen::VectorXd& -- calin_typemap_vectorxd.i
+  // typemap(typecheck) const Eigen::MatrixXd& -- calin_typemap_matrixxd.i
   $1 = _swig_numpy_is_array($input) ? 1 : 0;
 }
 

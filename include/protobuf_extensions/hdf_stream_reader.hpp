@@ -365,9 +365,9 @@ public:
   template<typename Container> bool read(uint64_t irow, Container* c) {
     if(irow<cache_start_ or irow>=cache_end_) { c->Clear(); return false; }
     hvl_t x = cache_[irow-cache_start_];
-    auto count = x.len;
+    uint64_t count = x.len;
     char** p = reinterpret_cast<char**>(x.p);
-    while(c->size() > count) {
+    while(uint64_t(c->size()) > count) {
       c->RemoveLast();
     }
     for(int i=0;i<c->size();++i) {
@@ -464,7 +464,7 @@ public:
     uint64_t count = x.len;
     hvl_t* p = reinterpret_cast<hvl_t*>(x.p);
 
-    while(c->size() > count) {
+    while(uint64_t(c->size()) > count) {
       c->RemoveLast();
     }
     for(int i=0;i<c->size();++i) {
@@ -604,7 +604,7 @@ public:
     uint64_t mcount = 0;
     bool good = start_reader_->read(irow, &mstart) and count_reader_->read(irow, &mcount);
     if(good) {
-      while(c->size() > mcount) {
+      while(uint64_t(c->size()) > mcount) {
         c->RemoveLast();
       }
       for(int i=0;i<c->size();++i) {

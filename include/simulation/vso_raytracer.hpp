@@ -66,48 +66,48 @@ enum VSOTraceStatus { TS_NONE,                               // 0
 class VSOTraceInfo
 {
  public:
-  const VSOArray*     array;
-  VSOTraceStatus      status;
-  double              ground_x;
-  double              ground_y;
-  double              ground_dx;
-  double              ground_dy;
-  int                 scope_id;
-  const VSOTelescope* scope;
-  double              reflec_x;
-  double              reflec_z;
-  double              reflec_dx;
-  double              reflec_dz;
+  const VSOArray*     array                           = nullptr;
+  VSOTraceStatus      status                          = TS_NONE;
+  double              ground_x                        = 0;
+  double              ground_y                        = 0;
+  double              ground_dx                       = 0;
+  double              ground_dy                       = 0;
+  int                 scope_id                        = 0;
+  const VSOTelescope* scope                           = nullptr;
+  double              reflec_x                        = 0;
+  double              reflec_z                        = 0;
+  double              reflec_dx                       = 0;
+  double              reflec_dz                       = 0;
 #if 0
-  double              hex_reflec_x;
-  double              hex_reflec_z;
-  double              hex_reflec_dx;
-  double              hex_reflec_dz;
+  double              hex_reflec_x                    = 0;
+  double              hex_reflec_z                    = 0;
+  double              hex_reflec_dx                   = 0;
+  double              hex_reflec_dz                   = 0;
 #endif
-  int                 mirror_hexid_nominal;
-  int                 mirror_hexid;
-  const VSOMirror*    mirror;
-  double              mirror_x;
-  double              mirror_y;
-  double              mirror_z;
-  Eigen::Vector3d     mirror_normal;
-  double              mirror_normal_dispersion;
-  Eigen::Vector3d     mirror_scattered;
-  double              mirror_reflection_angle;
-  double              fplane_x;
-  double              fplane_z;
-  double              fplane_dx;
-  double              fplane_dz;
-  double              fplane_t;
-  double              fplane_ux;     // x-axis directional cosine at FP
-  double              fplane_uy;     // y-axis directional cosine at FP
-  double              fplane_uz;     // z-axis directional cosine at FP
-  int                 pixel_hexid;
-  const VSOPixel*     pixel;
-  double              pixel_dist;
-  bool                concentrator_hit;
-  unsigned            obscuration_id;
-  const VSOObscuration* obscuration;
+  int                 mirror_hexid_nominal            = 0;
+  int                 mirror_hexid                    = 0;
+  const VSOMirror*    mirror                          = nullptr;
+  double              mirror_x                        = 0;
+  double              mirror_y                        = 0;
+  double              mirror_z                        = 0;
+  Eigen::Vector3d     mirror_normal                   = Eigen::Vector3d::Zero();
+  double              mirror_normal_dispersion        = 0;
+  Eigen::Vector3d     mirror_scattered                = Eigen::Vector3d::Zero();
+  double              mirror_reflection_angle         = 0;
+  double              fplane_x                        = 0;
+  double              fplane_z                        = 0;
+  double              fplane_dx                       = 0;
+  double              fplane_dz                       = 0;
+  double              fplane_t                        = 0;
+  double              fplane_ux                       = 0;     // x-axis directional cosine at FP
+  double              fplane_uy                       = 0;     // y-axis directional cosine at FP
+  double              fplane_uz                       = 0;     // z-axis directional cosine at FP
+  int                 pixel_hexid                     = 0;
+  const VSOPixel*     pixel                           = nullptr;
+  double              pixel_dist                      = 0;
+  bool                concentrator_hit                = false;
+  unsigned            obscuration_id                  = 0;
+  const VSOObscuration* obscuration                   = nullptr;
 
   void reset();
   std::ostream& write(std::ostream& stream = std::cout,

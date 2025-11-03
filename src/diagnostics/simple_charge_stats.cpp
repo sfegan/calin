@@ -508,7 +508,7 @@ void SimpleChargeStatsParallelEventVisitor::merge_time_histograms_if_necessary()
 
   std::lock_guard<std::mutex> lock { parent_->on_the_fly_merge_lock_ };
 
-  for(int ichan = 0; ichan<chan_hists_.size(); ichan++) {
+  for(unsigned ichan = 0; ichan<chan_hists_.size(); ichan++) {
     if(chan_hists_[ichan]->high_gain) {
       parent_->chan_hists_[ichan]->high_gain->insert_from_and_clear(chan_hists_[ichan]->high_gain);
     }

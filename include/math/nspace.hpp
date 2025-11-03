@@ -215,14 +215,35 @@ public:
 
   ~BlockSparseNSpace();
 
-  BlockSparseNSpace(const BlockSparseNSpace&) = delete;
-  BlockSparseNSpace& operator=(const BlockSparseNSpace&) = delete;
+  BlockSparseNSpace(const BlockSparseNSpace& o);
+
+#ifndef SWIG
+  BlockSparseNSpace& operator=(const BlockSparseNSpace& o);
+#endif // #ifndef SWIG
+
+  BlockSparseNSpace& operator+=(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator-=(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator*=(const BlockSparseNSpace& o);
+  BlockSparseNSpace& operator/=(const BlockSparseNSpace& o);
+
+  BlockSparseNSpace* clone() const {
+    return new BlockSparseNSpace(*this);
+  } 
 
   void prune_below_threshold(double threshold);
   void clear();
 
   void injest(const BlockSparseNSpace& o);
   void injest_from_subspace(const Eigen::VectorXd& x_super, const BlockSparseNSpace& o);
+
+  void add(const BlockSparseNSpace& o);
+  void subtract(const BlockSparseNSpace& o);
+  void multiply(const BlockSparseNSpace& o);
+  void divide_non_zero(const BlockSparseNSpace& o);
+
+  void scale(double s);
+  void negate();
+  void invert_non_zero();
 
   std::vector<Axis> axes() const;
   unsigned naxes() const { return xlo_.size(); }
@@ -286,6 +307,8 @@ public:
 
   Eigen::MatrixXd covar_mean_and_total_weight(Eigen::VectorXd& w1, double& w0) const;
   Eigen::MatrixXd covar() const;
+
+  double interpolate(const Eigen::VectorXd& x, uint32_t cyclic_axis_mask = 0) const;
 
   void save_to_proto(calin::ix::math::nspace::NSpaceData* proto) const;
   calin::ix::math::nspace::NSpaceData* as_proto() const;

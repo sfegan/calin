@@ -380,6 +380,8 @@ proto_planning_enum_to_fftw_flag(calin::ix::math::fftw_util::FFTWPlanningRigor x
   }
 }
 
+
+
 Eigen::VectorXd calin::math::fftw_util::fftw_codelet_r2hc(const Eigen::VectorXd& x)
 {
   using Real = calin::util::vcl::VCLMaxDoubleReal;
@@ -408,7 +410,7 @@ Eigen::VectorXd calin::math::fftw_util::fftw_codelet_hc2r(const Eigen::VectorXd&
     c[i] = f[i];
   }
   calin::math::fftw_util::FFTWCodelet<Real> codelet;
-  codelet.hc2r(f.size(), r, c);
+  codelet.hc2r(f.size(), c, r);
   Eigen::VectorXd x(f.size());
   for(unsigned i=0; i<f.size(); i++) {
     x[i] = r[i][0];
@@ -446,7 +448,7 @@ Eigen::VectorXd calin::math::fftw_util::fftw_codelet_hc2r_float(const Eigen::Vec
     c[i] = f[i];
   }
   calin::math::fftw_util::FFTWCodelet<Real> codelet;
-  codelet.hc2r(f.size(), r, c);
+  codelet.hc2r(f.size(), c, r);
   Eigen::VectorXd x(f.size());
   for(unsigned i=0; i<f.size(); i++) {
     x[i] = r[i][0];

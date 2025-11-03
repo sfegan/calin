@@ -93,6 +93,111 @@ private:
   std::vector<std::vector<Accumulator>> images_;
 };
 
+// =============================================================================
+//
+// SimpleListPEProcessor
+//
+// This PE processor stores a list of PEs for each pixel in each scope. It can
+// be used directly to record the PE times and weights, or as a base class for
+// more complex PE processors.
+//
+// =============================================================================
+
+class SimpleListPEProcessor: public PEProcessor
+{
+public:
+  SimpleListPEProcessor(unsigned nscope, unsigned npix, bool auto_clear = true);
+  virtual ~SimpleListPEProcessor();
+  void start_processing() override;
+  void process_focal_plane_hit(unsigned scope_id, int pixel_id,
+    double x, double y, double ux, double uy, double t, double pe_weight) override;
+  void clear();
+
+  unsigned npix_hit(unsigned iscope) const;
+  unsigned npe(unsigned iscope, unsigned ipix) const;
+  double tmin(unsigned iscope) const;
+  double tmax(unsigned iscope) const;
+#ifndef SWIG
+  unsigned pe_ptrs(unsigned iscope, unsigned ipix, const double** t_ptr, const double** w_ptr) const;
+  const double* pe_t_ptr(unsigned iscope, unsigned ipix) const;
+  const double* pe_w_ptr(unsigned iscope, unsigned ipix) const;
+#endif
+  Eigen::VectorXi npix_hit_vec() const;
+  Eigen::VectorXi npe_vec(unsigned iscope) const;
+  Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
+  Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
+
+protected:
+#ifndef SWIG
+  void validate_iscope_ipix(unsigned iscope, unsigned ipix) const
+  {
+    if(iscope >= nscope_) {
+      throw std::out_of_range("SimpleListPEProcessor: iscope out of range : "
+        + std::to_string(iscope) + " >= " + std::to_string(nscope_));
+    }
+    if(ipix >= npix_) {
+      throw std::out_of_range("SimpleListPEProcessor:: ipix out of range : "
+        + std::to_string(ipix) + " >= " + std::to_string(npix_));
+    }
+  }
+
+  struct PixelData
+  {
+    PixelData();
+    ~PixelData();
+    inline void add_pe(double t_, double w_) {
+      if(npe >= nalloc) {
+        extend_array();
+      }
+      t[npe] = t_;
+      w[npe] = w_;
+      ++npe;
+    }
+    void clear();
+    void extend_array();
+    unsigned npe = 0;
+    unsigned nalloc = 0;
+    double* t = nullptr;
+    double* w = nullptr;
+  };
+
+  struct ScopeData
+  {
+    ScopeData(unsigned npix_);
+    ~ScopeData();
+    inline void add_pe(int pixel_id, double t, double w, std::vector<PixelData*>& freelist) {
+      if(pixel_data[pixel_id] == nullptr) {
+        pixel_data[pixel_id] = alloc_pixel_data(freelist);
+      }
+      pixel_data[pixel_id]->add_pe(t, w);
+      tmin = std::min(tmin, t);
+      tmax = std::max(tmax, t);
+    }
+    void clear_to_freelist(std::vector<PixelData*>& freelist);
+    SimpleListPEProcessor::PixelData* alloc_pixel_data(std::vector<PixelData*>& freelist);
+    unsigned npix_hit = 0;
+    double tmin = std::numeric_limits<double>::infinity();
+    double tmax = -std::numeric_limits<double>::infinity();
+    std::vector<PixelData*> pixel_data;
+  };
+
+  bool auto_clear_ = false;
+  unsigned nscope_ = 0;
+  unsigned npix_ = 0;
+  std::vector<ScopeData> scopes_;
+  std::vector<PixelData*> pixel_data_freelist;
+#endif // ifndef SWIG
+};
+
+// =============================================================================
+// ***************************** Probably obsolete *****************************
+//
+// WaveformPEProcessor : waveform trace processor using a per-channel circular 
+//                       buffer to store PEs
+//
+// ***************************** Probably obsolete *****************************
+// =============================================================================
+
 class WaveformPEProcessor: public PEProcessor
 {
 public:
@@ -131,6 +236,15 @@ private:
   bool warning_sent_ = false;
   calin::math::rng::RNG* rng_ = nullptr;
 };
+
+// =============================================================================
+// ***************************** Probably obsolete *****************************
+//
+// UnbinnedWaveformPEProcessor : waveform trace processor using a single large
+//                               buffer to store all PEs
+//
+// ***************************** Probably obsolete *****************************
+// =============================================================================
 
 class UnbinnedWaveformPEProcessor: public PEProcessor
 {

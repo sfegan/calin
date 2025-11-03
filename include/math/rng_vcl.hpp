@@ -89,6 +89,37 @@ protected:
   calin::ix::provenance::chronicle::RNGRecord* chronicle_record_ = nullptr;
 };
 
+template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCLToScalarRNGCore:
+  public RNGCore
+{
+public:
+  CALIN_TYPEALIAS(uint64_vt, typename VCLArchitecture::uint64_vt);
+
+  VCLToScalarRNGCore(VCLRNGCore<VCLArchitecture>* vcl_core, bool adopt_vcl_core = false):
+    RNGCore(), vcl_core_(vcl_core), adopt_vcl_core_(adopt_vcl_core)
+  {
+    // nothing to see here
+  }
+
+  virtual ~VCLToScalarRNGCore()
+  {
+    if(adopt_vcl_core_)delete vcl_core_;
+  }
+
+  uint64_t uniform_uint64() final
+  {
+    return vcl_core_->uniform_uint64()[0];
+  }
+
+  void save_to_proto(ix::math::rng::RNGCoreData* proto) const final
+  {
+    // nothing to see here
+  }
+protected:
+  VCLRNGCore<VCLArchitecture>* vcl_core_ = nullptr;
+  bool adopt_vcl_core_ = false;
+};
+
 template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCLRNG
 {
 public:
@@ -137,6 +168,7 @@ public:
     if(adopt_core_) {
       delete core_;
     }
+    delete scalar_rng_;
   }
 
   VCLRNGCore<VCLArchitecture>* core() { return core_; }
@@ -432,6 +464,13 @@ public:
   inline void normal_real(float_vt& x)
   {
     x = normal_float();
+  }
+
+  template<typename VCLReal> inline typename VCLReal::real_vt normal_real()
+  {
+    typename VCLReal::real_vt x;
+    normal_real(x);
+    return x;
   }
 
   double_vt normal_double_ziggurat()
@@ -875,6 +914,15 @@ public:
 //
 //   static constexpr uint64_t std_test_seed = 12939; // essential supply
 //
+  RNG& scalar_rng() {
+    if(scalar_rng_ == nullptr) {
+      auto* scalar_core = new calin::math::rng::VCLToScalarRNGCore<VCLArchitecture>(core_, /* adopt_core= */ false);
+      scalar_rng_ = new RNG(scalar_core, /* adopt_core = */ true, __PRETTY_FUNCTION__,
+        "Scalar RNG using vector core");
+    }
+    return *scalar_rng_;
+  }
+
 private:
   static inline double_vt uint64_to_double_52bit(uint64_vt u) {
     constexpr uint64_t MASK_HI = (1ULL<<52)-1;
@@ -884,6 +932,7 @@ private:
 
   VCLRNGCore<VCLArchitecture>* core_ = nullptr;
   bool adopt_core_ = true;
+  RNG* scalar_rng_ = nullptr;
   calin::ix::provenance::chronicle::RNGRecord* chronicle_record_ = nullptr;
 };
 
@@ -1116,37 +1165,6 @@ private:
   uint64_vt u_ = C_NR3_U_INIT;
   uint64_vt v_ = C_NR3_V_INIT;
   uint64_vt w_ = C_NR3_W_INIT;
-};
-
-template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCLToScalarRNGCore:
-  public RNGCore
-{
-public:
-  CALIN_TYPEALIAS(uint64_vt, typename VCLArchitecture::uint64_vt);
-
-  VCLToScalarRNGCore(VCLRNGCore<VCLArchitecture>* vcl_core, bool adopt_vcl_core = false):
-    RNGCore(), vcl_core_(vcl_core), adopt_vcl_core_(adopt_vcl_core)
-  {
-    // nothing to see here
-  }
-
-  virtual ~VCLToScalarRNGCore()
-  {
-    if(adopt_vcl_core_)delete vcl_core_;
-  }
-
-  uint64_t uniform_uint64() final
-  {
-    return vcl_core_->uniform_uint64()[0];
-  }
-
-  void save_to_proto(ix::math::rng::RNGCoreData* proto) const final
-  {
-    // nothing to see here
-  }
-protected:
-  VCLRNGCore<VCLArchitecture>* vcl_core_ = nullptr;
-  bool adopt_vcl_core_ = false;
 };
 
 } } } // namespace calin::math::rng

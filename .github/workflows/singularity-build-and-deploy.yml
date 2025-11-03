@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        arch: [ 'generic', 'ivybridge', 'broadwell', 'cascadelake' ]
+        arch: [ 'ivybridge', 'broadwell', 'cascadelake' ] # 'generic' retired 2025-10-20
 
     runs-on: ${{ matrix.os }}
 
@@ -110,7 +110,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        arch: [ 'generic', 'ivybridge', 'broadwell', 'cascadelake' ]
+        arch: [ 'ivybridge', 'broadwell', 'cascadelake' ] # 'generic' retired 2025-10-20
 
     runs-on: ${{ matrix.os }}
 

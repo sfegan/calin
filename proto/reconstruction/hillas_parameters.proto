@@ -1,0 +1,51 @@
+//-*-mode:protobuf; mode:font-lock;-*-
+
+/*
+
+   calin/proto/reconstruction/hillas_parameters.proto -- Stephen Fegan -- 2025-07-22
+
+   Protobufs for defining Hillas parameters for IACT data.
+
+   Copyright 2025, Stephen Fegan <sfegan@llr.in2p3.fr>
+   Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
+
+   This file is part of "calin"
+
+   "calin" is free software: you can redistribute it and/or modify it
+   under the terms of the GNU General Public License version 2 or
+   later, as published by the Free Software Foundation.
+
+   "calin" is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+*/
+
+syntax = "proto3";
+option cc_enable_arenas = true;
+
+import "calin.proto";
+// import "common_types.proto"; 
+
+package calin.ix.reconstruction.hillas_parameters;
+
+message HillasParameters {
+  double size                          = 1 [
+    (CFO).desc = "Total signal in the image.", (CFO).units = "charge units" ];
+  double xc                            = 2 [
+    (CFO).desc = "X coordinate of centroid of the image.", (CFO).units = "deg" ];
+  double yc                            = 3 [
+    (CFO).desc = "Y coordinate of centroid of the image.", (CFO).units = "deg" ];
+  double length                        = 4 [
+    (CFO).desc = "Length of the image.", (CFO).units = "deg" ];
+  double width                         = 5 [
+    (CFO).desc = "Width of the image.", (CFO).units = "deg" ];
+  double ex                            = 6 [
+    (CFO).desc = "X component of unit vector along major axis.", (CFO).units = "1" ];
+  double ey                            = 7 [
+    (CFO).desc = "Y component of unit vector along major axis.", (CFO).units = "1" ];
+  double asymmetry                     = 8 [
+    (CFO).desc = "Asymmetry of the image along the major axis.", (CFO).units = "1" ];
+};
+

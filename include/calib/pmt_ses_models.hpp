@@ -101,6 +101,7 @@ private:
 
 class LombardMartinPrescottPMTModel {
 public:
+#ifndef SWIG
   struct Tableau {
     Tableau(unsigned npoint_, calin::ix::math::fftw_util::FFTWPlanningRigor fftw_rigor = calin::ix::math::fftw_util::ESTIMATE):
       npoint(npoint_),
@@ -130,6 +131,7 @@ public:
     calin::math::fftw_util::uptr_fftw_data basis_dft;
     calin::math::fftw_util::uptr_fftw_plan dft_to_pmf_bwd_plan;
   };
+#endif
 
   LombardMartinPrescottPMTModel(
     const calin::ix::calib::pmt_ses_models::LombardMartinPrescottPMTModelConfig& config,
@@ -140,7 +142,9 @@ public:
   std::vector<double> stage_n_pmf() const { return stage_n_pmf_; }
 
   std::vector<double> stage_0_pmf_zsa() const { return stage_0_pmf_zsa_; }
+#ifndef SWIG
   std::vector<double> stage_n_pmf_downsampled(Tableau& tableau) const;
+#endif
 
   double p0() const { return p0_; }
   double total_gain() const { return total_gain_; }
@@ -152,8 +156,8 @@ public:
   static std::vector<double> multi_stage_pmf(Tableau& tableau, unsigned nstage,
     const std::vector<double>& pmf, unsigned rebinning = 0, double precision = 1e-10,
     bool suppress_wraparound_warning = false, unsigned* wraparound_warning_count = nullptr);
-  static unsigned rebin_pmf(double* pmf, unsigned npmf, unsigned binning);
 #endif
+  static unsigned rebin_pmf(double* pmf, unsigned npmf, unsigned binning);
   static std::vector<double> multi_stage_pmf(unsigned npoint, unsigned nstage,
     const std::vector<double>& pmf, unsigned rebinning = 0, double precision = 1e-10,
     calin::ix::math::fftw_util::FFTWPlanningRigor fftw_rigor = calin::ix::math::fftw_util::ESTIMATE);
@@ -166,7 +170,9 @@ public:
   double stage_0_Exx() const { return stage_0_Exx_; }
   double stage_n_Exx() const { return stage_n_Exx_; }
 
+#ifndef SWIG
   void calc_ses(Tableau& tableau);
+#endif
   Eigen::VectorXd calc_ses(unsigned npoint = 0);
 
 #ifndef SWIG
@@ -174,12 +180,12 @@ public:
     const double* ped, bool ped_is_fft=false);
   void calc_mes(Tableau& tableau, const std::vector<double>& pe_pmf,
     const double* ped, bool ped_is_fft=false);
+#endif
 
   Eigen::VectorXd calc_mes(double mean, double rms_frac, unsigned npoint,
     const double* ped, bool ped_is_fft=false);
   Eigen::VectorXd calc_mes(const std::vector<double>& pe_pmf, unsigned npoint,
     const double* ped, bool ped_is_fft=false);
-#endif
 
   Eigen::VectorXd calc_mes(double mean, double rms_frac, unsigned npoint = 0);
   Eigen::VectorXd calc_mes(const std::vector<double>& pe_pmf, unsigned npoint = 0);
@@ -195,9 +201,11 @@ public:
   unsigned num_wraparound_warning_sent() const { return num_wraparound_warnings_sent_; }
 
 private:
+#ifndef SWIG
   void calc_spectrum(Tableau& tableau,
     const std::vector<double>* pe_spec = nullptr,
     const double* ped = nullptr, bool ped_is_fft = false);
+#endif
   void set_stage_n_gain(double stage_n_gain);
 
   calin::ix::calib::pmt_ses_models::LombardMartinPrescottPMTModelConfig config_;

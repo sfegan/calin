@@ -432,7 +432,6 @@ BlockSparseNSpace(const Eigen::VectorXd& xlo, const Eigen::VectorXd& xhi,
     const Eigen::VectorXi& n, unsigned log2_block_size):
   xlo_(xlo.size()), xhi_(xlo.size()), dx_(xlo.size()), dx_inv_(xlo.size()),
   n_(xlo.size()), narray_(xlo.size())
-
 {
   if(std::min({xlo.size(), xhi.size(), n.size()}) !=
       std::max({xlo.size(), xhi.size(), n.size()})) {
@@ -479,6 +478,43 @@ BlockSparseNSpace::BlockSparseNSpace(const calin::ix::math::nspace::NSpaceData& 
     log2_block_size)
 {
   this->accumulate_from_proto(proto);
+}
+
+BlockSparseNSpace::BlockSparseNSpace(const BlockSparseNSpace& o):
+  BlockSparseNSpace(o.xlo_, o.xhi_, o.n_, o.block_shift_)
+{
+  injest(o);
+}
+
+BlockSparseNSpace& BlockSparseNSpace::operator=(const BlockSparseNSpace& o)
+{
+  clear();
+  injest(o);
+  return *this;
+}
+
+BlockSparseNSpace& BlockSparseNSpace::operator+=(const BlockSparseNSpace& o)
+{
+  add(o);
+  return *this;
+}
+
+BlockSparseNSpace& BlockSparseNSpace::operator-=(const BlockSparseNSpace& o)
+{
+  subtract(o);
+  return *this;
+}
+
+BlockSparseNSpace& BlockSparseNSpace::operator*=(const BlockSparseNSpace& o)
+{
+  multiply(o);
+  return *this;
+}
+
+BlockSparseNSpace& BlockSparseNSpace::operator/=(const BlockSparseNSpace& o)
+{
+  divide_non_zero(o);
+  return *this;
 }
 
 BlockSparseNSpace::~BlockSparseNSpace()
@@ -727,10 +763,136 @@ void BlockSparseNSpace::injest(const BlockSparseNSpace& o)
   overflow_ += o.overflow_;
 }
 
+void BlockSparseNSpace::add(const BlockSparseNSpace& o)
+{
+  injest(o);
+}
+
+void BlockSparseNSpace::subtract(const BlockSparseNSpace& o)
+{
+  if(xlo_!=o.xlo_ or xhi_!=o.xhi_ or n_!=o.n_) {
+    throw std::runtime_error("BlockSparseNSpace: cannot subtract space with incompatible axis definition");
+  }
+  if(o.block_shift_ == block_shift_) {
+    for(unsigned array_index=0; array_index<array_.size(); ++array_index) {
+      const double* oblock = o.array_[array_index];
+      if(oblock) {
+        double* block = block_ptr(array_index);
+        for(unsigned block_index=0; block_index<block_size_; ++block_index) {
+          block[block_index] -= oblock[block_index];
+        }
+      }
+    }
+  } else {
+    throw std::runtime_error("BlockSparseNSpace: different block sizes not (yet) supported");
+  }
+  overflow_ -= o.overflow_;
+}
+
+void BlockSparseNSpace::multiply(const BlockSparseNSpace& o)
+{
+  if(xlo_!=o.xlo_ or xhi_!=o.xhi_ or n_!=o.n_) {
+    throw std::runtime_error("BlockSparseNSpace: cannot multiply space with incompatible axis definition");
+  }
+  if(o.block_shift_ == block_shift_) {
+    for(unsigned array_index=0; array_index<array_.size(); ++array_index) {
+      const double* oblock = o.array_[array_index];
+      double* block = array_[array_index];
+      if(block and oblock) {
+        for(unsigned block_index=0; block_index<block_size_; ++block_index) {
+          block[block_index] *= oblock[block_index];
+        }
+      } else if(block) {
+        array_[array_index] = nullptr;
+        alloc_free_list_.push_back(block);
+      }
+      // no need to handle the case where oblock exists and block does not,
+      // as that just leaves the block as zeroes, which is what we want
+    }
+  } else {
+    throw std::runtime_error("BlockSparseNSpace: different block sizes not (yet) supported");
+  }
+  overflow_ *= o.overflow_;
+}
+
+void BlockSparseNSpace::divide_non_zero(const BlockSparseNSpace& o)
+{
+  if(xlo_!=o.xlo_ or xhi_!=o.xhi_ or n_!=o.n_) {
+    throw std::runtime_error("BlockSparseNSpace: cannot divide space with incompatible axis definition");
+  }
+  if(o.block_shift_ == block_shift_) {
+    for(unsigned array_index=0; array_index<array_.size(); ++array_index) {
+      const double* oblock = o.array_[array_index];
+      double* block = array_[array_index];
+      if(block and oblock) {
+        for(unsigned block_index=0; block_index<block_size_; ++block_index) {
+          if(oblock[block_index] != 0.0) {
+            block[block_index] /= oblock[block_index];
+          } else {
+            block[block_index] = 0.0;
+          }
+        }
+      } else if(block) {
+        array_[array_index] = nullptr;
+        alloc_free_list_.push_back(block);
+      }
+      // no need to handle the case where oblock exists and block does not,
+      // as that just leaves the block as zeroes, which is what we want
+    }
+  } else {
+    throw std::runtime_error("BlockSparseNSpace: different block sizes not (yet) supported");
+  }
+  if(o.overflow_ != 0.0) {
+    overflow_ /= o.overflow_;
+  } else {
+    overflow_ = 0.0;
+  }
+}
+
+void BlockSparseNSpace::scale(double s)
+{
+  for(auto* block : array_) {
+    if(block) {
+      for(unsigned i=0;i<block_size_; ++i) {
+        block[i] *= s;
+      }
+    }
+  }
+  overflow_ *= s;
+}
+
+void BlockSparseNSpace::negate()
+{
+  for(auto* block : array_) {
+    if(block) {
+      for(unsigned i=0;i<block_size_; ++i) {
+        block[i] = -block[i];
+      }
+    }
+  }
+  overflow_ = -overflow_;
+}
+
+void BlockSparseNSpace::invert_non_zero()
+{
+  for(auto* block : array_) {
+    if(block) {
+      for(unsigned i=0;i<block_size_; ++i) {
+        if(block[i] != 0.0) {
+          block[i] = 1.0/block[i];
+        }
+      }
+    }
+  }
+  if(overflow_ != 0.0) {
+    overflow_ = 1.0/overflow_;
+  }
+}
+
 void BlockSparseNSpace::injest_from_subspace(const Eigen::VectorXd& x_super, const BlockSparseNSpace& o)
 {
   if(xlo_.size() != x_super.size() + o.xlo_.size()) {
-    throw std::runtime_error("BlockSparseNSpace: incotrrect number of axes in coordinates and subspace");
+    throw std::runtime_error("BlockSparseNSpace: incorrect number of axes in coordinates and subspace");
   }
   if(xlo_.tail(xlo_.size()-x_super.size())!=o.xlo_ or
       xhi_.tail(xhi_.size()-x_super.size())!=o.xhi_ or
@@ -1217,6 +1379,61 @@ void BlockSparseNSpace::map_bin_coords(Eigen::VectorXi& ix_out, int64_t indx) co
     ix_out[i] = qr.rem;
     indx = qr.quot;
   }
+}
+
+double BlockSparseNSpace::interpolate(const Eigen::VectorXd& x, uint32_t cyclic_axis_mask) const
+{
+  // Linear interpolation between neighboring cells
+  if(x.size() != n_.size()) {
+    throw std::runtime_error("BlockSparseNSpace: dimensional mismatch in interpolate");
+  }
+
+  // Find the bin indices and fractional positions
+  Eigen::VectorXi ix(n_.size());
+  Eigen::VectorXi jx(n_.size());
+  Eigen::VectorXd frac(n_.size());
+  for(unsigned i=0; i<n_.size(); i++) {
+    if(n_(i) < 2) {
+      throw std::runtime_error("BlockSparseNSpace: cannot interpolate along axis with fewer than 2 bins");
+    }
+    double u = (x(i)-xlo_(i))*dx_inv_(i) - 0.5;
+    if((cyclic_axis_mask & (1 << i)) != 0) {
+      // Cyclic axis
+      int ii = int(std::floor(u));
+      frac(i) = u - ii;
+      ii = (ii%n_(i) + n_(i))%n_(i);
+      ix(i) = ii;
+      jx(i) = (ii + 1) % n_(i);
+    } else {
+      // Non-cyclic axis
+      int ii = std::min(std::max(int(std::floor(u)),0), n_(i)-2);
+      ix(i) = ii;
+      jx(i) = ii + 1;
+      frac(i) = u - ii;
+    }
+  }
+
+  // Multilinear interpolation over the cell's corners
+  double result = 0.0;
+  int ncorner = 1 << n_.size();
+  for(int c = 0; c < ncorner; ++c) {
+    Eigen::VectorXi corner_ix = ix;
+    double weight = 1.0;
+    for(unsigned d = 0; d < n_.size(); ++d) {
+      if(c & (1 << d)) {
+        corner_ix(d) = jx(d);
+        weight *= frac(d);
+      } else {
+        weight *= (1.0 - frac(d));
+      }
+    }
+
+    int64_t array_index, block_index;
+    if(index_of_bin(corner_ix, array_index, block_index) && array_[array_index] != nullptr) {
+      result += weight * array_[array_index][block_index];
+    }
+  }
+  return result;
 }
 
 void BlockSparseNSpace::save_to_proto(ix::math::nspace::NSpaceData* proto) const

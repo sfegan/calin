@@ -653,7 +653,7 @@ std::string SplinePEAmplitudeGenerator::banner(const std::string& indent0, const
     << " EVF=" << double_to_string_with_commas(1.0+pdf_res_*pdf_res_,2)
     << " ENF=" << double_to_string_with_commas(std::sqrt(1.0+pdf_res_*pdf_res_),2)
     << " P(q<0.2PE)=" << double_to_string_with_commas(pdf_P20_*100,1) << '%'
-    << " Peak=" << double_to_string_with_commas(pdf_peak_,2) << " PE\n";
+    << " Peak=" << double_to_string_with_commas(pdf_peak_,2) << " PE";
   return stream.str();
 }
 

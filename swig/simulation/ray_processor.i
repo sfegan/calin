@@ -27,6 +27,7 @@
 
 %{
 #include "simulation/pe_processor.hpp"
+#include "simulation/vcl_pe_processor.hpp"
 #include "simulation/ray_processor.hpp"
 #include "simulation/vso_ray_processor.hpp"
 #include "simulation/sct_ray_processor.hpp"
@@ -44,14 +45,17 @@
 %import "calin_global_definitions.i"
 
 %import "math/ray.i"
+%import "util/vcl.i"
 %import "math/ray_generator.i"
 %import "math/moments_calc.i"
 
 %apply double &OUTPUT { double& trace_t0 };
 %apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& trace_overflow };
+%apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& pes_per_channel_in_window };
 
 %import "simulation/pe_processor.pb.i"
 %include "simulation/pe_processor.hpp"
+%include "simulation/vcl_pe_processor.hpp"
 %newobject *::add_processor_and_pe_visitor;
 
 %import "simulation/ray_processor.pb.i"
@@ -71,6 +75,14 @@
 %include "simulation/nspace_ray_processor.hpp"
 
 %include "simulation/vcl_ray_processor.hpp"
+
+%template (VCLWaveformPEProcessorDouble128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL128DoubleReal>;
+%template (VCLWaveformPEProcessorDouble256) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL256DoubleReal>;
+%template (VCLWaveformPEProcessorDouble512) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL512DoubleReal>;
+
+%template (VCLWaveformPEProcessorFloat128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL128FloatReal>;
+%template (VCLWaveformPEProcessorFloat256) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL256FloatReal>;
+%template (VCLWaveformPEProcessorFloat512) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL512FloatReal>;
 
 %template (VCLRayTracerRayProcessorDouble128) calin::simulation::vcl_ray_processor::VCLRayTracerRayProcessorDouble<calin::util::vcl::VCL128Architecture>;
 %template (VCLRayTracerRayProcessorDouble256) calin::simulation::vcl_ray_processor::VCLRayTracerRayProcessorDouble<calin::util::vcl::VCL256Architecture>;

@@ -402,12 +402,14 @@ visit_track(const calin::simulation::tracker::Track& track, bool& kill_track)
     Event subshower_event;
     subshower_event.event_id = subshowers_.size();
     subshower_event.pdg_type = track.pdg_type;
-    subshower_event.type = track.type;
-    subshower_event.x0 = track.x0;
-    subshower_event.u0 = track.u0;
-    subshower_event.e0 = track.e0;
-    subshower_event.t0 = track.t0;
-    subshower_event.weight = track.weight;
+    subshower_event.type    = track.type;
+    subshower_event.q       = track.q;
+    subshower_event.mass    = track.mass;
+    subshower_event.x0      = track.x0;
+    subshower_event.u0      = track.u0;
+    subshower_event.e0      = track.e0;
+    subshower_event.t0      = track.t0;
+    subshower_event.weight  = track.weight;
     subshowers_.push_back(subshower_event);
     kill_track = true;
   } else {

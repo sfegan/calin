@@ -28,6 +28,7 @@
 
 #include <simulation/pe_processor.hpp>
 #include <math/fftw_util.hpp>
+#include <util/memory.hpp>
 
 using namespace calin::simulation::pe_processor;
 
@@ -212,6 +213,237 @@ process_focal_plane_hit(unsigned scope_id, int pixel_id,
 {
   if(scope_id == iscope_)mom_.accumulate(x, y, pe_weight);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+// SimpleListPEProcessor
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+SimpleListPEProcessor::SimpleListPEProcessor(unsigned nscope, unsigned npix, bool auto_clear):
+  PEProcessor(), auto_clear_(auto_clear), nscope_(nscope), npix_(npix), scopes_(nscope,npix)
+{
+  // nothing to see here
+}
+
+SimpleListPEProcessor::~SimpleListPEProcessor()
+{
+  for(auto pd : pixel_data_freelist) {
+    delete pd;
+  }
+}
+
+void SimpleListPEProcessor::start_processing()
+{
+  if(auto_clear_) {
+    for(auto& scope : scopes_) {
+      scope.clear_to_freelist(pixel_data_freelist);
+    }
+  }
+}
+
+void SimpleListPEProcessor::process_focal_plane_hit(unsigned scope_id, int pixel_id,
+    double x, double y, double ux, double uy, double t, double pe_weight)
+{
+  if(pixel_id < 0) {
+    return;
+  }
+  validate_iscope_ipix(scope_id, pixel_id);
+  scopes_[scope_id].add_pe(pixel_id, t, pe_weight, pixel_data_freelist);
+}
+
+void SimpleListPEProcessor::clear()
+{
+  for(auto& scope : scopes_) {
+    scope.clear_to_freelist(pixel_data_freelist);
+  }
+}
+
+unsigned SimpleListPEProcessor::npix_hit(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  return scopes_[iscope].npix_hit;
+}
+
+unsigned SimpleListPEProcessor::npe(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  return pd==nullptr? 0 : pd->npe;
+}
+
+double SimpleListPEProcessor::tmin(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  return scopes_[iscope].tmin;
+}
+
+double SimpleListPEProcessor::tmax(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  return scopes_[iscope].tmax;
+}
+
+unsigned SimpleListPEProcessor::pe_ptrs(unsigned iscope, unsigned ipix, 
+  const double** t_ptr, const double** w_ptr) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  if(pd==nullptr) {
+    *t_ptr = nullptr;
+    *w_ptr = nullptr;
+    return 0;
+  } else {
+    *t_ptr = pd->t;
+    *w_ptr = pd->w;
+    return pd->npe;
+  }
+}
+
+const double* SimpleListPEProcessor::pe_t_ptr(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  return pd==nullptr? nullptr : pd->t;
+}
+
+const double* SimpleListPEProcessor::pe_w_ptr(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  return pd==nullptr? nullptr : pd->w;
+}
+
+Eigen::VectorXi SimpleListPEProcessor::npix_hit_vec() const
+{
+  Eigen::VectorXi npix_hit(nscope_);
+  for(unsigned iscope=0;iscope<nscope_; ++iscope) {
+    npix_hit[iscope] = scopes_[iscope].npix_hit;
+  }
+  return npix_hit;
+}
+
+Eigen::VectorXi SimpleListPEProcessor::npe_vec(unsigned iscope) const
+{
+  validate_iscope_ipix(iscope, 0);
+  Eigen::VectorXi npe(npix_);
+  for(unsigned ipix=0;ipix<npix_; ++ipix) {
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    npe[ipix] = pd==nullptr? 0 : pd->npe;
+  }
+  return npe;
+}
+
+Eigen::VectorXd SimpleListPEProcessor::pe_t_vec(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  if(pd==nullptr) {
+    return Eigen::VectorXd(0);
+  } else {
+    return Eigen::Map<Eigen::VectorXd>(pd->t, pd->npe);
+  }
+}
+
+Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) const
+{
+  validate_iscope_ipix(iscope, ipix);
+  auto pd = scopes_[iscope].pixel_data[ipix];
+  if(pd==nullptr) {
+    return Eigen::VectorXd(0);
+  } else {
+    return Eigen::Map<Eigen::VectorXd>(pd->w, pd->npe);
+  }
+}
+
+SimpleListPEProcessor::PixelData::PixelData():
+  nalloc(64), 
+  t(calin::util::memory::safe_aligned_calloc<double>(nalloc)), 
+  w(calin::util::memory::safe_aligned_calloc<double>(nalloc))
+{
+  // nothing to see here
+}
+
+SimpleListPEProcessor::PixelData::~PixelData()
+{
+  ::free(t);
+  ::free(w);
+}
+
+void SimpleListPEProcessor::PixelData::clear()
+{
+  npe = 0;
+}
+ 
+void SimpleListPEProcessor::PixelData::extend_array()
+{
+  nalloc *= 2;
+  double* t_new = calin::util::memory::safe_aligned_calloc<double>(nalloc);
+  double* w_new = calin::util::memory::safe_aligned_calloc<double>(nalloc);
+  std::copy(t, t+npe, t_new);
+  std::copy(w, w+npe, w_new);
+  ::free(t);
+  ::free(w);
+  t = t_new;
+  w = w_new;
+}
+
+SimpleListPEProcessor::ScopeData::ScopeData(unsigned npix):
+  tmin(std::numeric_limits<double>::infinity()),
+  tmax(-std::numeric_limits<double>::infinity()),
+  pixel_data(npix, nullptr)
+{
+  // nothing to see here
+}
+
+SimpleListPEProcessor::ScopeData::~ScopeData()
+{
+  for(auto pd : pixel_data) {
+    delete pd;
+  } 
+}
+
+void SimpleListPEProcessor::ScopeData::clear_to_freelist(std::vector<PixelData*>& freelist)
+{
+  for(auto& pd : pixel_data) {
+    if(pd != nullptr) {
+      pd->clear();
+      freelist.push_back(pd);
+      pd = nullptr;
+    }
+  }
+  npix_hit = 0;
+  tmin = std::numeric_limits<double>::infinity();
+  tmax = -std::numeric_limits<double>::infinity();
+}
+
+SimpleListPEProcessor::PixelData* 
+SimpleListPEProcessor::ScopeData::alloc_pixel_data(std::vector<PixelData*>& freelist)
+{
+  SimpleListPEProcessor::PixelData* pd;
+  npix_hit++;
+  if(freelist.size() > 0) {
+    pd = freelist.back();
+    freelist.pop_back();
+  } else {
+    pd = new PixelData;
+  }
+  return pd;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+// WaveformPEProcessor
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 WaveformPEProcessor::WaveformPEProcessor(unsigned nscope, unsigned npix,
     unsigned nsamp, double delta_t, calin::math::rng::RNG* rng, bool auto_clear):

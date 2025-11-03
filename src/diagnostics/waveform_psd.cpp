@@ -224,7 +224,7 @@ process_one_waveform(const uint16_t*__restrict__ wf,
   (*psd_sum++) += psdi;
   while(ri < ci)
   {
-    psdi = SQR(double(*ri++)) + SQR(double(*ci--));
+    psdi = 2.0*(SQR(double(*ri++)) + SQR(double(*ci--)));
     (*psd_sum++) += psdi;
   }
   if(ri==ci)

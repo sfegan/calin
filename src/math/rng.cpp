@@ -274,14 +274,15 @@ void RNG::normal_pair_bm(double &x, double& y)
   x = v1*fac;
   y = v2*fac;
 }
-
 namespace {
   inline double uint64_to_double(uint64_t u) {
     constexpr uint64_t MASK_HI = (1ULL<<52)-1;
     constexpr uint64_t EXP_HI = 1023ULL<<52;
     u &= MASK_HI;
     u |= EXP_HI;
-    return *reinterpret_cast<double*>(&u) - 1.0;
+    double d;
+    std::memcpy(&d, &u, sizeof(d));
+    return d - 1.0;
   }
 }
 

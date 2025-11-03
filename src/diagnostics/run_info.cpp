@@ -591,7 +591,7 @@ void RunInfoDiagnosticsParallelEventVisitor::integrate_partials()
         double elapsed_time_sec =
           (partials_->event_time_sequence(ievent)-run_config_->run_start_time().time_ns())*1e-9;
         if(elapsed_time_sec > thistmax)++num_event_outside_window;
-        if(num_event_outside_window*20 > partials_->event_number_sequence_size()) {
+        if(num_event_outside_window*20 > unsigned(partials_->event_number_sequence_size())) {
           thistres = 60.0;
           thistmin = -360.0;
           thistmax = 86400.0*30.0;

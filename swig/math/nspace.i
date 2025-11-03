@@ -47,6 +47,7 @@
 %newobject sum_x_to_the_n_along_axis;
 %newobject create_from_proto;
 %newobject as_proto;
+%newobject clone;
 
 %extend calin::math::nspace::TreeSparseNSpace {
   %pythoncode %{

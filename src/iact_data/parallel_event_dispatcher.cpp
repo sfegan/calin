@@ -615,7 +615,7 @@ void ParallelEventDispatcher::write_final_log_message(
       << to_string_with_commas(double(duration_cast<milliseconds>(dt).count())*0.001,3) << " sec, "
       << to_string_with_commas(duration_cast<microseconds>(dt).count()/ndispatched)
       << " us/event (finished)";
-  } else if(ndispatched != run_config->num_events()) {
+  } else if(ndispatched != uint_fast64_t(run_config->num_events())) {
     LOG(ERROR) << "Run " << run_number_str << " dispatched "
       << to_string_with_commas(uint64_t(ndispatched)) << " events in "
       << to_string_with_commas(double(duration_cast<milliseconds>(dt).count())*0.001,3) << " sec, "
