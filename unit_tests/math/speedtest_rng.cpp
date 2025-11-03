@@ -68,7 +68,7 @@ TEST(NR3SpeedTestRNG, Scalar_1G_Normal_BM)
   uint64_t seed = RNG::uint64_from_random_device();
   RNG rng(seed);
   for(unsigned i=0;i<1000000000;i++)
-    sum += rng.normal();
+    sum += rng.normal_bm();
   EXPECT_NE(sum,0.0);
 }
 
@@ -88,7 +88,7 @@ TEST(NR3SpeedTestRNG, Scalar_1G_Exponential_Log)
   uint64_t seed = RNG::uint64_from_random_device();
   RNG rng(seed);
   for(unsigned i=0;i<1000000000;i++)
-    sum += rng.exponential();
+    sum += rng.exponential_transformation();
   EXPECT_GE(sum,0.0);
 }
 
@@ -178,6 +178,46 @@ TYPED_TEST(VCLSpeedTestRNG, VEC_1G_Double_53bit)
   for(unsigned i=0;i<N;i++) {
     sum = core.uniform_double_53bit();
   }
+  EXPECT_TRUE(horizontal_and(sum >= 0.0));
+}
+
+TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Normal_BM)
+{
+  typename TypeParam::double_vt sum = 0;
+  uint64_t seed = RNG::uint64_from_random_device();
+  VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
+  for(unsigned i=0;i<1000000000;i++)
+    sum += core.normal_double_bm();
+  EXPECT_TRUE(horizontal_and(sum != 0.0));
+}
+
+TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Normal_Ziggurat)
+{
+  typename TypeParam::double_vt sum = 0;
+  uint64_t seed = RNG::uint64_from_random_device();
+  VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
+  for(unsigned i=0;i<1000000000;i++)
+    sum += core.normal_double_ziggurat();
+  EXPECT_TRUE(horizontal_and(sum != 0.0));
+}
+
+TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Exponential_Log)
+{
+  typename TypeParam::double_vt sum = 0;
+  uint64_t seed = RNG::uint64_from_random_device();
+  VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
+  for(unsigned i=0;i<1000000000;i++)
+    sum += core.exponential_double_transformation();
+  EXPECT_TRUE(horizontal_and(sum >= 0.0));
+}
+
+TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Exponential_Ziggurat)
+{
+  typename TypeParam::double_vt sum = 0;
+  uint64_t seed = RNG::uint64_from_random_device();
+  VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
+  for(unsigned i=0;i<1000000000;i++)
+    sum += core.exponential_double_ziggurat();
   EXPECT_TRUE(horizontal_and(sum >= 0.0));
 }
 

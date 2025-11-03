@@ -510,6 +510,43 @@ public:
     }
   }
 
+  float_vt normal_float_ziggurat()
+  {
+    constexpr uint64_t MASK_SIGN = 1ULL<<31;
+    using namespace gaussian_ziggurat_float;
+    float_bvt good_samples = false;
+    float_vt x;
+    while(true) {
+      const uint32_vt u0 = this->uniform_uint32();
+      const uint32_vt i = u0&0xFFU;
+      const float_vt sign = vcl::reinterpret_f(u0&MASK_SIGN); // +/- 0
+      const float_vt xb = vcl::lookup<0x40000000>(i+1, xi);
+      const float_vt xt = vcl::lookup<0x40000000>(i, xi);
+      x = vcl::select(good_samples, x, xb*uint32_to_float_23bit(u0>>8));
+      good_samples |= x<xt;
+      if(vcl::horizontal_and(good_samples)) {
+        return vcl::sign_combine(x, sign);
+      }
+
+      const float_vt yb = vcl::lookup<0x40000000>(i+1, yi);
+      const float_vt yt = vcl::lookup<0x40000000>(i, yi);
+      const float_vt yx = vcl::exp(-0.5*x*x);
+      const float_vt uy = uint32_to_float_23bit(this->uniform_uint32());
+      good_samples |= float_bvt(i!=0xFFULL)&(uy*(yt-yb)<yx-yb);
+
+      while(vcl::horizontal_or(float_bvt(i==0xFFULL)&(!good_samples))) {
+        float_vt xx = vcl::log(uint32_to_float_23bit(this->uniform_uint32())) * r_inv;
+        float_vt yy = vcl::log(uint32_to_float_23bit(this->uniform_uint32()));
+        float_bvt mask = float_bvt(i==0xFFULL)&(!good_samples)&(-2*yy >= xx*xx);
+        x = select(mask, r-xx, x);
+        good_samples |= mask;
+      }
+      if(vcl::horizontal_and(good_samples)) {
+        return vcl::sign_combine(x, sign);
+      }
+    }
+  }
+
   void normal_pair_float_bm(float_vt& x1, float_vt& x2)
   {
     // double_vt r1 = sqrt(exponential_double(2.0));
@@ -529,6 +566,20 @@ public:
     sincos_double(s, c);
     x1 = r*c;
     x2 = r*s;
+  }
+
+  float_vt normal_float_bm()
+  {
+    float_vt x1, x2;
+    normal_pair_float_bm(x1,x2);
+    return x1;
+  }
+
+  double_vt normal_double_bm()
+  {
+    double_vt x1, x2;
+    normal_pair_double_bm(x1,x2);
+    return x1;
   }
 
   void normal_pair_real_bm(float_vt& x1, float_vt& x2)
@@ -854,6 +905,11 @@ public:
     return x_exp_minus_x_squared_double_ziggurat()[0];
   }
 
+  float test_normal_float_ziggurat()
+  {
+    return normal_float_ziggurat()[0];
+  }
+
   Eigen::VectorXd bulk_normal_double(unsigned n)
   {
     if(n % VCLArchitecture::num_double != 0) {
@@ -928,6 +984,12 @@ private:
     constexpr uint64_t MASK_HI = (1ULL<<52)-1;
     constexpr uint64_t EXP_HI = 1023ULL<<52;
     return vcl::reinterpret_d((u&MASK_HI) | EXP_HI) - 1;
+  }
+
+  static inline float_vt uint32_to_float_23bit(uint32_vt u) {
+    constexpr uint64_t MASK_HI = (1U<<23)-1;
+    constexpr uint64_t EXP_HI = 127U<<23;
+    return vcl::reinterpret_f((u&MASK_HI) | EXP_HI) - 1;
   }
 
   VCLRNGCore<VCLArchitecture>* core_ = nullptr;
