@@ -727,7 +727,7 @@ public:
         int isample = 0;
         const real_t *__restrict__ noise_spectrum_ptr = noise_spectrum.data();
         for(int zsample = int(nsample_)-3; isample<zsample; isample+=4) {
-          // Unroll here and use normal pair function which is (might be) faster
+          // Unroll by two here and use Gaussian pair function to produce 2 deviates
           real_vt x0, x1, x2, x3;
           rng_->normal_pair_real(x0, x1);
           rng_->normal_pair_real(x2, x3);
@@ -749,10 +749,12 @@ public:
             block[jpix].load_a(noise_spectrum_ptr + (ipix+jpix)*nsample_ + isample);
           }
           calin::util::vcl::transpose(block);
-          // Three possible cases which should be chosen at compile time
+          // One of these three possible cases which is chosen at compile time
           if(VCLReal::num_real % 4 == 0) {        
-            // If there is multiple of 4 reals in th evector then do an unrolled 
-            // loop generating two pairs of Gaussian deviates each iteration
+            // If there is multiple of 4 reals in the vector then do an unrolled 
+            // loop generating two pairs of Gaussian deviates each iteration.
+            // This branch is chose for all AVX/AVX-2 and AVX-512 float and double 
+            // architectures, and in the SSE (128 bit) float architecture.
             for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample+=4) {
               real_vt x0, x1, x2, x3;
               rng_->normal_pair_real(x0, x1);
@@ -763,9 +765,9 @@ public:
               a_vec[isample+3] += x3 * block[jsample+3];
             }
           } else if (VCLReal::num_real % 2 == 0) {
-            // If there is multiple of 4 reals in the vector then do loop 
-            // loop two pairs of Gaussian deviates each iteration - for Intel
-            // the only case where this is chosen is for 128bit SSE with doubles
+            // If there is multiple of 2 reals in the vector then do loop 
+            // generating one pairs of Gaussian deviates each iteration. This 
+            // branch is chosen is for the 128-bit SSE double architecture.
             for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample+=2) {
               real_vt x0, x1;
               rng_->normal_pair_real(x0, x1);
@@ -773,8 +775,8 @@ public:
               a_vec[isample+1] += x1 * block[jsample+1];
             }
           } else {
-            // Otherwise just generate one Gaussian per iteration. On Intel there
-            // is no case where this is chosen
+            // Otherwise just generate one Gaussian per iteration. There is
+            // no case in VCL where this branch is chosen.
             for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
               real_vt x = rng_->template normal_real<VCLReal>();
               a_vec[isample] += x * block[jsample];
@@ -864,6 +866,12 @@ public:
   {
     pe_waveform_.setZero();
     v_waveform_.setZero();
+  }
+
+  void clear() override
+  {
+    SimpleListPEProcessor::clear();
+    clear_waveforms();
   }
 
   std::string fftw_plans_summary() const
