@@ -1479,6 +1479,7 @@ Eigen::VectorXd hcvec_2gaussian_dft(double mean, double sigma, double split, uns
 Eigen::VectorXd hcvec_delta_dft(double x0, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_delta_idft(double k0, double phase0, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_delta_idft_by_index(unsigned index, unsigned nsample, bool vcl = true);
+Eigen::VectorXd hcvec_polynomial(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, bool vcl = true);
 
 void hcvec_delta_iq_idft(Eigen::VectorXd& oivec, Eigen::VectorXd& oqvec,
   double k0, double phase0, unsigned nsample, bool vcl = true);

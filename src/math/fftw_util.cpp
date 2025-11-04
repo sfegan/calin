@@ -29,6 +29,8 @@
 #include <util/memory.hpp>
 #include <math/fftw_util.hpp>
 
+#include "calin_global_definitions.hpp"
+
 void calin::math::fftw_util::
 hcvec_fftfreq(double* ovec, unsigned nsample, double d, bool imaginary_negative)
 {
@@ -316,6 +318,20 @@ void calin::math::fftw_util::hcvec_delta_iq_idft_by_index(Eigen::VectorXd& oivec
     hcvec_delta_iq_idft<double>(oivec.data(), oqvec.data(), double(index), 0.0, nsample);
   }
 }
+
+Eigen::VectorXd calin::math::fftw_util::hcvec_polynomial(
+  const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, bool vcl)
+{
+  Eigen::VectorXd ovec(ivec1.size());
+  std::vector<double> p = eigen_to_stdvec(ivec2);
+  if(vcl) {
+    hcvec_polynomial(ovec.data(), ivec1.data(), p, ivec1.size());
+  } else {
+    hcvec_polynomial<double>(ovec.data(), ivec1.data(), p, ivec1.size());
+  }
+  return ovec;
+}
+
 
 Eigen::VectorXd calin::math::fftw_util::hcvec_psd_weight(unsigned nsample)
 {
