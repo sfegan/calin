@@ -325,7 +325,7 @@ public:
     }
   }
 
-  float_vt exponential_float() {
+  float_vt exponential_float_transformation() {
     float_vt x = uniform_float();
     float_bvt xzero = x==0.0f;
     while(horizontal_or(xzero)) {
@@ -333,6 +333,11 @@ public:
       xzero = x==0.0f;
     }
     return -calin::util::vcl::log(x);
+  }
+
+
+  float_vt exponential_float() {
+    return exponential_float_transformation();
   }
 
   float_vt exponential_float(const float_vt& scale) {
@@ -549,10 +554,7 @@ public:
 
   void normal_pair_float_bm(float_vt& x1, float_vt& x2)
   {
-    // double_vt r1 = sqrt(exponential_double(2.0));
-    // double_vt r2 = sqrt(exponential_double(2.0));
-    // float_vt r = compress(r1,r2);
-    float_vt r = sqrt(exponential_float(2.0));
+    float_vt r = sqrt(2.0 * exponential_float_transformation());
     float_vt s, c;
     sincos_float(s, c);
     x1 = r*c;
@@ -561,14 +563,24 @@ public:
 
   void normal_pair_double_bm(double_vt& x1, double_vt& x2)
   {
-    double_vt r = sqrt(exponential_double(2.0));
+    double_vt r = sqrt(2.0 * exponential_double_transformation());
     double_vt s, c;
     sincos_double(s, c);
     x1 = r*c;
     x2 = r*s;
   }
 
-  float_vt normal_float_bm()
+  void normal_pair_float(float_vt& x1, float_vt& x2)
+  {
+    return normal_pair_float_bm(x1, x2);
+  }
+
+  void normal_pair_double(double_vt& x1, double_vt& x2)
+  {
+    return normal_pair_double_bm(x1, x2);
+  }
+
+  void normal_float_bm()
   {
     float_vt x1, x2;
     normal_pair_float_bm(x1,x2);
@@ -592,6 +604,16 @@ public:
     normal_pair_double_bm(x1, x2);
   }
 
+  void normal_pair_real(float_vt& x1, float_vt& x2)
+  {
+    normal_pair_float_bm(x1, x2);
+  }
+
+  void normal_pair_real(double_vt& x1, double_vt& x2)
+  {
+    normal_pair_double_bm(x1, x2);
+  }
+  
   inline double_vt x_exp_minus_x_squared_double()
   {
     return x_exp_minus_x_squared_double_ziggurat();
