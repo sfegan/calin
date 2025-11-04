@@ -79,7 +79,7 @@ public:
   {
     if(nsample_ % VCLReal::num_real != 0) {
       throw std::domain_error("Number of samples " + std::to_string(nsample_) 
-        + " is not a multiple of vector size " 
+        + " must be a multiple of vector size " 
         + std::to_string(VCLReal::num_real));
     }
 
@@ -567,13 +567,22 @@ public:
 
       // Add Gaussian noise with given spectrum
       if(noise_spectrum.size()) {
-        for(unsigned isample=0; isample<nsample_; isample++) {
-          real_vt x = noise_spectrum[isample];
-          if(x[0]) {
-            x *= rng_->template normal_real<VCLReal>();
-            a_vec[isample] += x;
-          }
+        const real_t *__restrict__ noise_spectrum_ptr = noise_spectrum.data();
+        int isample = 0;
+        for(int zsample = int(nsample_)-3; isample<zsample; isample+=4) {
+          // Unroll here and use normal pair function which is (might be) faster
+          real_vt x0, x1, x2, x3;
+          rng_->normal_pair_real(x0, x1);
+          rng_->normal_pair_real(x2, x3);
+          a_vec[isample]   += x0 * noise_spectrum_ptr[isample];
+          a_vec[isample+1] += x1 * noise_spectrum_ptr[isample+1];
+          a_vec[isample+2] += x2 * noise_spectrum_ptr[isample+2];
+          a_vec[isample+3] += x3 * noise_spectrum_ptr[isample+3];
         }
+        for(int zsample = int(nsample_); isample<zsample; isample++) {
+          real_vt x = rng_->template normal_real<VCLReal>();
+          a_vec[isample] += x * noise_spectrum_ptr[isample];
+        }        
       }
 
       // Do inverse-FFT of "a_vec" into "b_vec"
@@ -714,27 +723,53 @@ public:
 
       // Add Gaussian noise with given spectrum
       if(noise_spectrum.cols() == 1) {
-        // Unique noise specdtrum for all channels
-        for(unsigned isample=0; isample<nsample_; isample++) {
-          real_vt x = noise_spectrum(isample,0);
-          if(x[0]) {
-            x *= rng_->template normal_real<VCLReal>();
-            a_vec[isample] += x;
-          }
+        // Unique noise spectrum for all channels
+        int isample = 0;
+        const real_t *__restrict__ noise_spectrum_ptr = noise_spectrum.data();
+        for(int zsample = int(nsample_)-3; isample<zsample; isample+=4) {
+          // Unroll here and use normal pair function which is (might be) faster
+          real_vt x0, x1, x2, x3;
+          rng_->normal_pair_real(x0, x1);
+          rng_->normal_pair_real(x2, x3);
+          a_vec[isample]   += x0 * noise_spectrum_ptr[isample];
+          a_vec[isample+1] += x1 * noise_spectrum_ptr[isample+1];
+          a_vec[isample+2] += x2 * noise_spectrum_ptr[isample+2];
+          a_vec[isample+3] += x3 * noise_spectrum_ptr[isample+3];
         }
+        for(int zsample = int(nsample_); isample<zsample; isample++) {
+          real_vt x = rng_->template normal_real<VCLReal>();
+          a_vec[isample] += x * noise_spectrum_ptr[isample];
+        }        
       } else if (noise_spectrum.size()) {
         // Load data from "noise_spectrum", block by block, transposing as we go along
+        const real_t *__restrict__ noise_spectrum_ptr = noise_spectrum.data();
         for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
           real_vt block[VCLReal::num_real]; // square matrix of doubles
           for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-            block[jpix].load_a(noise_spectrum.data() + (ipix+jpix)*nsample_ + isample);
+            block[jpix].load_a(noise_spectrum_ptr + (ipix+jpix)*nsample_ + isample);
           }
           calin::util::vcl::transpose(block);
-          for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-            real_vt x = block[jsample];
-            if(to_bits(x != 0)) {
-              x *= rng_->template normal_real<VCLReal>();
-              a_vec[isample] += x;
+          if(VCLReal::num_real % 4 == 0) {
+            for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample+=4) {
+              real_vt x0, x1, x2, x3;
+              rng_->normal_pair_real(x0, x1);
+              rng_->normal_pair_real(x2, x3);
+              a_vec[isample]   += x0 * block[jsample];
+              a_vec[isample+1] += x1 * block[jsample+1];
+              a_vec[isample+2] += x2 * block[jsample+2];
+              a_vec[isample+3] += x3 * block[jsample+3];
+            }
+          } else if (VCLReal::num_real % 2 == 0) {
+            for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample+=2) {
+              real_vt x0, x1;
+              rng_->normal_pair_real(x0, x1);
+              a_vec[isample]   += x0 * block[jsample];
+              a_vec[isample+1] += x1 * block[jsample+1];
+            }
+          } else {
+            for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
+              real_vt x = rng_->template normal_real<VCLReal>();
+              a_vec[isample] += x * block[jsample];
             }
           }
         }
@@ -1016,11 +1051,11 @@ public:
     return camera_responses_.size() - 1;
   }
 
-  void apply_camera_response_fftw_codelet(unsigned iscope, unsigned camera_response_id, bool transfer_pes_and_add_nsb = true,
+  void apply_camera_response_fftw_codelet(unsigned camera_response_id, int iscope = -1,
     const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd()) 
   {
     auto& cr = camera_responses_[camera_response_id];
-    if(transfer_pes_and_add_nsb) {
+    if(iscope>=0) {
       validate_iscope_ipix(iscope, 0);
       if(channel_time_offset_ns.size()!=0 and channel_time_offset_ns.size()!=npix_) {
         throw std::domain_error("Time offset vector length is not equal to number of pixels " 
