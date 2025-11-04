@@ -749,7 +749,10 @@ public:
             block[jpix].load_a(noise_spectrum_ptr + (ipix+jpix)*nsample_ + isample);
           }
           calin::util::vcl::transpose(block);
-          if(VCLReal::num_real % 4 == 0) {
+          // Three possible cases which should be chosen at compile time
+          if(VCLReal::num_real % 4 == 0) {        
+            // If there is multiple of 4 reals in th evector then do an unrolled 
+            // loop generating two pairs of Gaussian deviates each iteration
             for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample+=4) {
               real_vt x0, x1, x2, x3;
               rng_->normal_pair_real(x0, x1);
@@ -760,6 +763,9 @@ public:
               a_vec[isample+3] += x3 * block[jsample+3];
             }
           } else if (VCLReal::num_real % 2 == 0) {
+            // If there is multiple of 4 reals in the vector then do loop 
+            // loop two pairs of Gaussian deviates each iteration - for Intel
+            // the only case where this is chosen is for 128bit SSE with doubles
             for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample+=2) {
               real_vt x0, x1;
               rng_->normal_pair_real(x0, x1);
@@ -767,6 +773,8 @@ public:
               a_vec[isample+1] += x1 * block[jsample+1];
             }
           } else {
+            // Otherwise just generate one Gaussian per iteration. On Intel there
+            // is no case where this is chosen
             for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
               real_vt x = rng_->template normal_real<VCLReal>();
               a_vec[isample] += x * block[jsample];
@@ -973,7 +981,7 @@ public:
       var += 2.0*(SQR(*r++) + SQR(*c--));
     }
     if(r==c) {
-      var = SQR(*r++);
+      var += SQR(*r++);
     }
     return var;
   }
