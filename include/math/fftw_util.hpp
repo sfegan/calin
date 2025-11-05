@@ -1474,6 +1474,7 @@ double hcvec_sum_real(const Eigen::VectorXd& ivec);
 double hcvec_avg_real(const Eigen::VectorXd& ivec);
 Eigen::VectorXd hcvec_multiply_and_add_real(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, double real_addand);
 Eigen::VectorXd hcvec_scale_and_add_real(const Eigen::VectorXd& ivec, double scale, double real_addand);
+Eigen::VectorXd hcvec_scale_and_multiply(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, double scale = 1.0, bool vcl = true);
 Eigen::VectorXd hcvec_gaussian_dft(double mean, double sigma, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_2gaussian_dft(double mean, double sigma, double split, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_delta_dft(double x0, unsigned nsample, bool vcl = true);

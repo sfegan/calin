@@ -215,6 +215,21 @@ Eigen::VectorXd calin::math::fftw_util::hcvec_scale_and_add_real(const Eigen::Ve
   return ovec;
 }
 
+Eigen::VectorXd calin::math::fftw_util::hcvec_scale_and_multiply(
+  const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, double scale, bool vcl)
+{
+  Eigen::VectorXd ovec(ivec1.size());
+  if(ivec1.size() != ivec2.size()) {
+    throw std::runtime_error("Input vectors must have same number of elements");
+  }
+  if(vcl) {
+    hcvec_scale_and_multiply(ovec.data(), ivec1.data(), ivec2.data(), ovec.size(), scale);
+  } else {
+    hcvec_scale_and_multiply<double>(ovec.data(), ivec1.data(), ivec2.data(), ovec.size(), scale);
+  }
+  return ovec;
+}
+
 double calin::math::fftw_util::hcvec_sum_real(const Eigen::VectorXd& ivec)
 {
   return hcvec_sum_real(ivec.data(), ivec.size());
