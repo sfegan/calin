@@ -897,27 +897,17 @@ public:
     return os;
   }
   
-  void inject_pe(unsigned ipix, unsigned isample, double amplitude = 1.0) 
+  void inject_pe(unsigned scope_id, unsigned pixel_id, double t, double amplitude = 1.0) 
   {
-    if(ipix>=npix_) {
-      throw std::out_of_range("Pixel index out of range in inject_pe: " 
-        + std::to_string(ipix) + " >= " + std::to_string(npix_));
-    }
-    if(isample>=nsample_) {
-      throw std::out_of_range("Sample index out of range in inject_pe: " 
-        + std::to_string(isample) + " >= " + std::to_string(nsample_));
-    }
-    pe_waveform_(isample, ipix) += amplitude;
+    process_focal_plane_hit(scope_id, pixel_id, 0.0, 0.0, 0.0, 0.0, t, amplitude);
   }
 
-  void inject_n_pes(unsigned ipix, unsigned npe, double t0_samples,
+  void inject_n_pes(unsigned scope_id, unsigned pixel_id, unsigned npe, double t0_ns,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
     double time_spread_ns = 0.0)
   {
-    double t0 = t0_samples;
-    real_t *__restrict__ pe_waveform_ptr = &pe_waveform_(0,ipix);
     while(npe) {
-      typename VCLArchitecture::double_vt t = t0;
+      typename VCLArchitecture::double_vt t = t0_ns;
       if(time_spread_ns > 0) {
         t += rng_->normal_double() * time_spread_ns;
       } else if (time_spread_ns < 0) {
@@ -928,48 +918,58 @@ public:
         q = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
       } else {
         q = 1.0;
-      }        
-      typename VCLArchitecture::int64_vt it = truncate_to_int64(t);
-
+      }
       typename VCLArchitecture::double_at q_a;
-      typename VCLArchitecture::int64_at it_a;
+      typename VCLArchitecture::double_at t_a;
       q.store_a(q_a);
-      it.store_a(it_a);
+      t.store_a(t_a);
       for(unsigned jvec=0;jvec<VCLArchitecture::num_double && npe; jvec++,npe--) {
-        unsigned isample = it_a[jvec];
-        if(isample>=0 and isample<nsample_) {
-          pe_waveform_ptr[isample] += q[jvec];
-        }
+        process_focal_plane_hit(scope_id, pixel_id, 0.0, 0.0, 0.0, 0.0, t_a[jvec], q_a[jvec]);
       }
     }
   }
 
-  void inject_poisson_pes(unsigned ipix, double lambda, double t0_samples,
+  void inject_poisson_pes(unsigned scope_id, unsigned pixel_id, double lambda, double t0_ns,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
     double time_spread_ns = 0.0)
   {
     calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
     calin::math::rng::RNG scalar_rng(&scalar_core);
     unsigned npe = scalar_rng.poisson(lambda);
-    inject_n_pes(ipix, npe, t0_samples, pegen, time_spread_ns);
+    inject_n_pes(scope_id, pixel_id, npe, t0_ns, pegen, time_spread_ns);
   }
 
-  void inject_poisson_pes(const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_samples, 
+  void inject_poisson_pes(unsigned scope_id, const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_ns, 
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
-    double time_spread_ns = 0.0)
+    const Eigen::VectorXd& time_spread_ns = Eigen::VectorXd())
   {
     if(lambda.size() != npix_) {
       throw std::domain_error("Lambda vector length is not equal to number of pixels " 
         + std::to_string(lambda.size()) + " != " + std::to_string(npix_));
     }
-    if(t0_samples.size() != npix_) {
-      throw std::domain_error("t0_samples vector length is not equal to number of pixels " 
-        + std::to_string(t0_samples.size()) + " != " + std::to_string(npix_));
+    if(t0_ns.size() != 1 and t0_ns.size() != npix_) {
+      throw std::domain_error("T0 vector length must be 1 or equal to number of pixels " 
+        + std::to_string(t0_ns.size()) + " != 1 or " + std::to_string(npix_));
     }
+    if(time_spread_ns.size() != 0 and time_spread_ns.size() != 1 and t0_ns.size() != npix_) {
+      throw std::domain_error("Time spread vector length must be 0, 1 or equal to number of pixels " 
+        + std::to_string(t0_ns.size()) + " != 0, 1 or " + std::to_string(npix_));
+    }
+
     calin::math::rng::RNG& scalar_rng(rng_->scalar_rng());
     for(unsigned ipix=0; ipix<npix_; ipix++) {
       unsigned npe = scalar_rng.poisson(lambda[ipix]);
-      inject_n_pes(ipix, npe, t0_samples[ipix], pegen, time_spread_ns);
+      double t0 = t0_ns[0];
+      double time_spread = 0;
+      if(t0_ns.size() > 1) {
+        t0 = t0_ns[ipix];
+      }
+      if(time_spread_ns.size() > 1) {
+        time_spread = time_spread_ns[ipix];
+      } else if (time_spread_ns.size() == 1) {
+        time_spread = time_spread_ns[0];
+      }
+      inject_n_pes(scope_id, ipix, npe, t0, pegen, time_spread);
     }
   }
 
