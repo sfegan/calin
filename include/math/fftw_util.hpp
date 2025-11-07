@@ -76,7 +76,7 @@ public:
   inline void execute() { fftw_execute(plan_); }
   std::string print() { std::string os; char* s = fftw_sprint_plan(plan_); os = s; fftw_free(s); return os; }
 private:
-  fftw_plan plan_;
+  fftw_plan plan_ = nullptr;
 };
 
 class FFTW_Planned_R2R_Flt {
@@ -97,7 +97,7 @@ public:
   inline void execute() { fftwf_execute(plan_); }
   std::string print() { std::string os; char* s = fftwf_sprint_plan(plan_); os = s; fftwf_free(s); return os; }
 private:
-  fftwf_plan plan_;
+  fftwf_plan plan_ = nullptr;
 };
 
 inline FFTW_Planned_R2R_Dbl plan_r2hc(unsigned nsample, double* r, double *c, unsigned flags = FFTW_ESTIMATE) {
