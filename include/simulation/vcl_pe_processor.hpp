@@ -386,6 +386,76 @@ public:
     validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
 
+    const real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    real_t *__restrict__ v_waveform_ptr = v_waveform_;
+    real_t *__restrict__ a_vec = calin::util::memory::aligned_calloc<real_t>(nsample_);
+    first_sample_of_interest -= first_sample_of_interest % VCLReal::num_real;
+    for(unsigned ipix=0,vpix=0; ipix<npix_; ++ipix,++vpix) {
+      if(vpix == VCLReal::num_real) {
+        pe_waveform_ptr += nsample_ * VCLReal::num_real;
+        v_waveform_ptr += nsample_ * VCLReal::num_real;
+        vpix = 0;
+      }
+
+      for(unsigned isample=first_sample_of_interest;isample<nsample_;++isample+=VCLReal::num_real) {
+        real_vt x = 0;
+        if(pedestal.size()) {
+          x = pedestal[ipix];
+        }
+        if(white_noise_rms != 0.0) {
+          x += white_noise_rms * rng_->template normal_real<VCLReal>();
+        }
+        x.store_a(a_vec + isample*VCLReal::num_real);
+      }
+      
+      real_t gain = 1.0;
+      if(relative_gain.size()) {
+        gain = relative_gain[ipix];
+      }
+      unsigned isample0 = std::max(first_sample_of_interest,ir.response_size)-ir.response_size;
+      for(unsigned isample=isample0; isample<nsample_; ++isample) {
+        real_t wt = gain * pe_waveform_ptr[isample*VCLReal::num_real + vpix];
+        if(wt==0) {
+          continue;
+        }
+        unsigned jmin = std::max(first_sample_of_interest, isample) - isample;
+        unsigned jmax = std::min(unsigned(ir.response_size), nsample_ - isample);
+        unsigned jcount = std::max(jmax, jmin) - jmin;
+        real_t *__restrict__ a_vec_ptr = a_vec + isample + jmin;
+        const real_t *__restrict__ impulse_response_ptr = ir.response.data() + jmin;
+        for(unsigned jsample=0; jsample<jcount; ++jsample) {
+          *(a_vec_ptr++) += wt * (*(impulse_response_ptr++));
+        }
+      }
+
+      for(unsigned isample=first_sample_of_interest; isample<nsample_; ++isample) {
+        v_waveform_ptr[isample*VCLReal::num_real + vpix] = a_vec[isample];
+      }
+    }
+    ::free(a_vec);
+  }
+
+  void convolve_impulse_response_direct_vec(unsigned impulse_response_id, unsigned first_sample_of_interest = 0,
+    const vecX_t& pedestal = vecX_t(), const vecX_t& relative_gain = vecX_t(), double white_noise_rms = 0.0)
+  {
+    if(first_sample_of_interest >= nsample_) {
+      throw std::domain_error("First sample of interest must be less than total number of samples: " 
+        + std::to_string(first_sample_of_interest) + " >= " + std::to_string(nsample_));
+    }
+
+    if(pedestal.size()!=0 and pedestal.size()!=npix_) {
+      throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
+        + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
+    }
+
+    if(relative_gain.size()!=0 and relative_gain.size()!=npix_) {
+      throw std::domain_error("Relative gain vector length is not equal to number of pixels " 
+        + std::to_string(relative_gain.size()) + " != " + std::to_string(npix_));
+    }
+
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+
     for(unsigned ipix=0; ipix<npix_; ipix += VCLReal::num_real) {
       real_t *__restrict__ pe_waveform_ptr = pe_waveform_ + ipix*nsample_;
       real_t *__restrict__ v_waveform_ptr = v_waveform_ + ipix*nsample_;
@@ -480,11 +550,12 @@ public:
     auto bwd = calin::math::fftw_util::plan_hc2r(nsample_, a_vec, b_vec, FFTW_MEASURE);
     const real_t scale = 1.0/nsample_;
 
-    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    const real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
     real_t *__restrict__ v_waveform_ptr = v_waveform_;
     for(unsigned ipix=0,vpix=0; ipix<npix_; ++ipix,++vpix) {
       if(vpix == VCLReal::num_real) {
         pe_waveform_ptr += nsample_ * VCLReal::num_real;
+        v_waveform_ptr += nsample_ * VCLReal::num_real;
         vpix = 0;
       }
 
@@ -492,7 +563,7 @@ public:
         a_vec[isample] = pe_waveform_ptr[isample*VCLReal::num_real + vpix];
       }
 
-      fwd.execute();
+      fwd.execute(); // FFT a_vec -> b_vec
 
       real_t gain = 1.0;
       if(relative_gain.size()) {
@@ -500,9 +571,9 @@ public:
       }
 
       calin::math::fftw_util::hcvec_scale_and_multiply(a_vec, b_vec, ir.transform.data(),
-        nsample_, scale*gain);
+        nsample_, scale*gain); // b_vec * ir.transform * scale * gain -> a_vec
 
-      if(pedestal.size() > ipix) {
+      if(pedestal.size()) {
         a_vec[0] += pedestal(ipix);
       }
 
@@ -513,22 +584,22 @@ public:
           if(to_bits(x != 0.0)) {
             x *= rng_->template normal_real<VCLReal>();
             real_vt a;
-            a.load_a(&a_vec[isample]);
+            a.load_a(a_vec + isample);
             a += x;
-            a.store_a(&a_vec[isample]);
+            a.store_a(a_vec + isample);
           }
         }
       }
 
-      bwd.execute();
+      bwd.execute(); // IFFT a_vec -> b_vec
 
       for(unsigned isample=0;isample<nsample_;isample++) {
         v_waveform_ptr[isample*VCLReal::num_real + vpix] = b_vec[isample];
       }
     }
 
-    free(a_vec);
-    free(b_vec);
+    ::free(a_vec);
+    ::free(b_vec);
   }
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
@@ -565,7 +636,7 @@ public:
 
     real_t scale = 1.0/nsample_;
 
-    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    const real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
     real_t *__restrict__ v_waveform_ptr = v_waveform_;
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
       // Load data from "pe_waveform_" to "a_vec"
@@ -584,10 +655,11 @@ public:
           gain.load(relative_gain.data() + ipix);
         } else {
           real_at gain_array;
+          gain.store_a(gain_array);
           for(unsigned i=0; i+ipix<npix_; i++) {
             gain_array[i] = relative_gain(ipix+i);
           }
-          gain.load(gain_array);
+          gain.load_a(gain_array);
         }
       }
 
@@ -597,15 +669,16 @@ public:
 
       // Add pedestal in frequency domain as DC offset before inverse transform
       if(pedestal.size()) {
-        real_vt ped;
+        real_vt ped = 0;
         if(ipix + VCLReal::num_real <= npix_) {
           ped.load(pedestal.data() + ipix);
         } else {
           real_at ped_array;
+          ped.store_a(ped_array);
           for(unsigned i=0; i+ipix<npix_; i++) {
             ped_array[i] = pedestal(ipix+i);
           }
-          ped.load(ped_array);
+          ped.load_a(ped_array);
         }
         *a_vec += ped;
       }
@@ -639,8 +712,8 @@ public:
         v_waveform_ptr += VCLReal::num_real;
       }
     }
-    free(a_vec);
-    free(b_vec);
+    ::free(a_vec);
+    ::free(b_vec);
   }
 
   void convolve_multiple_impulse_response_fftw_codelet(
@@ -698,7 +771,7 @@ public:
   
     real_t scale = 1.0/nsample_;
 
-    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    const real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
     real_t *__restrict__ v_waveform_ptr = v_waveform_;
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
       // Load data from "pe_waveform_" to "a_vec"
@@ -730,10 +803,11 @@ public:
           gain.load(relative_gain.data() + ipix);
         } else {
           real_at gain_array;
+          gain.store_a(gain_array);
           for(unsigned i=0; i+ipix<npix_; i++) {
             gain_array[i] = relative_gain(ipix+i);
           }
-          gain.load(gain_array);
+          gain.load_a(gain_array);
         }
       }
 
@@ -743,15 +817,16 @@ public:
 
       // Add pedestal in frequency domain as DC offset before inverse transform
       if(pedestal.size()) {
-        real_vt ped;
+        real_vt ped = 0;
         if(ipix + VCLReal::num_real <= npix_) {
           ped.load(pedestal.data() + ipix);
         } else {
           real_at ped_array;
+          ped.store_a(ped_array);
           for(unsigned i=0; i+ipix<npix_; i++) {
             ped_array[i] = pedestal(ipix+i);
           }
-          ped.load(ped_array);
+          ped.load_a(ped_array);
         }
         *a_vec += ped;
       }
@@ -829,9 +904,9 @@ public:
         v_waveform_ptr += VCLReal::num_real;
       }
     }
-    free(a_vec);
-    free(b_vec);
-    free(c_vec);
+    ::free(a_vec);
+    ::free(b_vec);
+    ::free(c_vec);
   }
 
   vecX_t ac_coupling_offset(const Eigen::VectorXi& impulse_response_id, 
@@ -905,8 +980,8 @@ public:
 
   std::string fftw_plans_summary() const
   {
-    double* a_vec = fftw_alloc_real(nsample_);
-    double* b_vec = fftw_alloc_real(nsample_);
+    real_t* a_vec = calin::util::memory::aligned_calloc<real_t>(nsample_);
+    real_t* b_vec = calin::util::memory::aligned_calloc<real_t>(nsample_);
 
     auto fwd = calin::math::fftw_util::plan_r2hc(nsample_, a_vec, b_vec, FFTW_MEASURE);
     auto bwd = calin::math::fftw_util::plan_hc2r(nsample_, a_vec, b_vec, FFTW_MEASURE);
@@ -920,8 +995,8 @@ public:
     os += "----------------------------------\n";
     os += bwd.print();
 
-    fftw_free(a_vec);
-    fftw_free(b_vec);
+    ::free(a_vec);
+    ::free(b_vec);
 
     return os;
   }
