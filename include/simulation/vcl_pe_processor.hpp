@@ -1118,7 +1118,7 @@ public:
 private:
 #ifndef SWIG
   static inline unsigned round_nreal_to_vector(unsigned n) {
-    return n + std::min(n%VCLReal::num_real, 1U);
+    return ((n + VCLReal::num_real - 1U)/VCLReal::num_real)*VCLReal::num_real;
   } 
 
   inline double get_t0_for_scope(unsigned iscope) const {
