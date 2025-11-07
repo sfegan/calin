@@ -74,7 +74,9 @@ public:
     nsample_(round_nreal_to_vector(nsample)),  nadvance_(nsample_advance),
     time_resolution_ns_(time_resolution_ns), sampling_freq_ghz_(1.0/time_resolution_ns_),
     time_advance_(double(nadvance_)*time_resolution_ns_),
-    pe_waveform_(nsample_, npix_), v_waveform_(nsample_, npix_), 
+    waveform_size_(nsample_ * round_nreal_to_vector(npix_)),
+    pe_waveform_(calin::util::memory::aligned_calloc<real_t>(waveform_size_)), 
+    v_waveform_(calin::util::memory::aligned_calloc<real_t>(waveform_size_)), 
     rng_(rng), adopt_rng_(adopt_rng)
   {
     if(nsample_ % VCLReal::num_real != 0) {
@@ -83,12 +85,12 @@ public:
         + std::to_string(VCLReal::num_real));
     }
 
-    if((uintptr_t)(const void *)pe_waveform_.data() % VCLReal::vec_bytes != 0) {
+    if((uintptr_t)(const void *)pe_waveform_ % VCLReal::vec_bytes != 0) {
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "pe_waveform_ not aligned on " << VCLReal::vec_bytes << " boundary.";
     }
 
-    if((uintptr_t)(const void *)v_waveform_.data() % VCLReal::vec_bytes != 0) {
+    if((uintptr_t)(const void *)v_waveform_ % VCLReal::vec_bytes != 0) {
       calin::util::log::LOG(calin::util::log::WARNING) 
         << "v_waveform_ not aligned on " << VCLReal::vec_bytes << " boundary.";
     }
@@ -97,10 +99,14 @@ public:
       rng_ = new RNG(__PRETTY_FUNCTION__, "VCLWaveformPEProcessor RNG");
       adopt_rng_ = true;
     }
+
+    clear_waveforms();
   }
 
   virtual ~VCLWaveformPEProcessor() 
   {
+    ::free(pe_waveform_);
+    ::free(v_waveform_);
     if(adopt_rng_) {
       delete rng_;
     }
@@ -117,14 +123,17 @@ public:
         + std::to_string(channel_time_offset_ns.size()) + " != " + std::to_string(npix_));
     }
 
-    double t0 = get_t0_for_scope(iscope);    
-    for(unsigned ipix=0; ipix<npix_; ++ipix) {
+    double t0 = get_t0_for_scope(iscope);
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    for(unsigned ipix=0,vpix=0; ipix<npix_; ++ipix,++vpix) {
+      if(vpix == VCLReal::num_real) {
+        pe_waveform_ptr += nsample_ * VCLReal::num_real;
+        vpix = 0;
+      }
       double t0ipix = t0;
       if(channel_time_offset_ns.size()) {
         t0ipix -= channel_time_offset_ns[ipix];
       }
-      real_t *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
-      std::fill(pe_waveform_ptr_, pe_waveform_ptr_+nsample_, 0);
       auto pd = scopes_[iscope].pixel_data[ipix];
       if(pd==nullptr) {
         continue;
@@ -137,14 +146,14 @@ public:
           wt += pd->w[ipe];
         } else {
           if(it>=0 and it<int(nsample_)) {
-            pe_waveform_ptr_[it] += wt;
+            pe_waveform_ptr[it*VCLReal::num_real + vpix] += wt;
           }
           it = jt;
           wt = pd->w[ipe];
         }
       }
       if(it>=0 and it<int(nsample_)) {
-        pe_waveform_ptr_[it] += wt;
+        pe_waveform_ptr[it*VCLReal::num_real + vpix] += wt;
       }
     }
   }
@@ -160,13 +169,16 @@ public:
     // Non-vectorized version - a vectorized version would have to use scatter/gather
     // possibly not worth it
     double t_max = double(nsample_);
-    for(unsigned ipix=0; ipix<npix_; ++ipix) {
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    for(unsigned ipix=0,vpix=0; ipix<npix_; ++ipix,++vpix) {
+      if(vpix == VCLReal::num_real) {
+        pe_waveform_ptr += nsample_ * VCLReal::num_real;
+        vpix = 0;
+      }
       double rate_samples = sampling_freq_ghz_/nsb_freq_per_pixel_ghz[ipix];
       if(rate_samples<=0) {
         continue;
       }
-
-      real_t *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
       double t_samples = 0;
       while(t_samples < t_max) {
         typename VCLArchitecture::double_vt dt_samples = rng_->exponential_double() * rate_samples;
@@ -183,8 +195,8 @@ public:
           if(t_samples >= t_max) {
             goto next_pixel;
           }
-          int it = int(floor(t_samples));
-          pe_waveform_ptr_[it] += charge_a[insb];
+          int it = int(round(t_samples));
+          pe_waveform_ptr[it*VCLReal::num_real + vpix] += charge_a[insb];
         }
       }
       next_pixel:
@@ -213,35 +225,26 @@ public:
 
     vecX_t pes_per_channel_in_window(npix_);
 
-    unsigned isample0 = window_start - window_start%VCLReal::num_real;
-    real_vt* a_vec = calin::util::memory::aligned_calloc<real_vt>(nsample_);
-    for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
-      // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
-      for(unsigned isample=isample0; isample<nsample_; isample+=VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].load_a(pe_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          a_vec[isample+jsample] = block[jsample];
-        }
-      }
-
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_ + window_start*VCLReal::num_real;
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real, pe_waveform_ptr += nsample_*VCLReal::num_real) {
       real_vt max_integral = 0;
       real_vt integral = 0;
 
-      real_vt *__restrict__ iptr = a_vec + window_start;
-      real_vt *__restrict__ jptr = iptr;
-      real_vt *__restrict__ zptr = iptr + window_size;
-      while(iptr < zptr) {
-        integral += *(iptr++);
+      unsigned isample=0;
+      for(unsigned zsample=window_size*VCLReal::num_real; isample<zsample; isample+=VCLReal::num_real) {
+        real_vt samples;
+        samples.load_a(pe_waveform_ptr + isample);
+        integral += samples;
       }
-      zptr += nsample_ - window_size - window_start;
+
       max_integral = integral;
-      while(iptr < zptr) {
-        integral += *(iptr++);
-        integral -= *(jptr++);
+      for(unsigned jsample=0, zsample=(nsample_ - window_size - window_start)*VCLReal::num_real; 
+          isample<zsample; isample+=VCLReal::num_real, jsample+=VCLReal::num_real) {
+        real_vt samples;
+        samples.load_a(pe_waveform_ptr + isample);
+        integral += samples;
+        samples.load_a(pe_waveform_ptr + jsample);
+        integral -= samples;
         max_integral = vcl::max(max_integral, integral);
       }
 
@@ -362,9 +365,14 @@ public:
     return s;
   }
 
-  void convolve_impulse_response(unsigned impulse_response_id, 
+  void convolve_impulse_response_direct(unsigned impulse_response_id, unsigned first_sample_of_interest = 0,
     const vecX_t& pedestal = vecX_t(), const vecX_t& relative_gain = vecX_t(), double white_noise_rms = 0.0)
   {
+    if(first_sample_of_interest >= nsample_) {
+      throw std::domain_error("First sample of interest must be less than total number of samples: " 
+        + std::to_string(first_sample_of_interest) + " >= " + std::to_string(nsample_));
+    }
+
     if(pedestal.size()!=0 and pedestal.size()!=npix_) {
       throw std::domain_error("Pedestal vector length is not equal to number of pixels " 
         + std::to_string(pedestal.size()) + " != " + std::to_string(npix_));
@@ -377,37 +385,66 @@ public:
 
     validate_impulse_response_id(impulse_response_id);
     const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
-  
-    for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      real_t *__restrict__ v_waveform_ptr = &v_waveform_(0, ipix);
-      real_t *__restrict__ pe_waveform_ptr = &pe_waveform_(0, ipix);
-      for(unsigned isample=0;isample<nsample_;isample+=VCLReal::num_real) {
-        real_vt x;
-        if(pedestal.size()) {
-          x = pedestal[ipix];
+
+    for(unsigned ipix=0; ipix<npix_; ipix += VCLReal::num_real) {
+      real_t *__restrict__ pe_waveform_ptr = pe_waveform_ + ipix*nsample_;
+      real_t *__restrict__ v_waveform_ptr = v_waveform_ + ipix*nsample_;
+
+      // Load the pedestal for this block of pixels
+      real_vt x0 = 0;
+      if(pedestal.size()) {
+        if(ipix + VCLReal::num_real <= npix_) {
+          x0.load(pedestal.data() + ipix);
         } else {
-          x = 0;
+          real_at x0_array;
+          x0.store_a(x0_array);
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            x0_array[i] = pedestal(ipix+i);
+          }
+          x0.load_a(x0_array);
         }
+      }
+
+      // Initialize waveform with pedestal + white noise
+      for(unsigned isample=first_sample_of_interest;isample<nsample_;++isample) {
+        real_vt x = x0;
         if(white_noise_rms != 0.0) {
           x += white_noise_rms * rng_->template normal_real<VCLReal>();
         }
-        x.store_a(v_waveform_ptr + isample);
+        x.store_a(v_waveform_ptr + isample*VCLReal::num_real);
       }
-      
-      real_t gain = 1.0;
+
+      real_vt gain = 1.0;
       if(relative_gain.size()) {
-        gain = relative_gain[ipix];
+        if(ipix + VCLReal::num_real <= npix_) {
+          gain.load(relative_gain.data() + ipix);
+        } else {
+          real_at gain_array;
+          gain.store_a(gain_array);
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            gain_array[i] = relative_gain(ipix+i);
+          }
+          gain.load_a(gain_array);
+        }
       }
-      for(unsigned isample=0; isample<nsample_; ++isample) {
-        real_t wt = gain * pe_waveform_ptr[isample];
-        if(wt==0) {
+
+      unsigned isample0 = std::max(first_sample_of_interest,ir.response_size)-ir.response_size;
+      for(unsigned isample=isample0; isample<nsample_; ++isample) {
+        real_vt wt;
+        wt.load_a(pe_waveform_ptr + isample*VCLReal::num_real);
+        wt *= gain;
+        if(vcl::horizontal_and(wt == 0.0)) {
           continue;
         }
-        unsigned jmax = std::min(unsigned(ir.response_size), nsample_ - isample);
-        real_t *__restrict__ w_waveform_ptr = v_waveform_ptr + isample;
-        const real_t *__restrict__ impulse_response_ptr = &ir.response[0];
-        for(unsigned jsample=0; jsample<jmax; ++jsample) {
-          *(w_waveform_ptr++) += wt * (*(impulse_response_ptr++));
+        
+        unsigned jmax = std::min(unsigned(ir.response_size), nsample_ - isample);        
+        real_t *__restrict__ w_waveform_ptr = v_waveform_ptr + isample*VCLReal::num_real;
+        const real_t *__restrict__ impulse_response_ptr = ir.response.data();
+        for(unsigned jsample=0; jsample<jmax; ++jsample, w_waveform_ptr+=VCLReal::num_real, ++impulse_response_ptr) {
+          real_vt x;
+          x.load_a(w_waveform_ptr);
+          x += wt * (*impulse_response_ptr);
+          x.store_a(w_waveform_ptr);
         }
       }
     }
@@ -443,8 +480,17 @@ public:
     auto bwd = calin::math::fftw_util::plan_hc2r(nsample_, a_vec, b_vec, FFTW_MEASURE);
     const real_t scale = 1.0/nsample_;
 
-    for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      std::copy(&pe_waveform_(0,ipix), &pe_waveform_(0,ipix)+nsample_, a_vec);
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    real_t *__restrict__ v_waveform_ptr = v_waveform_;
+    for(unsigned ipix=0,vpix=0; ipix<npix_; ++ipix,++vpix) {
+      if(vpix == VCLReal::num_real) {
+        pe_waveform_ptr += nsample_ * VCLReal::num_real;
+        vpix = 0;
+      }
+
+      for(unsigned isample=0;isample<nsample_;isample++) {
+        a_vec[isample] = pe_waveform_ptr[isample*VCLReal::num_real + vpix];
+      }
 
       fwd.execute();
 
@@ -475,7 +521,10 @@ public:
       }
 
       bwd.execute();
-      std::copy(b_vec, b_vec+nsample_, &v_waveform_(0,ipix));
+
+      for(unsigned isample=0;isample<nsample_;isample++) {
+        v_waveform_ptr[isample*VCLReal::num_real + vpix] = b_vec[isample];
+      }
     }
 
     free(a_vec);
@@ -516,17 +565,13 @@ public:
 
     real_t scale = 1.0/nsample_;
 
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    real_t *__restrict__ v_waveform_ptr = v_waveform_;
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
-      // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
-      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].load_a(pe_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          a_vec[isample+jsample] = block[jsample];
-        }
+      // Load data from "pe_waveform_" to "a_vec"
+      for(unsigned isample=0; isample<nsample_; ++isample) {
+        a_vec[isample].load_a(pe_waveform_ptr);
+        pe_waveform_ptr += VCLReal::num_real;
       }
 
       // Do FFT of "a_vec" into "b_vec"
@@ -588,16 +633,10 @@ public:
       // Do inverse-FFT of "a_vec" into "b_vec"
       fft.hc2r(nsample_, a_vec, b_vec);
 
-      // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
-      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          block[jsample] = b_vec[isample+jsample];
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
+      // Store data from "b_vec" into "v_waveform_"
+      for(unsigned isample=0; isample<nsample_; ++isample) {
+        b_vec[isample].store_a(v_waveform_ptr);
+        v_waveform_ptr += VCLReal::num_real;
       }
     }
     free(a_vec);
@@ -659,17 +698,13 @@ public:
   
     real_t scale = 1.0/nsample_;
 
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    real_t *__restrict__ v_waveform_ptr = v_waveform_;
     for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
-      // Load data from "pe_waveform_" into "a_vec", block by block, transposing as we go along
-      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].load_a(pe_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          a_vec[isample+jsample] = block[jsample];
-        }
+      // Load data from "pe_waveform_" to "a_vec"
+      for(unsigned isample=0; isample<nsample_; ++isample) {
+        a_vec[isample].load_a(pe_waveform_ptr);
+        pe_waveform_ptr += VCLReal::num_real;
       }
     
       // Do FFT of "a_vec" into "b_vec"
@@ -788,16 +823,10 @@ public:
       // Do inverse-FFT of "a_vec" into "b_vec"
       fft.hc2r(nsample_, a_vec, b_vec);
 
-      // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
-      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          block[jsample] = b_vec[isample+jsample];
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
+      // Store data from "b_vec" into "v_waveform_"
+      for(unsigned isample=0; isample<nsample_; ++isample) {
+        b_vec[isample].store_a(v_waveform_ptr);
+        v_waveform_ptr += VCLReal::num_real;
       }
     }
     free(a_vec);
@@ -864,8 +893,8 @@ public:
 
   void clear_waveforms()
   {
-    pe_waveform_.setZero();
-    v_waveform_.setZero();
+    std::fill(pe_waveform_, pe_waveform_+waveform_size_, 0.0);
+    std::fill(v_waveform_, v_waveform_+waveform_size_, 0.0);
   }
 
   void clear() override
@@ -907,7 +936,9 @@ public:
       throw std::out_of_range("Sample time index out of range in inject_pe: " 
         + std::to_string(t_sample) + " >= " + std::to_string(nsample_));
     }
-    pe_waveform_(t_sample, pixel_id) += amplitude;
+    unsigned ivec = pixel_id/VCLReal::num_real;
+    unsigned vpix = pixel_id - ivec*VCLReal::num_real;
+    pe_waveform_[ivec*nsample_*VCLReal::num_real + t_sample*VCLReal::num_real + vpix] += amplitude;
   }
 
   void inject_n_pes(unsigned pixel_id, unsigned npe, double t0_samples,
@@ -915,7 +946,10 @@ public:
     double time_spread_ns = 0.0)
   {
     double time_spread_samples = time_spread_ns*sampling_freq_ghz_;
-    real_t *__restrict__ pe_waveform_ptr = &pe_waveform_(0,pixel_id);
+
+    unsigned ivec = pixel_id/VCLReal::num_real;
+    unsigned vpix = pixel_id - ivec*VCLReal::num_real;
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_ + ivec*nsample_*VCLReal::num_real + vpix;
     while(npe) {
       typename VCLArchitecture::double_vt t = t0_samples;
       if(time_spread_ns > 0) {
@@ -939,7 +973,7 @@ public:
       for(unsigned jvec=0;jvec<VCLArchitecture::num_double && npe; jvec++,npe--) {
         unsigned isample = it_a[jvec];
         if(isample>=0 and isample<nsample_) {
-          pe_waveform_ptr[isample] += q_a[jvec];
+          pe_waveform_ptr[isample * VCLReal::num_real] += q_a[jvec];
         }
       }
     }
@@ -1017,8 +1051,47 @@ public:
     return freq;
   }
 
-  const matX_t& pe_waveform() const { return pe_waveform_; }
-  const matX_t& v_waveform() const { return v_waveform_; }
+  matX_t pe_waveform() const 
+  { 
+    matX_t wf(nsample_, npix_);
+    // Transfer data from "pe_waveform_" into "wf", block by block, transposing as we go along
+    real_t *__restrict__ pe_waveform_ptr = pe_waveform_;
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
+      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
+        real_vt block[VCLReal::num_real]; // square matrix of doubles
+        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
+          block[jsample].load_a(pe_waveform_ptr);
+          pe_waveform_ptr += VCLReal::num_real;
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
+          block[jpix].store_a(wf.data() + (ipix+jpix)*nsample_ + isample);
+        }
+      }
+    }
+    return wf; 
+  }
+
+  matX_t v_waveform() const
+  { 
+    matX_t wf(nsample_, npix_);
+    // Transfer data from "pe_waveform_" into "wf", block by block, transposing as we go along
+    real_t *__restrict__ v_waveform_ptr = v_waveform_;
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
+      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
+        real_vt block[VCLReal::num_real]; // square matrix of doubles
+        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
+          block[jsample].load_a(v_waveform_ptr);
+          v_waveform_ptr += VCLReal::num_real;
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
+          block[jpix].store_a(wf.data() + (ipix+jpix)*nsample_ + isample);
+        }
+      }
+    }
+    return wf; 
+  }
 
   unsigned register_camera_response(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
@@ -1094,7 +1167,6 @@ public:
           + std::to_string(channel_time_offset_ns.size()) + " != " + std::to_string(npix_));
       }
 
-      pe_waveform_.setZero();
       transfer_scope_pes_to_waveform(iscope, channel_time_offset_ns);
       add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.pegen);
     }
@@ -1200,8 +1272,9 @@ private:
   double time_resolution_ns_;
   double sampling_freq_ghz_;
   double time_advance_;
-  matX_t pe_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
-  matX_t v_waveform_;   // shape (nsample_, npix_): access as (it, ipix)
+  unsigned waveform_size_;
+  real_t* pe_waveform_ = nullptr;
+  real_t* v_waveform_ = nullptr;
   std::vector<ImpulseResponse> impulse_responses_;
   std::vector<CameraResponse> camera_responses_;
   RNG* rng_ = nullptr;
