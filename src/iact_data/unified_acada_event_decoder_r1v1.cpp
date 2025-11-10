@@ -62,6 +62,8 @@ using namespace calin::util::log;
 
 */
 
+// Reference CTA-SPE-COM-000000-0002-2c
+
 Unified_ACADACameraEventDecoder_R1v1::
 Unified_ACADACameraEventDecoder_R1v1(const std::string& filename, const config_type& config):
   calin::iact_data::acada_event_decoder::ACADACameraEventDecoder<

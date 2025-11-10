@@ -53,6 +53,8 @@ namespace calin { namespace iact_data { namespace unified_acada_event_decoder {
 
 */
 
+// Reference CTA-SPE-COM-000000-0002-2c
+
 class Unified_ACADACameraEventDecoder_R1v1:
   public calin::iact_data::acada_event_decoder::ACADACameraEventDecoder<
     calin::iact_data::acada_data_source::ACADA_MessageSet_R1v1>

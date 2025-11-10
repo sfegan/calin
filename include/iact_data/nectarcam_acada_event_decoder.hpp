@@ -217,6 +217,8 @@ protected:
 
 */
 
+// Reference CTA-SPE-COM-000000-0002-2c
+
 class NectarCam_ACADACameraEventDecoder_R1v1:
   public calin::iact_data::unified_acada_event_decoder::Unified_ACADACameraEventDecoder_R1v1
 {
