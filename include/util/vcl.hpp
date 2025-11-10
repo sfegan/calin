@@ -402,6 +402,8 @@ template<typename VCLArchitecture> struct VCLFloatReal
   }
 
   static real_vt iota() { return VCLArchitecture::float_iota(); }
+  static real_vt real_iota() { return VCLArchitecture::float_iota(); }
+  static int_vt int_iota() { return VCLArchitecture::int32_iota(); }
 
   static inline void* aligned_malloc(size_t nbytes) {
     return VCLArchitecture::aligned_malloc(nbytes);
@@ -461,6 +463,8 @@ template<typename VCLArchitecture> struct VCLDoubleReal
   }
 
   static real_vt iota() { return VCLArchitecture::double_iota(); }
+  static real_vt real_iota() { return VCLArchitecture::double_iota(); }
+  static int_vt int_iota() { return VCLArchitecture::int64_iota(); }
 
   static inline void* aligned_malloc(size_t nbytes) {
     return VCLArchitecture::aligned_malloc(nbytes);
