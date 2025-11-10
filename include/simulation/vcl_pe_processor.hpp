@@ -59,6 +59,7 @@ public:
   CALIN_TYPEALIAS(real_t,    typename VCLReal::real_t);
   CALIN_TYPEALIAS(real_vt,   typename VCLReal::real_vt);
   CALIN_TYPEALIAS(real_at,   typename VCLReal::real_at);
+  CALIN_TYPEALIAS(int_t,     typename VCLReal::int_t);
   CALIN_TYPEALIAS(int_vt,    typename VCLReal::int_vt);
   CALIN_TYPEALIAS(vecX_t,    typename VCLReal::vecX_t);
   CALIN_TYPEALIAS(matX_t,    typename VCLReal::matX_t);
@@ -74,7 +75,8 @@ public:
     nsample_(round_nreal_to_vector(nsample)),  nadvance_(nsample_advance),
     time_resolution_ns_(time_resolution_ns), sampling_freq_ghz_(1.0/time_resolution_ns_),
     time_advance_(double(nadvance_)*time_resolution_ns_),
-    pe_waveform_(nsample_, npix_), v_waveform_(nsample_, npix_), 
+    pe_waveform_(nsample_, round_nreal_to_vector(npix)), 
+    v_waveform_(nsample_, round_nreal_to_vector(npix)), 
     rng_(rng), adopt_rng_(adopt_rng)
   {
     if(nsample_ % VCLReal::num_real != 0) {
@@ -252,7 +254,7 @@ public:
         pes_per_channel_in_window(ipix+jpix) = max_integral_array[jpix];
       }
     }
-
+    ::free(a_vec);
     return pes_per_channel_in_window;
   }
 
@@ -418,6 +420,7 @@ public:
         }
       }
     }
+    v_waveform_is_packed_ = false;
   }
 
   void convolve_impulse_response_fft(unsigned impulse_response_id,
@@ -484,7 +487,7 @@ public:
       bwd.execute();
       std::copy(b_vec, b_vec+nsample_, &v_waveform_(0,ipix));
     }
-
+    v_waveform_is_packed_ = false;
     free(a_vec);
     free(b_vec);
   }
@@ -596,17 +599,23 @@ public:
       fft.hc2r(nsample_, a_vec, b_vec);
 
       // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
-      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          block[jsample] = b_vec[isample+jsample];
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
+      // for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
+      //   real_vt block[VCLReal::num_real]; // square matrix of doubles
+      //   for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
+      //     block[jsample] = b_vec[isample+jsample];
+      //   }
+      //   calin::util::vcl::transpose(block);
+      //   for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
+      //     block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
+      //   }
+      // }
+
+      for(unsigned isample=0;isample<nsample_;isample++) {
+        b_vec[isample].store_a(v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real);
       }
     }
+    v_waveform_is_packed_ = true;
+
     free(a_vec);
     free(b_vec);
   }
@@ -796,20 +805,92 @@ public:
       fft.hc2r(nsample_, a_vec, b_vec);
 
       // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
-      for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-        real_vt block[VCLReal::num_real]; // square matrix of doubles
-        for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-          block[jsample] = b_vec[isample+jsample];
-        }
-        calin::util::vcl::transpose(block);
-        for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-          block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-        }
+      // for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
+      //   real_vt block[VCLReal::num_real]; // square matrix of doubles
+      //   for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
+      //     block[jsample] = b_vec[isample+jsample];
+      //   }
+      //   calin::util::vcl::transpose(block);
+      //   for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
+      //     block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
+      //   }
+      // }
+
+      for(unsigned isample=0;isample<nsample_;isample++) {
+        b_vec[isample].store_a(v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real);
       }
     }
+    v_waveform_is_packed_ = true;
     free(a_vec);
     free(b_vec);
     free(c_vec);
+  }
+
+  int multiplicity_trigger(const vecX_t& threshold, unsigned multiplicity, unsigned coincidence_window, unsigned first_sample_of_interest=0)
+  {
+    if(threshold.size()!=1 and threshold.size()!=npix_) {
+      throw std::domain_error("Trigger threshold vector length is not equal to one or number of pixels " 
+        + std::to_string(threshold.size()) + " != 1 or " + std::to_string(npix_));
+    }
+
+    first_sample_of_interest = (first_sample_of_interest/VCLReal::num_real)*VCLReal::num_real;
+    
+    int_t *__restrict__ cwin_tend = calin::util::memory::aligned_calloc<int_t>(v_waveform_.cols());
+    std::fill(cwin_tend, cwin_tend+v_waveform_.cols(), -1);
+
+    for(unsigned isample = first_sample_of_interest; isample<nsample_; isample+=VCLReal::num_real) {
+      unsigned ntriggered[VCLReal::num_real];
+      std::fill(ntriggered, ntriggered+VCLReal::num_real, 0);
+      real_vt block[VCLReal::num_real]; // square matrix of reals
+      for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
+        real_vt pix_threshold = 0;
+        if(threshold.size() == 1) {
+          pix_threshold = threshold[0];
+        } else if(ipix + VCLReal::num_real <= npix_) {
+          pix_threshold.load_a(threshold.data() + ipix);
+        } else {
+          real_at threshold_array;
+          pix_threshold.store_a(threshold_array);
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            threshold_array[i] = threshold(ipix+i);
+          }
+          pix_threshold.load_a(threshold_array);
+        }
+
+        if(v_waveform_is_packed_) {
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
+          for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+            block[jsample].load_a(v_waveform_ptr);
+            v_waveform_ptr += VCLReal::num_real;
+          }
+        } else {
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample;
+          for(unsigned jpix=0;jpix<VCLReal::num_real;jpix++) {
+            block[jpix].load_a(v_waveform_ptr);
+            v_waveform_ptr += nsample_;
+          }
+          calin::util::vcl::transpose(block);
+        }
+
+        int_vt cwin;
+        cwin.load_a(cwin_tend + ipix);
+        for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+          int ksample = isample+jsample;
+          cwin = vcl::select(block[jsample] > pix_threshold, ksample+coincidence_window, cwin);
+          ntriggered[jsample] += vcl::horizontal_count(ksample <= cwin);
+        }
+        cwin.store_a(cwin_tend + ipix);
+      }
+
+      for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+        if(ntriggered[jsample] >= multiplicity) {
+          ::free(cwin_tend);
+          return isample+jsample;
+        }
+      }
+    }
+    ::free(cwin_tend);
+    return -1;
   }
 
   vecX_t ac_coupling_offset(const Eigen::VectorXi& impulse_response_id, 
@@ -866,13 +947,14 @@ public:
   {
     Eigen::VectorXi all_impulse_response_id(nsb_freq_per_pixel_ghz.size());
     all_impulse_response_id.setConstant(impulse_response_id);
-    return ac_coupling_offset(all_impulse_response_id, nsb_freq_per_pixel_ghz, pegen = nullptr,relative_gain);
+    return ac_coupling_offset(all_impulse_response_id, nsb_freq_per_pixel_ghz, pegen,relative_gain);
   }
 
   void clear_waveforms()
   {
     pe_waveform_.setZero();
     v_waveform_.setZero();
+    v_waveform_is_packed_ = false;
   }
 
   void clear() override
@@ -1024,8 +1106,37 @@ public:
     return freq;
   }
 
-  const matX_t& pe_waveform() const { return pe_waveform_; }
-  const matX_t& v_waveform() const { return v_waveform_; }
+  matX_t pe_waveform() const
+  { 
+    return pe_waveform_.block(0, 0, nsample_, npix_);
+  }
+  
+  matX_t v_waveform() const 
+  { 
+    if(!v_waveform_is_packed_) {
+      return v_waveform_.block(0, 0, nsample_, npix_);
+    }
+
+    matX_t wf(nsample_, npix_);
+    const real_t *__restrict__ v_waveform_ptr = v_waveform_.data();
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
+      real_t *__restrict__ wf_ptr = wf.data() + ipix*nsample_;
+      for(unsigned isample = 0; isample<nsample_; isample+=VCLReal::num_real) {
+        real_vt block[VCLReal::num_real]; // square matrix of reals
+        for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+          block[jsample].load_a(v_waveform_ptr);
+          v_waveform_ptr += VCLReal::num_real;
+        }
+        calin::util::vcl::transpose(block);
+        for(unsigned jpix=0,zpix=std::min(npix_-ipix,VCLReal::num_real);jpix<zpix;jpix++) {
+          block[jpix].store_a(wf_ptr + jpix*nsample_);
+        }
+        wf_ptr += VCLReal::num_real;
+      }
+    }
+
+    return wf; 
+  }
 
   unsigned register_camera_response(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
@@ -1209,6 +1320,7 @@ private:
   double time_advance_;
   matX_t pe_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
   matX_t v_waveform_;   // shape (nsample_, npix_): access as (it, ipix)
+  bool v_waveform_is_packed_ = false;
   std::vector<ImpulseResponse> impulse_responses_;
   std::vector<CameraResponse> camera_responses_;
   RNG* rng_ = nullptr;
