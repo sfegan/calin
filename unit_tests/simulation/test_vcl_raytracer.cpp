@@ -170,7 +170,7 @@ TYPED_TEST(TestVCLRaytracer, RayTrace) {
     calin::math::ray::VCLRay<TypeParam> ray;
     ray.mutable_direction() << 0.0 , -1.0, 0.0;
     ray.mutable_position() << mirror->pos().x() , 2000.0, mirror->pos().z();
-    typename TypeParam::bool_vt mask = true;
+    typename TypeParam::real_bvt mask = true;
     mask.insert(1, false);
     typename VCLScopeRayTracer<TypeParam>::TraceInfo trace_info;
     mask = raytracer.trace_reflector_frame(mask, ray, trace_info);
@@ -214,7 +214,7 @@ TEST(TestVCLRaytracer, CompareToScalar) {
       dir, cos_theta, sin_theta);
 
     calin::math::ray::VCLRay<VCL256FloatReal> ray(pos, dir);
-    typename VCL256FloatReal::bool_vt mask = true;
+    typename VCL256FloatReal::real_bvt mask = true;
     typename VCLScopeRayTracer<VCL256FloatReal>::TraceInfo trace_info;
     mask = raytracer.trace_reflector_frame(mask, ray, trace_info);
     for(unsigned i=0;i<8;i++) {
@@ -280,7 +280,7 @@ TEST(TestVCLRaytracer, CompareToScalar_Obscured) {
       dir, cos_theta, sin_theta);
 
     calin::math::ray::VCLRay<VCL256FloatReal> ray(pos, dir);
-    typename VCL256FloatReal::bool_vt mask = true;
+    typename VCL256FloatReal::real_bvt mask = true;
     typename VCLScopeRayTracer<VCL256FloatReal>::TraceInfo trace_info;
     mask = raytracer.trace_reflector_frame(mask, ray, trace_info);
     for(unsigned i=0;i<8;i++) {
@@ -328,7 +328,7 @@ TEST(TestVCLRaytracer, LaserPSF) {
     calin::math::ray::VCLRay<VCL256FloatReal> ray;
     ray.mutable_direction() << 0.0, -1.0, 0.0;
     ray.mutable_position() << 0.0, 2000.0, 0.0;
-    typename VCL256FloatReal::bool_vt mask = true;
+    typename VCL256FloatReal::real_bvt mask = true;
     typename VCLScopeRayTracer<VCL256FloatReal>::TraceInfo trace_info;
     mask = raytracer.trace_reflector_frame(mask, ray, trace_info);
     ASSERT_TRUE(horizontal_and(mask)) << mask;
@@ -361,7 +361,7 @@ TEST(TestVCLRaytracer, PSF) {
       ray.mutable_direction(), cos(theta), sin(theta));
     calin::math::geometry::VCL<VCL256FloatReal>::rotate_in_place_Rz(
       ray.mutable_position(), cos(theta), sin(theta));
-    typename VCL256FloatReal::bool_vt mask = true;
+    typename VCL256FloatReal::real_bvt mask = true;
     typename VCLScopeRayTracer<VCL256FloatReal>::TraceInfo trace_info;
     auto pos = ray.position();
     mask = raytracer.trace_reflector_frame(mask, ray, trace_info);
@@ -410,7 +410,7 @@ TEST(TestVCLAlignedCircularAperture, CompareToScalar) {
     calin::math::ray::VCLRay<Real> vray_in(
       r.template cast<Real::real_vt>(), u.template cast<Real::real_vt>());
     calin::math::ray::VCLRay<Real> vray_out;
-    Real::bool_vt vintersects = vobs.doesObscure(vray_in, vray_out, 1.0);
+    Real::real_bvt vintersects = vobs.doesObscure(vray_in, vray_out, 1.0);
 
     ASSERT_EQ(sintersects, vintersects[0])
       << sintersects << ' ' << vintersects << ' ' << iray << '\n'
@@ -459,7 +459,7 @@ TEST(TestAlignedBoxObscuration, CompareToScalar) {
     calin::math::ray::VCLRay<Real> vray_in(
       r.template cast<Real::real_vt>(), u.template cast<Real::real_vt>());
     calin::math::ray::VCLRay<Real> vray_out;
-    Real::bool_vt vintersects = vobs.doesObscure(vray_in, vray_out, 1.0);
+    Real::real_bvt vintersects = vobs.doesObscure(vray_in, vray_out, 1.0);
 
     ASSERT_EQ(sintersects, vintersects[0])
       << sintersects << ' ' << vintersects << ' ' << iray << '\n'
@@ -505,7 +505,7 @@ TEST(TestVCLVCLAlignedRectangularAperture, CompareToScalar) {
     calin::math::ray::VCLRay<Real> vray_in(
       r.template cast<Real::real_vt>(), u.template cast<Real::real_vt>());
     calin::math::ray::VCLRay<Real> vray_out;
-    Real::bool_vt vintersects = vobs.doesObscure(vray_in, vray_out, 1.0);
+    Real::real_bvt vintersects = vobs.doesObscure(vray_in, vray_out, 1.0);
 
     ASSERT_EQ(sintersects, vintersects[0])
       << sintersects << ' ' << vintersects << ' ' << iray << '\n'

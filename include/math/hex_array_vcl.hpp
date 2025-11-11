@@ -795,7 +795,6 @@ template<typename VCLRealArch> class VCLReal: public VCLRealArch
 public:
   using typename VCLRealArch::architecture;
   using typename VCLRealArch::real_vt;
-  using typename VCLRealArch::bool_vt;
   using typename VCLRealArch::int_vt;
   using typename VCLRealArch::uint_vt;
 

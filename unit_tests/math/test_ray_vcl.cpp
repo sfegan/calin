@@ -67,7 +67,7 @@ TYPED_TEST(VCLRayTest, SimplePropagateToSphere2nd) {
     typename TypeParam::vec3_vt dir;
     rng.uniform_on_unit_sphere_vec_real(dir);
     VCLRay<TypeParam> ray(pos,dir);
-    typename TypeParam::bool_vt mask = true;
+    typename TypeParam::real_bvt mask = true;
     ASSERT_TRUE(horizontal_and(ray.propagate_to_y_sphere_2nd_interaction_fwd_only_with_mask(
       mask, 1.0f, -1.0f, 1.5f)));
     ASSERT_TRUE(horizontal_and(ray.ux() == dir.x()));
@@ -94,7 +94,7 @@ TYPED_TEST(VCLRayTest, SimplePropagateToSphere1st) {
     typename TypeParam::vec3_vt dir;
     rng.uniform_on_unit_sphere_vec_real(dir);
     VCLRay<TypeParam> ray(pos,dir);
-    typename TypeParam::bool_vt mask = true;
+    typename TypeParam::real_bvt mask = true;
     ASSERT_TRUE(horizontal_and(ray.propagate_to_y_sphere_1st_interaction_fwd_bwd_with_mask(
       mask, 1.0f, -1.0f, 1.5f)));
     ASSERT_TRUE(horizontal_and(ray.ux() == dir.x()));
@@ -121,7 +121,7 @@ TYPED_TEST(VCLRayTest, SimplePropagateToSphere1stFwdOnly) {
     typename TypeParam::vec3_vt dir;
     rng.uniform_on_unit_sphere_vec_real(dir);
     VCLRay<TypeParam> ray(pos,dir);
-    typename TypeParam::bool_vt mask = true;
+    typename TypeParam::real_bvt mask = true;
     ASSERT_FALSE(horizontal_or(ray.propagate_to_y_sphere_1st_interaction_fwd_only_with_mask(
       mask, 1.0f, -1.0f, 1.5f)));
     ASSERT_TRUE(horizontal_and(ray.ux() == dir.x()));
@@ -141,7 +141,7 @@ TYPED_TEST(VCLRayTest, SimplePropagateToBox) {
     typename TypeParam::vec3_vt dir;
     rng.uniform_on_unit_sphere_vec_real(dir);
     VCLRay<TypeParam> ray(pos,dir);
-    typename TypeParam::bool_vt mask = true;
+    typename TypeParam::real_bvt mask = true;
     typename TypeParam::real_vt tmin;
     typename TypeParam::real_vt tmax;
 

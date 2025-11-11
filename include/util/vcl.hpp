@@ -373,11 +373,11 @@ template<typename VCLArchitecture> struct VCLFloatReal
 
   typedef typename VCLArchitecture::int32_vt      int_vt;
   typedef typename VCLArchitecture::uint32_vt     uint_vt;
-  typedef typename VCLArchitecture::int32_bvt     bool_int_vt;
-  typedef typename VCLArchitecture::uint32_bvt    bool_uint_vt;
+  typedef typename VCLArchitecture::int32_bvt     int_bvt;
+  typedef typename VCLArchitecture::uint32_bvt    uint_bvt;
 
   typedef typename VCLArchitecture::float_vt      real_vt;
-  typedef typename VCLArchitecture::float_bvt     bool_vt;
+  typedef typename VCLArchitecture::float_bvt     real_bvt;
 
   typedef typename VCLArchitecture::Vector3f_vt   vec3_vt;
   typedef typename VCLArchitecture::Matrix3f_vt   mat3_vt;
@@ -434,11 +434,11 @@ template<typename VCLArchitecture> struct VCLDoubleReal
 
   typedef typename VCLArchitecture::int64_vt      int_vt;
   typedef typename VCLArchitecture::uint64_vt     uint_vt;
-  typedef typename VCLArchitecture::int64_bvt     bool_int_vt;
-  typedef typename VCLArchitecture::uint64_bvt    bool_uint_vt;
+  typedef typename VCLArchitecture::int64_bvt     int_bvt;
+  typedef typename VCLArchitecture::uint64_bvt    uint_bvt;
 
   typedef typename VCLArchitecture::double_vt     real_vt;
-  typedef typename VCLArchitecture::double_bvt    bool_vt;
+  typedef typename VCLArchitecture::double_bvt    real_bvt;
 
   typedef typename VCLArchitecture::Vector3d_vt   vec3_vt;
   typedef typename VCLArchitecture::Matrix3d_vt   mat3_vt;
@@ -802,7 +802,7 @@ template<typename Vec> void print_vec(std::ostream& s, const Vec& v)
 
 template<typename VCLReal> inline void
 insert_into_vec3_with_mask(typename VCLReal::vec3_vt& vv,
-    const typename VCLReal::vec3_t& vs, const typename VCLReal::bool_vt& mask) {
+    const typename VCLReal::vec3_t& vs, const typename VCLReal::real_bvt& mask) {
   vv.x() = vcl::select(mask, vs.x(), vv.x());
   vv.y() = vcl::select(mask, vs.y(), vv.y());
   vv.z() = vcl::select(mask, vs.z(), vv.z());
@@ -810,7 +810,7 @@ insert_into_vec3_with_mask(typename VCLReal::vec3_vt& vv,
 
 template<typename VCLReal> inline void
 insert_into_with_mask(typename VCLReal::real_vt& v,
-    const typename VCLReal::real_t& s, const typename VCLReal::bool_vt& mask) {
+    const typename VCLReal::real_t& s, const typename VCLReal::real_bvt& mask) {
   v = vcl::select(mask, s, v);
 }
 

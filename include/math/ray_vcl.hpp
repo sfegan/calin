@@ -45,7 +45,7 @@ public:
   using typename VCLReal::real_t;
   using typename VCLReal::real_vt;
   using typename VCLReal::real_at;
-  using typename VCLReal::bool_vt;
+  using typename VCLReal::real_bvt;
   using typename VCLReal::vec3_vt;
   using typename VCLReal::mat3_vt;
 
@@ -115,7 +115,7 @@ public:
   void derotate(const mat3_vt& rot) {
     clear_dir_inv(); pos_ = rot.transpose() * pos_; dir_ = rot.transpose() * dir_; }
 
-  bool_vt box_has_future_intersection(real_vt& tmin, real_vt& tmax,
+  real_bvt box_has_future_intersection(real_vt& tmin, real_vt& tmax,
     const vec3_vt& min_corner, const vec3_vt& max_corner) const
   {
     calc_dir_inv();
@@ -128,13 +128,13 @@ public:
     calin::math::geometry::scatter_direction_in_place(dir_, dispersion_per_axis, rng);
   }
 
-  void reflect_from_surface_with_mask(const bool_vt& mask, const vec3_vt& surface_norm) {
+  void reflect_from_surface_with_mask(const real_bvt& mask, const vec3_vt& surface_norm) {
     clear_dir_inv();
     dir_ -= surface_norm * select(mask, 2.0*(dir_.dot(surface_norm)), 0);
   }
 
   // Refract at incoming surface (where eta=1/n<1 and norm.dir<0)
-  void refract_at_surface_in_eta_with_mask(const bool_vt& mask, const vec3_vt& surface_norm, real_vt eta) {
+  void refract_at_surface_in_eta_with_mask(const real_bvt& mask, const vec3_vt& surface_norm, real_vt eta) {
     clear_dir_inv();
     eta = select(mask, eta, 1.0);
     const real_vt cosi = -dir_.dot(surface_norm);
@@ -146,18 +146,18 @@ public:
   };
 
   // Refract at incoming surface (where n>1 and norm.dir<0)
-  void refract_at_surface_in_with_mask(const bool_vt& mask, const vec3_vt& surface_norm, real_vt n) {
+  void refract_at_surface_in_with_mask(const real_bvt& mask, const vec3_vt& surface_norm, real_vt n) {
     refract_at_surface_in_eta(mask, surface_norm, 1.0/n);
   };
 
   // Refract at outgoing surface (where n>1 and norm.dir>0)
-  bool_vt refract_at_surface_out_with_mask(const bool_vt& mask_in, const vec3_vt& surface_norm, real_vt n) {
+  real_bvt refract_at_surface_out_with_mask(const real_bvt& mask_in, const vec3_vt& surface_norm, real_vt n) {
     clear_dir_inv();
     real_vt eta = n;
     const real_vt cosi = dir_.dot(surface_norm);
     real_vt etacosi = n*cosi;
     const real_vt c2 = nmul_add(etacosi, etacosi, 1.0 - eta*eta);
-    bool_vt mask = mask_in & (c2>0);
+    real_bvt mask = mask_in & (c2>0);
     eta = select(mask, eta, 1.0);
     etacosi = select(mask, etacosi, cosi);
     c2 = select(mask, c2, cosi*cosi);
@@ -178,19 +178,19 @@ public:
   }
 
   //! Propagate ray fixed distance with mask (true if we are to propagate)
-  void propagate_dist_with_mask(const bool_vt& mask, const real_vt& dist, const real_vt& n = 1.0) {
+  void propagate_dist_with_mask(const real_bvt& mask, const real_vt& dist, const real_vt& n = 1.0) {
     real_vt masked_dist = select(mask, dist, 0);
     propagate_dist(masked_dist, n);
   }
 
   //! Propagate ray fixed distance with mask (true if we are to propagate)
-  void propagate_ct_with_mask(const bool_vt& mask, const real_vt& ct, const real_vt& n_inv = 1.0) {
+  void propagate_ct_with_mask(const real_bvt& mask, const real_vt& ct, const real_vt& n_inv = 1.0) {
     real_vt masked_ct = select(mask, ct, 0);
     propagate_ct(masked_ct, n_inv);
   }
 
   //! Propagates free particle to plane with y-normal : y + d = 0
-  bool_vt propagate_to_y_plane_with_mask(bool_vt mask, const real_vt& d,
+  real_bvt propagate_to_y_plane_with_mask(real_bvt mask, const real_vt& d,
     bool time_reversal_ok=true, const real_vt& n = 1.0)
   {
     calc_uy_inv();
@@ -215,15 +215,15 @@ public:
     return mask;
   }
 
-  bool_vt propagate_to_y_plane(const real_vt& d,
+  real_bvt propagate_to_y_plane(const real_vt& d,
     bool time_reversal_ok=true, const real_vt& n = 1.0)
   {
-    bool_vt mask = true;
+    real_bvt mask = true;
     return propagate_to_y_plane_with_mask(mask, d, time_reversal_ok, n);
   }
 
   //! Propagates free particle to plane with z-normal : z + d = 0
-  bool_vt propagate_to_z_plane_with_mask(bool_vt mask, const real_vt& d,
+  real_bvt propagate_to_z_plane_with_mask(real_bvt mask, const real_vt& d,
     bool time_reversal_ok=true, const real_vt& n = 1.0)
   {
     calc_uz_inv();
@@ -248,14 +248,14 @@ public:
     return mask;
   }
 
-  bool_vt propagate_to_z_plane(const real_vt& d,
+  real_bvt propagate_to_z_plane(const real_vt& d,
     bool time_reversal_ok=true, const real_vt& n = 1.0)
   {
-    bool_vt mask = true;
+    real_bvt mask = true;
     return propagate_to_z_plane_with_mask(mask, d, time_reversal_ok, n);
   }
 
-  bool_vt propagate_to_y_sphere_1st_interaction_fwd_bwd_with_mask(bool_vt mask,
+  real_bvt propagate_to_y_sphere_1st_interaction_fwd_bwd_with_mask(real_bvt mask,
     const real_vt& radius, const real_vt& surface_y_min = 0, const real_vt& n = 1.0)
   {
     vec3_vt pos_rel(pos_.x(), pos_.y()-(radius+surface_y_min), pos_.z());
@@ -271,7 +271,7 @@ public:
     return mask;
   }
 
-  bool_vt propagate_to_y_sphere_1st_interaction_fwd_only_with_mask(bool_vt mask,
+  real_bvt propagate_to_y_sphere_1st_interaction_fwd_only_with_mask(real_bvt mask,
     const real_vt& radius, const real_vt& surface_y_min = 0, const real_vt& n = 1.0)
   {
     vec3_vt pos_rel(pos_.x(), pos_.y()-(radius+surface_y_min), pos_.z());
@@ -288,7 +288,7 @@ public:
     return mask;
   }
 
-  bool_vt propagate_to_y_sphere_2nd_interaction_fwd_bwd_with_mask(bool_vt mask,
+  real_bvt propagate_to_y_sphere_2nd_interaction_fwd_bwd_with_mask(real_bvt mask,
     const real_vt& radius, const real_vt& surface_y_min = 0, const real_vt& n = 1.0)
   {
     vec3_vt pos_rel(pos_.x(), pos_.y()-(radius+surface_y_min), pos_.z());
@@ -303,7 +303,7 @@ public:
     return mask;
   }
 
-  bool_vt propagate_to_y_sphere_2nd_interaction_fwd_only_with_mask(bool_vt mask,
+  real_bvt propagate_to_y_sphere_2nd_interaction_fwd_only_with_mask(real_bvt mask,
     const real_vt& radius, const real_vt& surface_y_min = 0, const real_vt& n = 1.0)
   {
     vec3_vt pos_rel(pos_.x(), pos_.y()-(radius+surface_y_min), pos_.z());
@@ -320,7 +320,7 @@ public:
     return mask;
   }
 
-  bool_vt propagate_to_y_sphere_2nd_interaction_mostly_fwd_with_mask(bool_vt mask,
+  real_bvt propagate_to_y_sphere_2nd_interaction_mostly_fwd_with_mask(real_bvt mask,
     const real_vt& radius, const real_vt& surface_y_min = 0, const real_vt& fwd_margin = 0.0,
     const real_vt& n = 1.0)
   {
@@ -345,7 +345,7 @@ public:
   }
 
   //! Propagates free particle to the closest approach with point
-  bool_vt propagate_to_point_closest_approach_with_mask(bool_vt mask,
+  real_bvt propagate_to_point_closest_approach_with_mask(real_bvt mask,
     const vec3_vt& r0, bool time_reversal_ok, const real_vt& n = 1.0)
   {
     // Distance the particle must travel to reach the closest approach
@@ -362,7 +362,7 @@ public:
   //! Propagates free particle to the closest approach with point with an
   // additional offset in distance (positive means particle overruns the
   // closest point, negative meens it doesn't go far enough to reach it)
-  bool_vt propagate_to_point_nearly_closest_approach_with_mask(bool_vt mask,
+  real_bvt propagate_to_point_nearly_closest_approach_with_mask(real_bvt mask,
     const vec3_vt& r0, const real_vt& overrun, bool time_reversal_ok, const real_vt& n = 1.0)
   {
     // Distance the particle must travel to reach the closest approach + overrun
