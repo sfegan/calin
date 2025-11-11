@@ -598,22 +598,11 @@ public:
       // Do inverse-FFT of "a_vec" into "b_vec"
       fft.hc2r(nsample_, a_vec, b_vec);
 
-      // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
-      // for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-      //   real_vt block[VCLReal::num_real]; // square matrix of doubles
-      //   for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-      //     block[jsample] = b_vec[isample+jsample];
-      //   }
-      //   calin::util::vcl::transpose(block);
-      //   for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-      //     block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-      //   }
-      // }
-
       for(unsigned isample=0;isample<nsample_;isample++) {
         b_vec[isample].store_a(v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real);
       }
     }
+
     v_waveform_is_packed_ = true;
 
     free(a_vec);
@@ -804,18 +793,6 @@ public:
       // Do inverse-FFT of "a_vec" into "b_vec"
       fft.hc2r(nsample_, a_vec, b_vec);
 
-      // Store data from "b_vec" into "v_waveform_", block by block, transposing as we go along
-      // for(unsigned isample=0; isample<nsample_; isample += VCLReal::num_real) {
-      //   real_vt block[VCLReal::num_real]; // square matrix of doubles
-      //   for(unsigned jsample = 0; jsample<VCLReal::num_real; jsample++) {
-      //     block[jsample] = b_vec[isample+jsample];
-      //   }
-      //   calin::util::vcl::transpose(block);
-      //   for(unsigned jpix=0, mpix=std::min(npix_-ipix,VCLReal::num_real); jpix<mpix; jpix++) {
-      //     block[jpix].store_a(v_waveform_.data() + (ipix+jpix)*nsample_ + isample);
-      //   }
-      // }
-
       for(unsigned isample=0;isample<nsample_;isample++) {
         b_vec[isample].store_a(v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real);
       }
@@ -833,6 +810,7 @@ public:
         + std::to_string(threshold.size()) + " != 1 or " + std::to_string(npix_));
     }
 
+    coincidence_window = std::max(coincidence_window, 1U); // Zero makes no sense
     first_sample_of_interest = (first_sample_of_interest/VCLReal::num_real)*VCLReal::num_real;
     
     int_t *__restrict__ cwin_tend = calin::util::memory::aligned_calloc<int_t>(v_waveform_.cols());
@@ -856,6 +834,7 @@ public:
           }
           pix_threshold.load_a(threshold_array);
         }
+        pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());
 
         if(v_waveform_is_packed_) {
           const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
@@ -877,7 +856,7 @@ public:
         for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
           int ksample = isample+jsample;
           cwin = vcl::select(block[jsample] > pix_threshold, ksample+coincidence_window, cwin);
-          ntriggered[jsample] += vcl::horizontal_count(ksample <= cwin);
+          ntriggered[jsample] += vcl::horizontal_count(ksample < cwin);
         }
         cwin.store_a(cwin_tend + ipix);
       }
