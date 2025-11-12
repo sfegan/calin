@@ -877,8 +877,9 @@ public:
 
   int trigger_3nn(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
-    static_assert(VCLReal::num_real <= 64);
-    static_assert(64 % VCLReal::num_real == 0);
+    using mask_t = uint32_t;
+    static_assert(VCLReal::num_real <= sizeof(mask_t)*8);
+    static_assert((sizeof(mask_t)*8) % VCLReal::num_real == 0);
 
     if(threshold.size()!=1 and threshold.size()!=npix_) {
       throw std::domain_error("Trigger threshold vector length is not equal to one or number of pixels " 
@@ -899,7 +900,6 @@ public:
     unsigned ntriggered[VCLReal::num_real];
     bool new_triggers[VCLReal::num_real];
 
-    using mask_t = uint32_t;
     unsigned trigger_hit_len = (v_waveform_.cols() + sizeof(mask_t) - 1)/sizeof(mask_t);
     mask_t *__restrict__ trigger_hit[VCLReal::num_real];
     for(unsigned i=0; i<VCLReal::num_real; i++) {
@@ -978,7 +978,7 @@ public:
                   unsigned kmask = kpix/sizeof(mask_t);
                   unsigned kshift = kpix % sizeof(mask_t);
                   if(trigger_hit[jsample][kmask] & (mask_t(1) << kshift)) {
-                    // Found a neighbor which also triggered in the same time sample
+                    // Found two neighbors which also triggered in the same time sample
                     ++nneighbor_hit;
                     if(nneighbor_hit >= 2) {
                       ::free(cwin_tend);
