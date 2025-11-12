@@ -43,19 +43,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
-        geant: [11.2.2]
-        compiler: [ [gcc-13, g++-13, 'gcc-13 g++-13', broadwell, OFF ],
+        compiler: [ [gcc-14, g++-14, 'gcc-14 g++-14', broadwell, OFF ],
+                    [gcc-13, g++-13, 'gcc-13 g++-13', broadwell, OFF ],
                     [gcc-12, g++-12, 'gcc-12 g++-12', broadwell, OFF ],
                     [gcc-11, g++-11, 'gcc-11 g++-11', broadwell, OFF ],
-                    [gcc-10, g++-10, 'gcc-10 g++-10', broadwell, OFF ],
+                    [clang-16, clang++-16, 'clang-16', broadwell, ON ],
                     [clang-15, clang++-15, 'clang-15', broadwell, ON ],
                     [clang-14, clang++-14, 'clang-14', broadwell, ON ],
-                    [clang-13, clang++-13, 'clang-13', broadwell, ON ],
-                    [clang-12, clang++-12, 'clang-12', broadwell, ON ] ]
+                    [clang-13, clang++-13, 'clang-13', broadwell, ON ] ]
 
     runs-on: ${{ matrix.os }}
 
     env:
+      geant: [11.2.2]
       CC: ${{ matrix.compiler[0] }}
       CXX: ${{ matrix.compiler[1] }}
 
@@ -75,7 +75,7 @@ jobs:
           zlib1g-dev nlohmann-json3-dev                                        \
           ${{ matrix.compiler[2] }} 
         curl -L https://github.com/llr-cta/CTA_ADH_APIS_Build/releases/download/${{matrix.os}}/cta_adh_apis_installed.tgz | sudo tar -zxf - -C /
-        curl -L https://github.com/llr-cta/Geant4Build/releases/download/${{matrix.os}}-${{matrix.geant}}-OFF/Geant4-${{matrix.os}}-${{matrix.geant}}-OFF.tbz2 | sudo tar -jxf - -C /
+        curl -L https://github.com/llr-cta/Geant4Build/releases/download/${{matrix.os}}-${{env.geant}}-OFF/Geant4-${{matrix.os}}-${{env.geant}}-OFF.tbz2 | sudo tar -jxf - -C /
         curl -L https://github.com/llr-cta/Corsika8Build/releases/download/ubuntu-22.04/corsika8_installed.tgz | sudo tar -zxf - -C /
     - name: Print version information
       shell: bash
