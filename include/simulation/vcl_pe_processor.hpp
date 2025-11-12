@@ -858,7 +858,7 @@ public:
         cwin.load_a(cwin_tend + ipix);
         for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
           int ksample = isample+jsample;
-          cwin = vcl::select(block[jsample] > pix_threshold, ksample+coincidence_window, cwin);
+          cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
           ntriggered[jsample] += vcl::horizontal_count(ksample < cwin);
         }
         cwin.store_a(cwin_tend + ipix);
@@ -952,7 +952,7 @@ public:
         cwin.load_a(cwin_tend + ipix);
         for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
           int ksample = isample+jsample;
-          int_vt new_cwin = vcl::select(block[jsample] > pix_threshold, ksample+coincidence_window, cwin);
+          int_vt new_cwin = vcl::select(int_vt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
           int_bvt triggered_pix = ksample < new_cwin;
           unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
           new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
