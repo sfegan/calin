@@ -40,6 +40,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <cassert>
+#include <bit>
 #include <random>
 
 #include <math/rng.hpp>
@@ -280,8 +281,7 @@ namespace {
     constexpr uint64_t EXP_HI = 1023ULL<<52;
     u &= MASK_HI;
     u |= EXP_HI;
-    double d;
-    std::memcpy(&d, &u, sizeof(d));
+    double d = std::bit_cast<double>(u);
     return d - 1.0;
   }
 }
