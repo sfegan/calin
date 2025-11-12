@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <bit>
 #include <fftw3.h>
 
 #include <util/log.hpp>
@@ -898,7 +899,7 @@ public:
     unsigned ntriggered[VCLReal::num_real];
     bool new_triggers[VCLReal::num_real];
 
-    using mask_t = uint64_t;
+    using mask_t = uint32_t;
     unsigned trigger_hit_len = (v_waveform_.cols() + sizeof(mask_t) - 1)/sizeof(mask_t);
     mask_t *__restrict__ trigger_hit[VCLReal::num_real];
     for(unsigned i=0; i<VCLReal::num_real; i++) {
@@ -951,35 +952,54 @@ public:
         cwin.load_a(cwin_tend + ipix);
         for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
           int ksample = isample+jsample;
-
           int_vt new_cwin = vcl::select(block[jsample] > pix_threshold, ksample+coincidence_window, cwin);
           int_bvt triggered_pix = ksample < new_cwin;
+          unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
           new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
+          ntriggered[jsample] += std::popcount(triggered_pix_mask);
+          trigger_hit[jsample][imask] |= triggered_pix_mask << ishift;
           cwin = new_cwin;
-          ntriggered[jsample] += vcl::horizontal_count(triggered_pix);
-          trigger_hit[jsample][imask] |= vcl::to_bits(triggered_pix) << ishift;
         }
         cwin.store_a(cwin_tend + ipix);
       }
 
       for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-        if(ntriggered[jsample] >= 3 and new_triggers[jsample]) {
-          unsigned ipix = 0;
-          
+        if(ntriggered[jsample] >= 3 and new_triggers[jsample]) {          
           for(unsigned ith=0; ith<trigger_hit_len; ith++) {
+            unsigned ipix = ith*sizeof(mask_t);
             mask_t th = trigger_hit[jsample][ith];
-
+            while(th!=0) {
+              unsigned ihit = std::countr_zero(th);
+              th >>= (ihit+1);
+              unsigned jpix = ipix+jpix;
+              unsigned nneighbor_hit = 0;
+              for(auto kpix : neighbors.col(jpix)) {
+                if(kpix>0 && kpix<int(npix_)) {
+                  unsigned kmask = kpix/sizeof(mask_t);
+                  unsigned kshift = kpix % sizeof(mask_t);
+                  if(trigger_hit[jsample][kmask] & (mask_t(1) << kshift)) {
+                    // Found a neighbor which also triggered in the same time sample
+                    ++nneighbor_hit;
+                    if(nneighbor_hit >= 2) {
+                      ::free(cwin_tend);
+                      for(unsigned i=0; i<VCLReal::num_real; i++) {
+                        ::free(trigger_hit[i]);
+                      }
+                      return isample+jsample;
+                    }
+                  }
+                }
+              }
+            }
           }
-
-
-          ::free(cwin_tend);
-          return isample+jsample;
         }
       }
     }
     ::free(cwin_tend);
+    for(unsigned i=0; i<VCLReal::num_real; i++) {
+      ::free(trigger_hit[i]);
+    }
     return -1;
-
   }
 
 
