@@ -359,6 +359,10 @@ template<typename VCLArchitecture> struct VCLFloatReal
   constexpr static unsigned num_real              = VCLArchitecture::num_float;
   typedef VCLArchitecture                         architecture;
 
+  template<typename T> static constexpr unsigned round_nreal_up_to_vector_size(unsigned ntype) {
+    return VCLArchitecture::template round_ntype_up_to_vector_size<float>(ntype);
+  }
+
   typedef int32_t                                 int_t;
   typedef uint32_t                                uint_t;
   typedef float                                   real_t;
@@ -419,6 +423,10 @@ template<typename VCLArchitecture> struct VCLDoubleReal
   constexpr static unsigned vec_bytes             = VCLArchitecture::vec_bytes;
   constexpr static unsigned num_real              = VCLArchitecture::num_double;
   typedef VCLArchitecture                         architecture;
+
+  template<typename T> static constexpr unsigned round_nreal_up_to_vector_size(unsigned ntype) {
+    return VCLArchitecture::template round_ntype_up_to_vector_size<double>(ntype);
+  }
 
   typedef int64_t                                 int_t;
   typedef uint64_t                                uint_t;
@@ -490,6 +498,10 @@ struct VCL128Architecture
   constexpr static unsigned num_uint64 = vec_bytes/sizeof(uint64_t);
   constexpr static unsigned num_float  = vec_bytes/sizeof(float);
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
+
+  template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
+    return ((ntype + sizeof(T) - 1)/vec_bytes)*vec_bytes;
+  }
 
   typedef Vec128b bool_vt;
   typedef Vec16c  int8_vt;
@@ -573,6 +585,10 @@ struct VCL256Architecture
   constexpr static unsigned num_float  = vec_bytes/sizeof(float);
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
 
+  template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
+    return ((ntype + sizeof(T) - 1)/vec_bytes)*vec_bytes;
+  }
+
   typedef Vec256b bool_vt;
   typedef Vec32c  int8_vt;
   typedef Vec32uc uint8_vt;
@@ -655,6 +671,10 @@ struct VCL512Architecture
   constexpr static unsigned num_uint64 = vec_bytes/sizeof(uint64_t);
   constexpr static unsigned num_float  = vec_bytes/sizeof(float);
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
+
+  template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
+    return ((ntype + sizeof(T) - 1)/vec_bytes)*vec_bytes;
+  }
 
   typedef Vec64c  int8_vt;
   typedef Vec64uc uint8_vt;
