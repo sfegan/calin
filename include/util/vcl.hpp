@@ -500,7 +500,9 @@ struct VCL128Architecture
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
 
   template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
-    return ((ntype + sizeof(T) - 1)/vec_bytes)*vec_bytes;
+    static_assert(vec_bytes % sizeof(T) == 0);
+    constexpr unsigned ntype_in_vector = vec_bytes/sizeof(T);
+    return ((ntype + ntype_in_vector - 1)/ntype_in_vector)*ntype_in_vector;
   }
 
   typedef Vec128b bool_vt;
@@ -586,7 +588,9 @@ struct VCL256Architecture
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
 
   template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
-    return ((ntype + sizeof(T) - 1)/vec_bytes)*vec_bytes;
+    static_assert(vec_bytes % sizeof(T) == 0);
+    constexpr unsigned ntype_in_vector = vec_bytes/sizeof(T);
+    return ((ntype + ntype_in_vector - 1)/ntype_in_vector)*ntype_in_vector;
   }
 
   typedef Vec256b bool_vt;
@@ -673,7 +677,9 @@ struct VCL512Architecture
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
 
   template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
-    return ((ntype + sizeof(T) - 1)/vec_bytes)*vec_bytes;
+    static_assert(vec_bytes % sizeof(T) == 0);
+    constexpr unsigned ntype_in_vector = vec_bytes/sizeof(T);
+    return ((ntype + ntype_in_vector - 1)/ntype_in_vector)*ntype_in_vector;
   }
 
   typedef Vec64c  int8_vt;
