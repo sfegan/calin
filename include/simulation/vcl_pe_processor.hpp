@@ -1042,8 +1042,6 @@ public:
     mask_t *__restrict__ trigger_hit_array = 
       calin::util::memory::aligned_calloc<mask_t>(trigger_hit_size * VCLReal::num_real);
 
-    const uint_vt thv_iota = VCLReal::uint_iota();
-
     unsigned isample0 = std::max(first_sample_of_interest,coincidence_window)-coincidence_window;
     isample0 = (isample0/VCLReal::num_real)*VCLReal::num_real;
     for(unsigned isample = isample0; isample<nsample_; isample+=VCLReal::num_real) {
@@ -1051,7 +1049,6 @@ public:
       std::fill(new_triggers, new_triggers+VCLReal::num_real, 0);
 
       uint_vt thv = 0;
-      real_vt block[VCLReal::num_real]; // square matrix of reals
       for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
         const unsigned imask = ipix/mask_t_size_bits;
         const unsigned ishift = ((ipix - imask*mask_t_size_bits)/VCLReal::num_real)*VCLReal::num_real;
@@ -1071,32 +1068,47 @@ public:
         }
         pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());
 
+        int_vt cwin;
+        cwin.load_a(cwin_tend + ipix);
         if(v_waveform_is_packed_) {
           const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
           for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-            block[jsample].load_a(v_waveform_ptr);
+            real_vt v;
+            v.load_a(v_waveform_ptr);
             v_waveform_ptr += VCLReal::num_real;
+            // ****************************************************************
+            // NOTE THAT THIS DUPICATES CODE IN UNPACKED SECTION BELOW
+            // ****************************************************************
+            int ksample = isample+jsample;
+            int_vt new_cwin = vcl::select(int_bvt(v > pix_threshold), ksample+coincidence_window, cwin);
+            int_bvt triggered_pix = ksample < new_cwin;
+            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
+            ntriggered[jsample] += std::popcount(triggered_pix_mask);
+            thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
+            cwin = new_cwin;
           }
         } else {
           const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample;
+          real_vt block[VCLReal::num_real]; // square matrix of reals
           for(unsigned jpix=0;jpix<VCLReal::num_real;jpix++) {
             block[jpix].load_a(v_waveform_ptr);
             v_waveform_ptr += nsample_;
           }
           calin::util::vcl::transpose(block);
-        }
-
-        int_vt cwin;
-        cwin.load_a(cwin_tend + ipix);
-        for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-          int ksample = isample+jsample;
-          int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
-          int_bvt triggered_pix = ksample < new_cwin;
-          unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
-          new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
-          ntriggered[jsample] += std::popcount(triggered_pix_mask);
-          thv |= vcl::select(thv_iota == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
-          cwin = new_cwin;
+          for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+            // ****************************************************************
+            // NOTE THAT THIS DUPICATES CODE IN PACKED SECTION ABOVE
+            // ****************************************************************
+            int ksample = isample+jsample;
+            int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
+            int_bvt triggered_pix = ksample < new_cwin;
+            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
+            ntriggered[jsample] += std::popcount(triggered_pix_mask);
+            thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
+            cwin = new_cwin;
+          }
         }
         cwin.store_a(cwin_tend + ipix);
 
