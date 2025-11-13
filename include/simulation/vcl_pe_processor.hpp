@@ -156,12 +156,15 @@ public:
   }
 
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr)
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    double t0_samples = 0)
   {
     if(nsb_freq_per_pixel_ghz.size() != int(npix_)) {
       throw std::domain_error("NSB frequency vector length is not equal to number of pixels " 
         + std::to_string(nsb_freq_per_pixel_ghz.size()) + " != " + std::to_string(npix_));
     }
+
+    t0_samples = std::max(t0_samples, 0.0);
 
     // Non-vectorized version - a vectorized version would have to use scatter/gather
     // possibly not worth it
@@ -173,7 +176,7 @@ public:
       }
 
       real_t *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
-      double t_samples = 0;
+      double t_samples = t0_samples;
       while(t_samples < t_max) {
         typename VCLArchitecture::double_vt dt_samples = rng_->exponential_double() * rate_samples;
         typename VCLArchitecture::double_vt charge = 1.0;
@@ -814,12 +817,13 @@ public:
     }
 
     coincidence_window = std::max(coincidence_window, 1U); // Zero makes no sense
-    first_sample_of_interest = (first_sample_of_interest/VCLReal::num_real)*VCLReal::num_real;
     
     int_t *__restrict__ cwin_tend = calin::util::memory::aligned_calloc<int_t>(v_waveform_.cols());
     std::fill(cwin_tend, cwin_tend+v_waveform_.cols(), -1);
 
-    for(unsigned isample = first_sample_of_interest; isample<nsample_; isample+=VCLReal::num_real) {
+    unsigned isample0 = std::max(first_sample_of_interest,coincidence_window)-coincidence_window;
+    isample0 = (isample0/VCLReal::num_real)*VCLReal::num_real;
+    for(unsigned isample = isample0; isample<nsample_; isample+=VCLReal::num_real) {
       unsigned ntriggered[VCLReal::num_real];
       std::fill(ntriggered, ntriggered+VCLReal::num_real, 0);
       real_vt block[VCLReal::num_real]; // square matrix of reals
@@ -865,7 +869,8 @@ public:
       }
 
       for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-        if(ntriggered[jsample] >= multiplicity) {
+        int ksample = isample+jsample;
+        if(ksample>=first_sample_of_interest and ntriggered[jsample] >= multiplicity) {
           ::free(cwin_tend);
           return isample+jsample;
         }
@@ -893,7 +898,6 @@ public:
     }
 
     coincidence_window = std::max(coincidence_window, 1U); // Zero makes no sense
-    first_sample_of_interest = (first_sample_of_interest/VCLReal::num_real)*VCLReal::num_real;
     
     int_t *__restrict__ cwin_tend = calin::util::memory::aligned_calloc<int_t>(v_waveform_.cols());
     std::fill(cwin_tend, cwin_tend+v_waveform_.cols(), -1);
@@ -907,7 +911,9 @@ public:
       trigger_hit[i] = calin::util::memory::aligned_calloc<mask_t>(trigger_hit_size);
     }
 
-    for(unsigned isample = first_sample_of_interest; isample<nsample_; isample+=VCLReal::num_real) {
+    unsigned isample0 = std::max(first_sample_of_interest,coincidence_window)-coincidence_window;
+    isample0 = (isample0/VCLReal::num_real)*VCLReal::num_real;
+    for(unsigned isample = isample0; isample<nsample_; isample+=VCLReal::num_real) {
       std::fill(ntriggered, ntriggered+VCLReal::num_real, 0);
       std::fill(new_triggers, new_triggers+VCLReal::num_real, 0);
       for(unsigned i=0; i<VCLReal::num_real; i++) {
@@ -964,152 +970,8 @@ public:
       }
 
       for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-        if(ntriggered[jsample] >= 3 and new_triggers[jsample]) {          
-          for(unsigned ith=0; ith<trigger_hit_size; ith++) {
-            mask_t th = trigger_hit[jsample][ith];
-            const unsigned ipix0 = ith*mask_t_size_bits;
-            while(th!=0) {
-              const unsigned ihit = std::countr_zero(th);
-              const unsigned ipix = ipix0 + ihit;
-              th &= th - 1;
-              unsigned nneighbor_hit = 0;
-              for(auto jpix : neighbors.col(ipix)) {
-                if(jpix>=0 && jpix<int(npix_)) {
-                  const unsigned jmask = jpix/mask_t_size_bits;
-                  const unsigned jshift = jpix - jmask*mask_t_size_bits;
-                  if(trigger_hit[jsample][jmask] & (mask_t(1) << jshift)) {
-                    // Found two neighbors which also triggered in the same time sample
-                    ++nneighbor_hit;
-                    if(nneighbor_hit >= 2) {
-                      // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << jpix << " ( " << neighbors.col(ipix).transpose() << ')';
-                      ::free(cwin_tend);
-                      for(unsigned i=0; i<VCLReal::num_real; i++) {
-                        ::free(trigger_hit[i]);
-                      }
-                      return isample+jsample;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    ::free(cwin_tend);
-    for(unsigned i=0; i<VCLReal::num_real; i++) {
-      ::free(trigger_hit[i]);
-    }
-    return -1;
-  }
-
-  int trigger_3nn_test(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
-  {
-    using mask_t = uint32_t;
-    using mask_vt = typename VCLArchitecture::uint32_vt; 
-    constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
-    static_assert(VCLReal::num_real <= mask_t_size_bits);
-    static_assert(mask_t_size_bits % VCLReal::num_real == 0);
-
-    if(threshold.size()!=1 and threshold.size()!=npix_) {
-      throw std::domain_error("Trigger threshold vector length is not equal to one or number of pixels " 
-        + std::to_string(threshold.size()) + " != 1 or " + std::to_string(npix_));
-    }
-
-    if(neighbors.cols()!=npix_) {
-      throw std::domain_error("Number of columns in neighbors matrix must equal number of pixels " 
-        + std::to_string(neighbors.cols()) + " != " + std::to_string(npix_));
-    }
-
-    coincidence_window = std::max(coincidence_window, 1U); // Zero makes no sense
-    first_sample_of_interest = (first_sample_of_interest/VCLReal::num_real)*VCLReal::num_real;
-    
-    int_t *__restrict__ cwin_tend = calin::util::memory::aligned_calloc<int_t>(v_waveform_.cols());
-    std::fill(cwin_tend, cwin_tend+v_waveform_.cols(), -1);
-
-    unsigned ntriggered[VCLReal::num_real];
-    bool new_triggers[VCLReal::num_real];
-
-    unsigned trigger_hit_size = (v_waveform_.cols() + mask_t_size_bits - 1)/mask_t_size_bits;
-    unsigned trigger_hit_storage_size = VCLArchitecture::template round_ntype_up_to_vector_size<mask_t>(trigger_hit_size);
-    mask_t *__restrict__ trigger_hit[VCLReal::num_real];
-    for(unsigned i=0; i<VCLReal::num_real; i++) {
-      trigger_hit[i] = calin::util::memory::aligned_calloc<mask_t>(trigger_hit_storage_size);
-    }
-
-    for(unsigned isample = first_sample_of_interest; isample<nsample_; isample+=VCLReal::num_real) {
-      std::fill(ntriggered, ntriggered+VCLReal::num_real, 0);
-      std::fill(new_triggers, new_triggers+VCLReal::num_real, 0);
-      for(unsigned i=0; i<VCLReal::num_real; i++) {
-        std::fill(trigger_hit[i], trigger_hit[i]+trigger_hit_size, 0);
-      }
-
-      real_vt block[VCLReal::num_real]; // square matrix of reals
-      mask_vt mask[VCLReal::num_real];
-      for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-        mask[jsample] = 0;
-      }
-
-      for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
-        const unsigned imask = ipix/mask_t_size_bits;
-        const unsigned ilane = imask % (VCLArchitecture::vec_bytes / sizeof(mask_t));
-        const unsigned ishift = ((ipix - imask*mask_t_size_bits)/VCLReal::num_real)*VCLReal::num_real;
-
-        real_vt pix_threshold = 0;
-        if(threshold.size() == 1) {
-          pix_threshold = threshold[0];
-        } else if(ipix + VCLReal::num_real <= npix_) {
-          pix_threshold.load_a(threshold.data() + ipix);
-        } else {
-          real_at threshold_array;
-          pix_threshold.store_a(threshold_array);
-          for(unsigned i=0; i+ipix<npix_; i++) {
-            threshold_array[i] = threshold(ipix+i);
-          }
-          pix_threshold.load_a(threshold_array);
-        }
-        pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());
-
-        if(v_waveform_is_packed_) {
-          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
-          for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-            block[jsample].load_a(v_waveform_ptr);
-            v_waveform_ptr += VCLReal::num_real;
-          }
-        } else {
-          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample;
-          for(unsigned jpix=0;jpix<VCLReal::num_real;jpix++) {
-            block[jpix].load_a(v_waveform_ptr);
-            v_waveform_ptr += nsample_;
-          }
-          calin::util::vcl::transpose(block);
-        }
-
-        int_vt cwin;
-        cwin.load_a(cwin_tend + ipix);
-        for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-          int ksample = isample+jsample;
-          int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
-          int_bvt triggered_pix = ksample < new_cwin;
-          unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
-          new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
-          ntriggered[jsample] += std::popcount(triggered_pix_mask);
-          mask[jsample] |= select(VCLArchitecture::int32_iota() == ilane, mask_vt(triggered_pix_mask << ishift), mask_vt(0U));
-          cwin = new_cwin;
-        }
-        cwin.store_a(cwin_tend + ipix);
-
-        if(ilane == (VCLArchitecture::vec_bytes/sizeof(mask_t)-1) or ipix+VCLReal::num_real>=npix_) {
-          unsigned imaskstore = (imask / VCLArchitecture::vec_bytes)*VCLArchitecture::vec_bytes;
-          for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-            mask[jsample].store_a(trigger_hit[jsample] + imaskstore);
-            mask[jsample] = 0;
-          }
-        }
-      }
-
-      for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
-        if(ntriggered[jsample] >= 3 and new_triggers[jsample]) {          
+        int ksample = isample+jsample;
+        if(ksample>=first_sample_of_interest and ntriggered[jsample] >= 3 and new_triggers[jsample]) {          
           for(unsigned ith=0; ith<trigger_hit_size; ith++) {
             mask_t th = trigger_hit[jsample][ith];
             const unsigned ipix0 = ith*mask_t_size_bits;
@@ -1209,6 +1071,18 @@ public:
   void clear_waveforms()
   {
     pe_waveform_.setZero();
+    v_waveform_.setZero();
+    v_waveform_is_packed_ = false;
+  }
+
+  void shift_and_clear_waveforms(unsigned nsample)
+  {
+    if(nsample == 0) {
+      clear_waveforms();
+      return;
+    }
+    pe_waveform_.topRows(nsample) = pe_waveform_.bottomRows(nsample);
+    pe_waveform_.bottomRows(nsample_-nsample).setZero();
     v_waveform_.setZero();
     v_waveform_is_packed_ = false;
   }
