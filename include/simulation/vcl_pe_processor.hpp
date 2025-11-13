@@ -1049,7 +1049,6 @@ public:
     for(unsigned isample = isample0; isample<nsample_; isample+=VCLReal::num_real) {
       std::fill(ntriggered, ntriggered+VCLReal::num_real, 0);
       std::fill(new_triggers, new_triggers+VCLReal::num_real, 0);
-      std::fill(trigger_hit_array, trigger_hit_array+trigger_hit_size*VCLReal::num_real, 0);
 
       uint_vt thv = 0;
       real_vt block[VCLReal::num_real]; // square matrix of reals
@@ -1096,7 +1095,6 @@ public:
           unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
           new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
           ntriggered[jsample] += std::popcount(triggered_pix_mask);
-          // trigger_hit_array[imask*VCLReal::num_real + jsample] |= triggered_pix_mask << ishift;
           thv |= vcl::select(thv_iota == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
           cwin = new_cwin;
         }
