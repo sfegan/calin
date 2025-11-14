@@ -1015,7 +1015,7 @@ public:
 
   int trigger_3nn_test(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
-    using mask_t = VCLReal::uint_t;
+    using mask_t = typename VCLReal::uint_t;
     constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
     static_assert(VCLReal::num_real <= mask_t_size_bits);
     static_assert(mask_t_size_bits % VCLReal::num_real == 0);
