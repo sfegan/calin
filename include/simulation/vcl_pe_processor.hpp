@@ -116,6 +116,19 @@ public:
     }
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d8888b. d88888b .d8888. 
+  //    88  `8D 88'     88'  YP 
+  //    88oodD' 88ooooo `8bo.   
+  //    88~~~   88~~~~~   `Y8b. 
+  //    88      88.     db   8D 
+  //    88      Y88888P `8888Y' 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
   void transfer_scope_pes_to_waveform(unsigned iscope, const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd())
   {
     // Non-vectorized version. Takes advantage of "approximate" ordering of PEs
@@ -157,6 +170,19 @@ public:
       }
     }
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d8b   db .d8888. d8888b. 
+  //    888o  88 88'  YP 88  `8D 
+  //    88V8o 88 `8bo.   88oooY' 
+  //    88 V8o88   `Y8b. 88~~~b. 
+  //    88  V888 db   8D 88   8D 
+  //    VP   V8P `8888Y' Y8888P' 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
 
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
     calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
@@ -267,6 +293,20 @@ public:
     return pes_per_channel_in_window;
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d888888b .88b  d88. d8888b. db    db db      .d8888. d88888b 
+  //      `88'   88'YbdP`88 88  `8D 88    88 88      88'  YP 88'     
+  //       88    88  88  88 88oodD' 88    88 88      `8bo.   88ooooo 
+  //       88    88  88  88 88~~~   88    88 88        `Y8b. 88~~~~~ 
+  //      .88.   88  88  88 88      88b  d88 88booo. db   8D 88.     
+  //    Y888888P YP  YP  YP 88      ~Y8888P' Y88888P `8888Y' Y88888P 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
+
   unsigned register_impulse_response(vecX_t& impulse_response, 
     const std::string& units, double window_fraction=0.6)
   {
@@ -374,6 +414,19 @@ public:
     return s;
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d8888b. d888888b d8888b. d88888b  .o88b. d888888b 
+  //    88  `8D   `88'   88  `8D 88'     d8P  Y8 `~~88~~' 
+  //    88   88    88    88oobY' 88ooooo 8P         88    
+  //    88   88    88    88`8b   88~~~~~ 8b         88    
+  //    88  .8D   .88.   88 `88. 88.     Y8b  d8    88    
+  //    Y8888D' Y888888P 88   YD Y88888P  `Y88P'    YP    
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
   void convolve_impulse_response_direct(unsigned impulse_response_id, unsigned first_sample_of_interest,
     const vecX_t& pedestal = vecX_t(), const vecX_t& relative_gain = vecX_t(), double white_noise_rms = 0.0)
   {
@@ -431,6 +484,19 @@ public:
     }
     v_waveform_is_packed_ = false;
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d88888b d88888b d888888b db   d8b   db 
+  //    88'     88'     `~~88~~' 88   I8I   88 
+  //    88ooo   88ooo      88    88   I8I   88 
+  //    88~~~   88~~~      88    Y8   I8I   88 
+  //    88      88         88    `8b d8'8b d8' 
+  //    YP      YP         YP     `8b8' `8d8'  
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
 
   void convolve_impulse_response_fft(unsigned impulse_response_id,
     const vecX_t& pedestal = vecX_t(),
@@ -500,6 +566,19 @@ public:
     free(a_vec);
     free(b_vec);
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //     .o88b.  .d88b.  d8888b. d88888b db      d88888b d888888b 
+  //    d8P  Y8 .8P  Y8. 88  `8D 88'     88      88'     `~~88~~' 
+  //    8P      88    88 88   88 88ooooo 88      88ooooo    88    
+  //    8b      88    88 88   88 88~~~~~ 88      88~~~~~    88    
+  //    Y8b  d8 `8b  d8' 88  .8D 88.     88booo. 88.        88    
+  //     `Y88P'  `Y88P'  Y8888D' Y88888P Y88888P Y88888P    YP    
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
 
   void convolve_impulse_response_fftw_codelet(unsigned impulse_response_id,
     const vecX_t& pedestal = vecX_t(),
@@ -812,6 +891,19 @@ public:
     free(c_vec);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    .88b  d88. db    db db      d888888b d888888b 
+  //    88'YbdP`88 88    88 88      `~~88~~'   `88'   
+  //    88  88  88 88    88 88         88       88    
+  //    88  88  88 88    88 88         88       88    
+  //    88  88  88 88b  d88 88booo.    88      .88.   
+  //    YP  YP  YP ~Y8888P' Y88888P    YP    Y888888P 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
   int trigger_multipicity(const vecX_t& threshold, unsigned multiplicity, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
     if(threshold.size()!=1 and threshold.size()!=npix_) {
@@ -883,7 +975,20 @@ public:
     return -1;
   }
 
-  int trigger_3nn(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d8888b. d8b   db d8b   db 
+  //    VP  `8D 888o  88 888o  88 
+  //      oooY' 88V8o 88 88V8o 88 
+  //      ~~~b. 88 V8o88 88 V8o88 
+  //    db   8D 88  V888 88  V888 
+  //    Y8888P' VP   V8P VP   V8P 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
+  int trigger_3nn_old(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
     using mask_t = uint32_t;
     constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
@@ -1013,7 +1118,7 @@ public:
     return -1;
   }
 
-  int trigger_3nn_test(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
+  int trigger_3nn(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
     using mask_t = typename VCLReal::uint_t;
     constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
@@ -1120,13 +1225,13 @@ public:
 
       for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
         unsigned ksample = isample+jsample;
-        if(ksample>=first_sample_of_interest and ntriggered[jsample] >= 3 and new_triggers[jsample]) {          
+        if(ksample>=first_sample_of_interest and ntriggered[jsample]>=3 and new_triggers[jsample]) {          
           for(unsigned ith=0; ith<trigger_hit_size; ith++) {
             mask_t th = trigger_hit_array[ith*VCLReal::num_real + jsample];
             const unsigned ipix0 = ith*mask_t_size_bits;
             while(th!=0) {
-              const unsigned ihit = std::countr_zero(th);
-              const unsigned ipix = ipix0 + ihit;
+              const int ihit = std::countr_zero(th);
+              const int ipix = ipix0 + ihit;
               th &= th - 1;
               unsigned nneighbor_hit = 0;
               for(auto jpix : neighbors.col(ipix)) {
@@ -1154,6 +1259,311 @@ public:
     ::free(trigger_hit_array);
     return -1;
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //      j88D  d8b   db d8b   db 
+  //     j8~88  888o  88 888o  88 
+  //    j8' 88  88V8o 88 88V8o 88 
+  //    V88888D 88 V8o88 88 V8o88 
+  //        88  88  V888 88  V888 
+  //        VP  VP   V8P VP   V8P 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  
+  int trigger_4nn(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
+  {
+    using mask_t = typename VCLReal::uint_t;
+    constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
+    static_assert(VCLReal::num_real <= mask_t_size_bits);
+    static_assert(mask_t_size_bits % VCLReal::num_real == 0);
+
+    if(threshold.size()!=1 and threshold.size()!=npix_) {
+      throw std::domain_error("Trigger threshold vector length is not equal to one or number of pixels " 
+        + std::to_string(threshold.size()) + " != 1 or " + std::to_string(npix_));
+    }
+
+    if(neighbors.cols()!=npix_) {
+      throw std::domain_error("Number of columns in neighbors matrix must equal number of pixels " 
+        + std::to_string(neighbors.cols()) + " != " + std::to_string(npix_));
+    }
+
+    coincidence_window = std::max(coincidence_window, 1U); // Zero makes no sense
+    
+    int_t *__restrict__ cwin_tend = calin::util::memory::aligned_calloc<int_t>(v_waveform_.cols());
+    std::fill(cwin_tend, cwin_tend+v_waveform_.cols(), -1);
+
+    unsigned ntriggered[VCLReal::num_real];
+    bool new_triggers[VCLReal::num_real];
+
+    unsigned trigger_hit_size = (v_waveform_.cols() + mask_t_size_bits - 1)/mask_t_size_bits;
+    mask_t *__restrict__ trigger_hit_array = 
+      calin::util::memory::aligned_calloc<mask_t>(trigger_hit_size * VCLReal::num_real);
+
+    unsigned isample0 = std::max(first_sample_of_interest,coincidence_window)-coincidence_window;
+    isample0 = (isample0/VCLReal::num_real)*VCLReal::num_real;
+    for(unsigned isample = isample0; isample<nsample_; isample+=VCLReal::num_real) {
+      std::fill(ntriggered, ntriggered+VCLReal::num_real, 0);
+      std::fill(new_triggers, new_triggers+VCLReal::num_real, 0);
+
+      uint_vt thv = 0;
+      for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) {
+        const unsigned imask = ipix/mask_t_size_bits;
+        const unsigned ishift = ((ipix - imask*mask_t_size_bits)/VCLReal::num_real)*VCLReal::num_real;
+
+        real_vt pix_threshold = 0;
+        if(threshold.size() == 1) {
+          pix_threshold = threshold[0];
+        } else if(ipix + VCLReal::num_real <= npix_) {
+          pix_threshold.load_a(threshold.data() + ipix);
+        } else {
+          real_at threshold_array;
+          pix_threshold.store_a(threshold_array);
+          for(unsigned i=0; i+ipix<npix_; i++) {
+            threshold_array[i] = threshold(ipix+i);
+          }
+          pix_threshold.load_a(threshold_array);
+        }
+        pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());
+
+        int_vt cwin;
+        cwin.load_a(cwin_tend + ipix);
+        if(v_waveform_is_packed_) {
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
+          for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+            real_vt v;
+            v.load_a(v_waveform_ptr);
+            v_waveform_ptr += VCLReal::num_real;
+            // ****************************************************************
+            // NOTE THAT THIS DUPICATES CODE IN UNPACKED SECTION BELOW
+            // ****************************************************************
+            int ksample = isample+jsample;
+            int_vt new_cwin = vcl::select(int_bvt(v > pix_threshold), ksample+coincidence_window, cwin);
+            int_bvt triggered_pix = ksample < new_cwin;
+            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
+            ntriggered[jsample] += std::popcount(triggered_pix_mask);
+            thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
+            cwin = new_cwin;
+          }
+        } else {
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample;
+          real_vt block[VCLReal::num_real]; // square matrix of reals
+          for(unsigned jpix=0;jpix<VCLReal::num_real;jpix++) {
+            block[jpix].load_a(v_waveform_ptr);
+            v_waveform_ptr += nsample_;
+          }
+          calin::util::vcl::transpose(block);
+          for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+            // ****************************************************************
+            // NOTE THAT THIS DUPICATES CODE IN PACKED SECTION ABOVE
+            // ****************************************************************
+            int ksample = isample+jsample;
+            int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
+            int_bvt triggered_pix = ksample < new_cwin;
+            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
+            ntriggered[jsample] += std::popcount(triggered_pix_mask);
+            thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
+            cwin = new_cwin;
+          }
+        }
+        cwin.store_a(cwin_tend + ipix);
+
+        if(ishift == mask_t_size_bits-VCLReal::num_real) {
+          thv.store_a(trigger_hit_array + imask*VCLReal::num_real);
+          thv = uint_vt(0U);
+        }
+      }
+
+      for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
+        unsigned ksample = isample+jsample;
+        if(ksample>=first_sample_of_interest and ntriggered[jsample]>=4 and new_triggers[jsample]) {          
+          for(unsigned ith=0; ith<trigger_hit_size; ith++) {
+            mask_t th = trigger_hit_array[ith*VCLReal::num_real + jsample];
+            const unsigned ipix0 = ith*mask_t_size_bits;
+            while(th!=0) {
+              const int ihit = std::countr_zero(th);
+              const int ipix = ipix0 + ihit;
+              th &= th - 1;
+              unsigned nneighbor_hit = 0;
+              int ipix_n1;
+              int ipix_n2;
+              for(auto jpix : neighbors.col(ipix)) {
+                if(jpix>=0 && jpix<int(npix_)) {
+                  const unsigned jmask = jpix/mask_t_size_bits;
+                  const unsigned jshift = jpix - jmask*mask_t_size_bits;
+                  if(trigger_hit_array[jmask*VCLReal::num_real + jsample] & (mask_t(1) << jshift)) {
+                    // Found two neighbors which also triggered in the same time sample
+                    ++nneighbor_hit;
+                    if(nneighbor_hit >= 3) {
+                      // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << jpix << " ( " << neighbors.col(ipix).transpose() << ')';
+                      ::free(cwin_tend);
+                      ::free(trigger_hit_array);
+                      return isample+jsample;
+                    } else if(nneighbor_hit == 2) {
+                      ipix_n2 = jpix;
+                    } else {
+                      ipix_n1 = jpix;
+                    }                    
+                  }
+                }
+              }
+              if(nneighbor_hit == 2) {
+                for(auto jpix : neighbors.col(ipix_n1)) {
+                  if(jpix>=0 and jpix<int(npix_) and jpix!=ipix and jpix!=ipix_n2) {
+                    const unsigned jmask = jpix/mask_t_size_bits;
+                    const unsigned jshift = jpix - jmask*mask_t_size_bits;
+                    if(trigger_hit_array[jmask*VCLReal::num_real + jsample] & (mask_t(1) << jshift)) {
+                      // Found a fourth triggered channel
+                      ::free(cwin_tend);
+                      ::free(trigger_hit_array);
+                      return isample+jsample;
+                    }
+                  }
+                }
+                for(auto jpix : neighbors.col(ipix_n2)) {
+                  if(jpix>=0 and jpix<int(npix_) and jpix!=ipix and jpix!=ipix_n1) {
+                    const unsigned jmask = jpix/mask_t_size_bits;
+                    const unsigned jshift = jpix - jmask*mask_t_size_bits;
+                    if(trigger_hit_array[jmask*VCLReal::num_real + jsample] & (mask_t(1) << jshift)) {
+                      // Found a fourth triggered channel
+                      ::free(cwin_tend);
+                      ::free(trigger_hit_array);
+                      return isample+jsample;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    ::free(cwin_tend);
+    ::free(trigger_hit_array);
+    return -1;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    d888888b d8b   db    d88b d88888b  .o88b. d888888b 
+  //      `88'   888o  88    `8P' 88'     d8P  Y8 `~~88~~' 
+  //       88    88V8o 88     88  88ooooo 8P         88    
+  //       88    88 V8o88     88  88~~~~~ 8b         88    
+  //      .88.   88  V888 db. 88  88.     Y8b  d8    88    
+  //    Y888888P VP   V8P Y8888P  Y88888P  `Y88P'    YP    
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
+  void inject_pe(unsigned pixel_id, unsigned t_sample, double amplitude = 1.0) 
+  {
+    if(pixel_id>=npix_) {
+      throw std::out_of_range("Pixel index out of range in inject_pe: " 
+        + std::to_string(pixel_id) + " >= " + std::to_string(npix_));
+    }
+    if(t_sample>=nsample_) {
+      throw std::out_of_range("Sample time index out of range in inject_pe: " 
+        + std::to_string(t_sample) + " >= " + std::to_string(nsample_));
+    }
+    pe_waveform_(t_sample, pixel_id) += amplitude;
+  }
+
+  void inject_n_pes(unsigned pixel_id, unsigned npe, double t0_samples,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    double time_spread_ns = 0.0)
+  {
+    double time_spread_samples = time_spread_ns*sampling_freq_ghz_;
+    real_t *__restrict__ pe_waveform_ptr = &pe_waveform_(0,pixel_id);
+    while(npe) {
+      typename VCLArchitecture::double_vt t = t0_samples;
+      if(time_spread_ns > 0) {
+        t += rng_->normal_double() * time_spread_samples;
+      } else if (time_spread_ns < 0) {
+        t -= rng_->uniform_double_zc(time_spread_samples);
+      }        
+      typename VCLArchitecture::double_vt q;
+      if(pegen) {
+        q = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
+      } else {
+        q = 1.0;
+      }
+
+      typename VCLArchitecture::double_at q_a;
+      q.store_a(q_a);
+
+      typename VCLArchitecture::int64_vt it = round_to_int64_limited(t);
+      typename VCLArchitecture::int64_at it_a;
+      it.store_a(it_a);
+      for(unsigned jvec=0;jvec<VCLArchitecture::num_double && npe; jvec++,npe--) {
+        unsigned isample = it_a[jvec];
+        if(isample>=0 and isample<nsample_) {
+          pe_waveform_ptr[isample] += q_a[jvec];
+        }
+      }
+    }
+  }
+
+  void inject_poisson_pes(unsigned pixel_id, double lambda, double t0_samples,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    double time_spread_ns = 0.0)
+  {
+    calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
+    calin::math::rng::RNG scalar_rng(&scalar_core);
+    unsigned npe = scalar_rng.poisson(lambda);
+    inject_n_pes(pixel_id, npe, t0_samples, pegen, time_spread_ns);
+  }
+
+  void inject_poisson_pes(const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_samples, 
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    const Eigen::VectorXd& time_spread_ns = Eigen::VectorXd())
+  {
+    if(lambda.size() != npix_) {
+      throw std::domain_error("Lambda vector length is not equal to number of pixels " 
+        + std::to_string(lambda.size()) + " != " + std::to_string(npix_));
+    }
+    if(t0_samples.size() != 1 and t0_samples.size() != npix_) {
+      throw std::domain_error("T0 vector length must be 1 or equal to number of pixels " 
+        + std::to_string(t0_samples.size()) + " != 1 or " + std::to_string(npix_));
+    }
+    if(time_spread_ns.size() != 0 and time_spread_ns.size() != 1 and time_spread_ns.size() != npix_) {
+      throw std::domain_error("Time spread vector length must be 0, 1 or equal to number of pixels " 
+        + std::to_string(time_spread_ns.size()) + " != 0, 1 or " + std::to_string(npix_));
+    }
+
+    calin::math::rng::RNG& scalar_rng(rng_->scalar_rng());
+    for(unsigned ipix=0; ipix<npix_; ipix++) {
+      unsigned npe = scalar_rng.poisson(lambda[ipix]);
+      double t0 = t0_samples[0];
+      double time_spread = 0;
+      if(t0_samples.size() > 1) {
+        t0 = t0_samples[ipix];
+      }
+      if(time_spread_ns.size() > 1) {
+        time_spread = time_spread_ns[ipix];
+      } else if (time_spread_ns.size() == 1) {
+        time_spread = time_spread_ns[0];
+      }
+      inject_n_pes(ipix, npe, t0, pegen, time_spread);
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    .88b  d88. d888888b .d8888.  .o88b. 
+  //    88'YbdP`88   `88'   88'  YP d8P  Y8 
+  //    88  88  88    88    `8bo.   8P      
+  //    88  88  88    88      `Y8b. 8b      
+  //    88  88  88   .88.   db   8D Y8b  d8 
+  //    YP  YP  YP Y888888P `8888Y'  `Y88P' 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
 
   vecX_t ac_coupling_offset(const Eigen::VectorXi& impulse_response_id, 
     const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
@@ -1260,98 +1670,6 @@ public:
     return os;
   }
   
-  void inject_pe(unsigned pixel_id, unsigned t_sample, double amplitude = 1.0) 
-  {
-    if(pixel_id>=npix_) {
-      throw std::out_of_range("Pixel index out of range in inject_pe: " 
-        + std::to_string(pixel_id) + " >= " + std::to_string(npix_));
-    }
-    if(t_sample>=nsample_) {
-      throw std::out_of_range("Sample time index out of range in inject_pe: " 
-        + std::to_string(t_sample) + " >= " + std::to_string(nsample_));
-    }
-    pe_waveform_(t_sample, pixel_id) += amplitude;
-  }
-
-  void inject_n_pes(unsigned pixel_id, unsigned npe, double t0_samples,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
-    double time_spread_ns = 0.0)
-  {
-    double time_spread_samples = time_spread_ns*sampling_freq_ghz_;
-    real_t *__restrict__ pe_waveform_ptr = &pe_waveform_(0,pixel_id);
-    while(npe) {
-      typename VCLArchitecture::double_vt t = t0_samples;
-      if(time_spread_ns > 0) {
-        t += rng_->normal_double() * time_spread_samples;
-      } else if (time_spread_ns < 0) {
-        t -= rng_->uniform_double_zc(time_spread_samples);
-      }        
-      typename VCLArchitecture::double_vt q;
-      if(pegen) {
-        q = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
-      } else {
-        q = 1.0;
-      }
-
-      typename VCLArchitecture::double_at q_a;
-      q.store_a(q_a);
-
-      typename VCLArchitecture::int64_vt it = round_to_int64_limited(t);
-      typename VCLArchitecture::int64_at it_a;
-      it.store_a(it_a);
-      for(unsigned jvec=0;jvec<VCLArchitecture::num_double && npe; jvec++,npe--) {
-        unsigned isample = it_a[jvec];
-        if(isample>=0 and isample<nsample_) {
-          pe_waveform_ptr[isample] += q_a[jvec];
-        }
-      }
-    }
-  }
-
-  void inject_poisson_pes(unsigned pixel_id, double lambda, double t0_samples,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
-    double time_spread_ns = 0.0)
-  {
-    calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
-    calin::math::rng::RNG scalar_rng(&scalar_core);
-    unsigned npe = scalar_rng.poisson(lambda);
-    inject_n_pes(pixel_id, npe, t0_samples, pegen, time_spread_ns);
-  }
-
-  void inject_poisson_pes(const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_samples, 
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
-    const Eigen::VectorXd& time_spread_ns = Eigen::VectorXd())
-  {
-    if(lambda.size() != npix_) {
-      throw std::domain_error("Lambda vector length is not equal to number of pixels " 
-        + std::to_string(lambda.size()) + " != " + std::to_string(npix_));
-    }
-    if(t0_samples.size() != 1 and t0_samples.size() != npix_) {
-      throw std::domain_error("T0 vector length must be 1 or equal to number of pixels " 
-        + std::to_string(t0_samples.size()) + " != 1 or " + std::to_string(npix_));
-    }
-    if(time_spread_ns.size() != 0 and time_spread_ns.size() != 1 and time_spread_ns.size() != npix_) {
-      throw std::domain_error("Time spread vector length must be 0, 1 or equal to number of pixels " 
-        + std::to_string(time_spread_ns.size()) + " != 0, 1 or " + std::to_string(npix_));
-    }
-
-    calin::math::rng::RNG& scalar_rng(rng_->scalar_rng());
-    for(unsigned ipix=0; ipix<npix_; ipix++) {
-      unsigned npe = scalar_rng.poisson(lambda[ipix]);
-      double t0 = t0_samples[0];
-      double time_spread = 0;
-      if(t0_samples.size() > 1) {
-        t0 = t0_samples[ipix];
-      }
-      if(time_spread_ns.size() > 1) {
-        time_spread = time_spread_ns[ipix];
-      } else if (time_spread_ns.size() == 1) {
-        time_spread = time_spread_ns[0];
-      }
-      inject_n_pes(ipix, npe, t0, pegen, time_spread);
-    }
-  }
-
   real_t noise_spectrum_var(const vecX_t& noise_spectrum) const 
   {
     using calin::math::special::SQR;
