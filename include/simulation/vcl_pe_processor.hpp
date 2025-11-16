@@ -1707,6 +1707,32 @@ public:
     }
   }
 
+  int trigger_multipicity_cr(unsigned camera_response_id, 
+    unsigned multiplicity, unsigned first_sample_of_interest=0) 
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+
+    return trigger_multipicity(cr.threshold, multiplicity, cr.coincidence_window, 
+      first_sample_of_interest);
+  }
+
+  int trigger_3nn_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+
+    return trigger_3nn(cr.threshold, cr.neighbors, cr.coincidence_window, first_sample_of_interest);
+  }
+
+  int trigger_4nn_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+
+    return trigger_4nn(cr.threshold, cr.neighbors, cr.coincidence_window, first_sample_of_interest);
+  }
+
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
   //
