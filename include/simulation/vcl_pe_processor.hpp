@@ -2,7 +2,8 @@
 
    calin/simulation/vcl_pe_processor.hpp -- Stephen Fegan -- 2025-10-08
 
-   VCL class for processing PEs
+   VCL class for processing PEs into waveforms: convolvolution with impulse
+   response, trigger algorithms, and others
 
    Copyright 2025, Stephen Fegan <sfegan@llr.in2p3.fr>
    Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
@@ -19,6 +20,10 @@
    General Public License for more details.
 
 */
+
+// ===============================
+// NO USER SERVICABLE PARTS INSIDE
+// ===============================
 
 #pragma once
 
@@ -939,7 +944,7 @@ public:
         pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());
 
         if(v_waveform_is_packed_) {
-          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + (ipix*nsample_ + isample)*VCLReal::num_real;
           for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
             block[jsample].load_a(v_waveform_ptr);
             v_waveform_ptr += VCLReal::num_real;
@@ -1048,7 +1053,7 @@ public:
         pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());
 
         if(v_waveform_is_packed_) {
-          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + (ipix*nsample_ + isample)*VCLReal::num_real;
           for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
             block[jsample].load_a(v_waveform_ptr);
             v_waveform_ptr += VCLReal::num_real;
@@ -1176,7 +1181,7 @@ public:
         int_vt cwin;
         cwin.load_a(cwin_tend + ipix);
         if(v_waveform_is_packed_) {
-          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + (ipix*nsample_ + isample)*VCLReal::num_real;
           for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
             real_vt v;
             v.load_a(v_waveform_ptr);
@@ -1331,7 +1336,7 @@ public:
         int_vt cwin;
         cwin.load_a(cwin_tend + ipix);
         if(v_waveform_is_packed_) {
-          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample*VCLReal::num_real;
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + (ipix*nsample_ + isample)*VCLReal::num_real;
           for(unsigned jsample=0;jsample<VCLReal::num_real;jsample++) {
             real_vt v;
             v.load_a(v_waveform_ptr);
