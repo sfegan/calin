@@ -1073,7 +1073,7 @@ public:
           int ksample = isample+jsample;
           int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
           int_bvt triggered_pix = ksample < new_cwin;
-          unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+          mask_t triggered_pix_mask = vcl::to_bits(triggered_pix);
           new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
           ntriggered[jsample] += std::popcount(triggered_pix_mask);
           trigger_hit[jsample][imask] |= triggered_pix_mask << ishift;
@@ -1093,21 +1093,23 @@ public:
               const unsigned ipix = ipix0 + ihit;
               th &= th - 1;
               unsigned nneighbor_hit = 0;
+              // unsigned ipix_n1 = 0;
               for(auto jpix : neighbors.col(ipix)) {
                 if(jpix>=0 && jpix<int(npix_)) {
                   const unsigned jmask = jpix/mask_t_size_bits;
                   const unsigned jshift = jpix - jmask*mask_t_size_bits;
                   if(trigger_hit[jsample][jmask] & (mask_t(1) << jshift)) {
-                    // Found two neighbors which also triggered in the same time sample
+                    // Found neighbor which also triggered in the same time sample
                     ++nneighbor_hit;
                     if(nneighbor_hit >= 2) {
-                      // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << jpix << " ( " << neighbors.col(ipix).transpose() << ')';
+                      // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << ipix_n1 << ' ' <<  jpix << " ( " << neighbors.col(ipix).transpose() << ')';
                       ::free(cwin_tend);
                       for(unsigned i=0; i<VCLReal::num_real; i++) {
                         ::free(trigger_hit[i]);
                       }
                       return isample+jsample;
                     }
+                    // ipix_n1 = jpix;
                   }
                 }
               }
@@ -1192,7 +1194,7 @@ public:
             int ksample = isample+jsample;
             int_vt new_cwin = vcl::select(int_bvt(v > pix_threshold), ksample+coincidence_window, cwin);
             int_bvt triggered_pix = ksample < new_cwin;
-            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            mask_t triggered_pix_mask = vcl::to_bits(triggered_pix);
             new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
             ntriggered[jsample] += std::popcount(triggered_pix_mask);
             thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
@@ -1213,7 +1215,7 @@ public:
             int ksample = isample+jsample;
             int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
             int_bvt triggered_pix = ksample < new_cwin;
-            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            mask_t triggered_pix_mask = vcl::to_bits(triggered_pix);
             new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
             ntriggered[jsample] += std::popcount(triggered_pix_mask);
             thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
@@ -1347,7 +1349,7 @@ public:
             int ksample = isample+jsample;
             int_vt new_cwin = vcl::select(int_bvt(v > pix_threshold), ksample+coincidence_window, cwin);
             int_bvt triggered_pix = ksample < new_cwin;
-            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            mask_t triggered_pix_mask = vcl::to_bits(triggered_pix);
             new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
             ntriggered[jsample] += std::popcount(triggered_pix_mask);
             thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
@@ -1368,7 +1370,7 @@ public:
             int ksample = isample+jsample;
             int_vt new_cwin = vcl::select(int_bvt(block[jsample] > pix_threshold), ksample+coincidence_window, cwin);
             int_bvt triggered_pix = ksample < new_cwin;
-            unsigned triggered_pix_mask = vcl::to_bits(triggered_pix);
+            mask_t triggered_pix_mask = vcl::to_bits(triggered_pix);
             new_triggers[jsample] |= vcl::horizontal_or(triggered_pix && (ksample-1 >= cwin));
             ntriggered[jsample] += std::popcount(triggered_pix_mask);
             thv |= vcl::select(VCLReal::uint_iota() == jsample, uint_vt(triggered_pix_mask << ishift), uint_vt(0U));
@@ -1377,7 +1379,7 @@ public:
         }
         cwin.store_a(cwin_tend + ipix);
 
-        if(ishift == mask_t_size_bits-VCLReal::num_real) {
+        if(ishift == mask_t_size_bits-VCLReal::num_real or ipix+VCLReal::num_real>=npix_) {
           thv.store_a(trigger_hit_array + imask*VCLReal::num_real);
           thv = uint_vt(0U);
         }
