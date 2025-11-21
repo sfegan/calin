@@ -1224,7 +1224,7 @@ public:
         }
         cwin.store_a(cwin_tend + ipix);
 
-        if(ishift == mask_t_size_bits-VCLReal::num_real) {
+        if(ishift == mask_t_size_bits-VCLReal::num_real or ipix+VCLReal::num_real>=npix_) {
           thv.store_a(trigger_hit_array + imask*VCLReal::num_real);
           thv = uint_vt(0U);
         }
