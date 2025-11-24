@@ -431,3 +431,22 @@ calin::iact_data::instrument_layout::camera_layout(
     return nullptr;
   }
 }
+
+Eigen::MatrixXi calin::iact_data::instrument_layout::neighbor_matrix(
+  const calin::ix::iact_data::instrument_layout::CameraLayout& camera_layout, unsigned nneighbor)
+{
+  unsigned nchan = camera_layout.channel_size();
+  for(unsigned ichan=0; ichan<nchan; ichan++) {
+    unsigned nneighbor_channels = camera_layout.channel(ichan).neighbour_channel_indexes_size();
+    nneighbor = std::max(nneighbor, nneighbor_channels);
+  }
+  Eigen::MatrixXi neighbor_matrix = -Eigen::MatrixXi::Ones(nneighbor, nchan);
+  for(unsigned ichan=0; ichan<nchan; ichan++) {
+    const auto& c = camera_layout.channel(ichan);
+    unsigned nneighbor_channels = c.neighbour_channel_indexes_size();
+    for(unsigned ineighbor_channel=0; ineighbor_channel<nneighbor_channels; ineighbor_channel++) {
+      neighbor_matrix(ineighbor_channel, ichan) = c.neighbour_channel_indexes(ineighbor_channel);
+    }
+  }
+  return neighbor_matrix;
+}
