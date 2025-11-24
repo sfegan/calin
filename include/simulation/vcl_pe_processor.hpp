@@ -1129,6 +1129,15 @@ public:
 
   int trigger_3nn(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
+    // Vectorized, unrolled, 3NN trigger algorithm that supports coincidence window
+    // 1) For each sample: find which pixels are above threshold and set end of their coincidence window
+    // 2) Record whether any pixel is newly triggered (was outside window in last sample, now inside)
+    // 3) Count number of pixels triggered (i.e. within their coincidence windows)
+    // 4) If there are more than 3 triggered pixels, and at least one is newly triggered then run 3NN algorithm:
+    // 5) Run through triggered bitmask finding triggered channels, then
+    // 6) Test whether neighbors are also triggered, counting how many
+    // 7) If 2 neighbors are found then return trigger time
+
     using mask_t = typename VCLReal::uint_t;
     constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
     static_assert(VCLReal::num_real <= mask_t_size_bits);
@@ -1284,6 +1293,17 @@ public:
   
   int trigger_4nn(const vecX_t& threshold, const Eigen::MatrixXi& neighbors, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
+    // Vectorized, unrolled, 4NN trigger algorithm that supports coincidence window
+    // 1) For each sample: find which pixels are above threshold and set end of their coincidence window
+    // 2) Record whether any pixel is newly triggered (was outside window in last sample, now inside)
+    // 3) Count number of pixels triggered (i.e. within their coincidence windows)
+    // 4) If there are more than 4 triggered pixels, and at least one is newly triggered then run 4NN algorithm:
+    // 5) Run through triggered bitmask finding triggered channels, then
+    // 6) Test whether neighbors are also triggered, counting how many, and recording first two triggered neighbors
+    // 7) If 3 neighbors were found then return trigger time
+    // 8) Otherwise, if 2 triggered neighbors were found then test the neighbors of these that haven't already been tested
+    // 9) If one is found to be triggered then return trigger time
+
     using mask_t = typename VCLReal::uint_t;
     constexpr unsigned mask_t_size_bits = sizeof(mask_t)*8;
     static_assert(VCLReal::num_real <= mask_t_size_bits);
