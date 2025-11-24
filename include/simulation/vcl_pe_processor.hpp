@@ -1676,6 +1676,14 @@ public:
     cr.neighbors                 = neighbors;
   }
 
+  void set_cr_multiplicity(unsigned camera_response_id, unsigned multiplicity)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+
+    cr.multiplicity              = multiplicity;
+  }
+
   void set_cr_threshold(unsigned camera_response_id, const vecX_t& threshold, unsigned conincidence_window = 0)
   {
     validate_camera_response_id(camera_response_id);
@@ -1714,13 +1722,12 @@ public:
     }
   }
 
-  int trigger_multipicity_cr(unsigned camera_response_id, 
-    unsigned multiplicity, unsigned first_sample_of_interest=0) 
+  int trigger_multipicity_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0) 
   {
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
 
-    return trigger_multipicity(cr.threshold, multiplicity, cr.coincidence_window, 
+    return trigger_multipicity(cr.threshold, cr.multiplicity, cr.coincidence_window, 
       first_sample_of_interest);
   }
 
@@ -2028,6 +2035,7 @@ private:
     matX_t noise_spectrum;
     vecX_t threshold;
     Eigen::MatrixXi neighbors;
+    unsigned multiplicity = 3;
     unsigned coincidence_window = 0;
     bool adopt_pegen = false;
   };
