@@ -44,6 +44,8 @@
 #include <math/interpolation_1d.hpp>
 #include <math/brent.hpp>
 #include <simulation/pe_processor.hpp>
+#include <iact_data/instrument_layout.pb.h>
+#include <iact_data/instrument_layout.hpp>
 
 namespace calin { namespace simulation { namespace vcl_pe_processor {
 
@@ -1099,9 +1101,9 @@ public:
                   const unsigned jmask = jpix/mask_t_size_bits;
                   const unsigned jshift = jpix - jmask*mask_t_size_bits;
                   if(trigger_hit[jsample][jmask] & (mask_t(1) << jshift)) {
-                    // Found neighbor which also triggered in the same time sample
                     ++nneighbor_hit;
                     if(nneighbor_hit >= 2) {
+                      // Found 3 neighbor channels that triggered
                       // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << ipix_n1 << ' ' <<  jpix << " ( " << neighbors.col(ipix).transpose() << ')';
                       ::free(cwin_tend);
                       for(unsigned i=0; i<VCLReal::num_real; i++) {
@@ -1246,9 +1248,9 @@ public:
                   const unsigned jmask = jpix/mask_t_size_bits;
                   const unsigned jshift = jpix - jmask*mask_t_size_bits;
                   if(trigger_hit_array[jmask*VCLReal::num_real + jsample] & (mask_t(1) << jshift)) {
-                    // Found two neighbors which also triggered in the same time sample
                     ++nneighbor_hit;
                     if(nneighbor_hit >= 2) {
+                      // Found 3 neighbor channels that triggered
                       // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << jpix << " ( " << neighbors.col(ipix).transpose() << ')';
                       ::free(cwin_tend);
                       ::free(trigger_hit_array);
@@ -1403,9 +1405,9 @@ public:
                   const unsigned jmask = jpix/mask_t_size_bits;
                   const unsigned jshift = jpix - jmask*mask_t_size_bits;
                   if(trigger_hit_array[jmask*VCLReal::num_real + jsample] & (mask_t(1) << jshift)) {
-                    // Found two neighbors which also triggered in the same time sample
                     ++nneighbor_hit;
                     if(nneighbor_hit >= 3) {
+                      // Found 4 neighbor channels that triggered
                       // calin::util::log::LOG(calin::util::log::INFO) << ipix << ' ' << jpix << " ( " << neighbors.col(ipix).transpose() << ')';
                       ::free(cwin_tend);
                       ::free(trigger_hit_array);
@@ -1419,6 +1421,7 @@ public:
                 }
               }
               if(nneighbor_hit == 2) {
+                // Found 3 neighbor channels that triggered, try to find 4th
                 for(auto jpix : neighbors.col(ipix_n1)) {
                   if(jpix>=0 and jpix<int(npix_) and jpix!=ipix and jpix!=ipix_n2) {
                     const unsigned jmask = jpix/mask_t_size_bits;
@@ -1674,6 +1677,12 @@ public:
     }
 
     cr.neighbors                 = neighbors;
+  }
+
+  void set_cr_neighbors(unsigned camera_response_id, 
+    const calin::ix::iact_data::instrument_layout::CameraLayout& camera_layout)
+  {
+    set_cr_neighbors(camera_response_id, calin::iact_data::instrument_layout::neighbor_matrix(camera_layout));
   }
 
   void set_cr_multiplicity(unsigned camera_response_id, unsigned multiplicity)
