@@ -1602,13 +1602,9 @@ void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle,
   ++Er;
   ++Or;
   while(Er < Ec) {
-    // X[1] = E[1] + cos(-1/64*2*pi)*O[1] - sin(-1/64*2*pi)*O[-1]
     (*Xrb++) =  (*Er) + (*Wr)*(*Or) + (*Wc)*(*Oc);
-    // X[-1] = E[-1] + cos(-1/64*2*pi)*O[-1] + sin(-1/64*2*pi)*O[1]
     (*Xcb--) =  (*Ec) + (*Wr)*(*Oc) - (*Wc)*(*Or);
-    // X[31] = E[1] - cos(-1/64*2*pi)*O[1] + sin(-1/64*2*pi)*O[-1]
     (*Xre--) =  (*Er) - (*Wr)*(*Or) - (*Wc)*(*Oc);
-    // X[-31]= -E[-1] + cos(-1/64*2*pi)*O[-1] + sin(-1/64*2*pi)*O[1]
     (*Xce++) = -(*Ec) + (*Wr)*(*Oc) - (*Wc)*(*Or);
 
     ++Er;
@@ -1619,9 +1615,7 @@ void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle,
     --Wc;
   }
   if(Er==Ec) {
-    // X[16] = E[16]
     (*Xrb) = (*Er);
-    // X[-16] = O[16]
     (*Xcb) = (*Or);
   }
 }
