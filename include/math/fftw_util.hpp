@@ -116,6 +116,19 @@ inline FFTW_Planned_R2R_Flt plan_hc2r(unsigned nsample, float* c, float *r, unsi
   return FFTW_Planned_R2R_Flt(nsample, c, r, FFTW_HC2R, flags);
 }
 
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//    .d8888.  .o88b.      .d888b.       .88b  d88. db    db db      d888888b 
+//    88'  YP d8P  Y8      8P   8D       88'YbdP`88 88    88 88      `~~88~~' 
+//    `8bo.   8P           `Vb d8'       88  88  88 88    88 88         88    
+//      `Y8b. 8b            d88C dD      88  88  88 88    88 88         88    
+//    db   8D Y8b  d8      C8' d8D       88  88  88 88b  d88 88booo.    88    
+//    `8888Y'  `Y88P'      `888P Yb      YP  YP  YP ~Y8888P' Y88888P    YP    
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
 template<typename T>
 void hcvec_scale_and_multiply(T* ovec, const T* ivec1,
   const T* ivec2, unsigned nsample, T scale = 1.0)
@@ -334,6 +347,19 @@ void hcvec_set_real(T* ovec, T real_value, unsigned nsample)
   }
 }
 
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//    .d8888.  .o88b.      .d888b.        .d8b.  d8888b. d8888b. 
+//    88'  YP d8P  Y8      8P   8D       d8' `8b 88  `8D 88  `8D 
+//    `8bo.   8P           `Vb d8'       88ooo88 88   88 88   88 
+//      `Y8b. 8b            d88C dD      88~~~88 88   88 88   88 
+//    db   8D Y8b  d8      C8' d8D       88   88 88  .8D 88  .8D 
+//    `8888Y'  `Y88P'      `888P Yb      YP   YP Y8888D' Y8888D' 
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
 template<typename T>
 void hcvec_add_real(T* ovec, T real_addand, unsigned nsample)
 {
@@ -438,6 +464,19 @@ void hcvec_to_psd_no_square(T* ovec, const T* ivec, unsigned nsample)
   }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+//
+//    .88b  d88. db    db db      d888888b      .d888b.        .d8b.  d8888b. d8888b. 
+//    88'YbdP`88 88    88 88      `~~88~~'      8P   8D       d8' `8b 88  `8D 88  `8D 
+//    88  88  88 88    88 88         88         `Vb d8'       88ooo88 88   88 88   88 
+//    88  88  88 88    88 88         88          d88C dD      88~~~88 88   88 88   88 
+//    88  88  88 88b  d88 88booo.    88         C8' d8D       88   88 88  .8D 88  .8D 
+//    YP  YP  YP ~Y8888P' Y88888P    YP         `888P Yb      YP   YP Y8888D' Y8888D' 
+//
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
 template<typename T>
 void hcvec_multiply_and_add_real(T* ovec, const T* ivec1,
   const T* ivec2, T real_addand, unsigned nsample)
@@ -528,6 +567,20 @@ void hcvec_multiply_and_add_real_vcl(typename VCLReal::real_t* ovec,
 void hcvec_multiply_and_add_real(double* ovec, const double* ivec1,
   const double* ivec2, double real_addand, unsigned nsample);
 #endif
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//    d8888b.  .d88b.  db      db    db d8b   db  .d88b.  .88b  d88. 
+//    88  `8D .8P  Y8. 88      `8b  d8' 888o  88 .8P  Y8. 88'YbdP`88 
+//    88oodD' 88    88 88       `8bd8'  88V8o 88 88    88 88  88  88 
+//    88~~~   88    88 88         88    88 V8o88 88    88 88  88  88 
+//    88      `8b  d8' 88booo.    88    88  V888 `8b  d8' 88  88  88 
+//    88       `Y88P'  Y88888P    YP    VP   V8P  `Y88P'  YP  YP  YP 
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
 
 template<typename T>
 void hcvec_polynomial(T* ovec, const T* ivec, const std::vector<T>& p, unsigned nsample)
@@ -737,6 +790,20 @@ void hcvec_polynomial_old(T* ovec, const T* ivec, const std::vector<T>& p, unsig
 void hcvec_polynomial(double* ovec, const double* ivec,
   const std::vector<double>& p, unsigned nsample);
 #endif
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//    .88b  d88.      .d8888.      d8888b.  .d88b.  db      db    db 
+//    88'YbdP`88      88'  YP      88  `8D .8P  Y8. 88      `8b  d8' 
+//    88  88  88      `8bo.        88oodD' 88    88 88       `8bd8'  
+//    88  88  88        `Y8b.      88~~~   88    88 88         88    
+//    88  88  88      db   8D      88      `8b  d8' 88booo.    88    
+//    YP  YP  YP      `8888Y'      88       `Y88P'  Y88888P    YP    
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
 
 // *****************************************************************************
 // *****************************************************************************
@@ -982,6 +1049,19 @@ void hcvec_multi_stage_polynomial(double* ovec, double* ivec,
   const std::vector<const std::vector<double>*>& stage_p, unsigned nsample);
 #endif
 
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//     d888b   .d8b.  db    db .d8888. .d8888. d888888b  .d8b.  d8b   db 
+//    88' Y8b d8' `8b 88    88 88'  YP 88'  YP   `88'   d8' `8b 888o  88 
+//    88      88ooo88 88    88 `8bo.   `8bo.      88    88ooo88 88V8o 88 
+//    88  ooo 88~~~88 88    88   `Y8b.   `Y8b.    88    88~~~88 88 V8o88 
+//    88. ~8~ 88   88 88b  d88 db   8D db   8D   .88.   88   88 88  V888 
+//     Y888P  YP   YP ~Y8888P' `8888Y' `8888Y' Y888888P YP   YP VP   V8P 
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
 // *****************************************************************************
 // *****************************************************************************
 //
@@ -1088,6 +1168,19 @@ void hcvec_gaussian_dft_vcl(typename VCLReal::real_t* ovec,
 #if INSTRSET >= 7
 void hcvec_gaussian_dft(double* ovec, double mean, double sigma, unsigned nsample);
 #endif
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//    .d888b.       d888b   .d8b.  db    db .d8888. .d8888. 
+//    VP  `8D      88' Y8b d8' `8b 88    88 88'  YP 88'  YP 
+//       odD'      88      88ooo88 88    88 `8bo.   `8bo.   
+//     .88'        88  ooo 88~~~88 88    88   `Y8b.   `Y8b. 
+//    j88.         88. ~8~ 88   88 88b  d88 db   8D db   8D 
+//    888888D       Y888P  YP   YP ~Y8888P' `8888Y' `8888Y' 
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 // *****************************************************************************
 // *****************************************************************************
@@ -1208,6 +1301,19 @@ void hcvec_2gaussian_dft_vcl(typename VCLReal::real_t* ovec,
 #if INSTRSET >= 7
 void hcvec_2gaussian_dft(double* ovec, double mean, double sigma, double split, unsigned nsample);
 #endif
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+//
+//    d8888b. d88888b db      d888888b  .d8b.  
+//    88  `8D 88'     88      `~~88~~' d8' `8b 
+//    88   88 88ooooo 88         88    88ooo88 
+//    88   88 88~~~~~ 88         88    88~~~88 
+//    88  .8D 88.     88booo.    88    88   88 
+//    Y8888D' Y88888P Y88888P    YP    YP   YP 
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 // *****************************************************************************
 // *****************************************************************************
@@ -1437,13 +1543,101 @@ void hcvec_delta_idft(double* ovec, double k0, double phase0, unsigned nsample);
 void hcvec_delta_iq_idft(double* oivec, double* oqvec, double k0, double phase0, unsigned nsample);
 #endif
 
-// *****************************************************************************
-// *****************************************************************************
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 //
-// FFTW codelet access
+//    d8888b. d888888b d888888b      .d888b.       d8888b. d888888b d88888b 
+//    88  `8D   `88'   `~~88~~'      8P   8D       88  `8D   `88'   88'     
+//    88   88    88       88         `Vb d8'       88   88    88    88ooo   
+//    88   88    88       88          d88C dD      88   88    88    88~~~   
+//    88  .8D   .88.      88         C8' d8D       88  .8D   .88.   88      
+//    Y8888D' Y888888P    YP         `888P Yb      Y8888D' Y888888P YP      
+//                                                                          
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+template<typename W> void calculate_twiddle_factors(W* twiddle, unsigned nsample)
+{
+  // Calculate twiddle factors for radix-2 FFT of size 2*nsample
+  // Twiddle factors are exp(-i * 2*pi*k / (2*nsample)) for k=0..nsample
+  // i.e. cos(-pi*k/nsample) + i sin(-pi*k/nsample)
+
+  W* Wr = twiddle;
+  W* Wc = twiddle + hcvec_num_real(nsample)-1;
+
+  *(Wr++) = 1.0;
+  *(Wc--) = 0.0;
+  const W angle_norm = M_PI / W(nsample);
+  unsigned k=1;
+  while(Wr < Wc) {
+    W angle = angle_norm * W(k++);
+    (*Wr++) = std::cos(angle);
+    (*Wc--) = std::sin(angle);
+  }
+  if(Wr==Wc) {
+    *Wr = M_SQRT1_2;
+  } 
+}
+
+template<typename T, typename W>
+void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle, unsigned nsample)
+{
+  // Do a radix 2 decimation-in-time transform of two DFTs of size nsample into
+  // one DFT of size 2xnsample using the twiddle factors (of size nsample)
+  T* Xrb = ovec;
+  T* Xre = ovec + nsample;
+  T* Xce = ovec + nsample+1;
+  T* Xcb = ovec + 2*nsample-1;
+  
+  const T* Er = ivec1;
+  const T* Ec = ivec1 + nsample-1;
+  const T* Or = ivec2;
+  const T* Oc = ivec2 + nsample-1;
+
+  const W* Wr = twiddle+1; // First twiddle factor is not used (unity)
+  const W* Wc = twiddle+hcvec_num_real(nsample)-2; // Neither is last (zero)
+
+  (*Xrb++) = (*Er) + (*Or);
+  (*Xre--) = (*Er) - (*Or);
+  ++Er;
+  ++Or;
+  while(Er < Ec) {
+    // X[1] = E[1] + cos(-1/64*2*pi)*O[1] - sin(-1/64*2*pi)*O[-1]
+    (*Xrb++) =  (*Er) + (*Wr)*(*Or) + (*Wc)*(*Oc);
+    // X[-1] = E[-1] + cos(-1/64*2*pi)*O[-1] + sin(-1/64*2*pi)*O[1]
+    (*Xcb--) =  (*Ec) + (*Wr)*(*Oc) - (*Wc)*(*Or);
+    // X[31] = E[1] - cos(-1/64*2*pi)*O[1] + sin(-1/64*2*pi)*O[-1]
+    (*Xre--) =  (*Er) - (*Wr)*(*Or) - (*Wc)*(*Oc);
+    // X[-31]= -E[-1] + cos(-1/64*2*pi)*O[-1] + sin(-1/64*2*pi)*O[1]
+    (*Xce++) = -(*Ec) + (*Wr)*(*Oc) - (*Wc)*(*Or);
+
+    ++Er;
+    --Ec;
+    ++Or;
+    --Oc;
+    ++Wr;
+    --Wc;
+  }
+  if(Er==Ec) {
+    // X[16] = E[16]
+    (*Xrb) = (*Er);
+    // X[-16] = O[16]
+    (*Xcb) = (*Or);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 //
-// *****************************************************************************
-// *****************************************************************************
+//     .o88b.  .d88b.  d8888b. d88888b db      d88888b d888888b 
+//    d8P  Y8 .8P  Y8. 88  `8D 88'     88      88'     `~~88~~' 
+//    8P      88    88 88   88 88ooooo 88      88ooooo    88    
+//    8b      88    88 88   88 88~~~~~ 88      88~~~~~    88    
+//    Y8b  d8 `8b  d8' 88  .8D 88.     88booo. 88.        88    
+//     `Y88P'  `Y88P'  Y8888D' Y88888P Y88888P Y88888P    YP    
+//
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 template<typename VCLReal> class alignas(VCLReal::vec_bytes) FFTWCodelet
 {
@@ -1454,13 +1648,18 @@ public:
   void hc2r(unsigned size, const float_type* c, float_type* r);
 };
 
-// *****************************************************************************
-// *****************************************************************************
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 //
-// Various other functions and SWIG definitions
+//    .d8888. db   d8b   db d888888b  d888b  
+//    88'  YP 88   I8I   88   `88'   88' Y8b 
+//    `8bo.   88   I8I   88    88    88      
+//      `Y8b. Y8   I8I   88    88    88  ooo 
+//    db   8D `8b d8'8b d8'   .88.   88. ~8~ 
+//    `8888Y'  `8b8' `8d8'  Y888888P  Y888P  
 //
-// *****************************************************************************
-// *****************************************************************************
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 using uptr_fftw_plan = std::unique_ptr<fftw_plan_s,void(*)(fftw_plan_s*)>;
 using uptr_fftw_data = std::unique_ptr<double,void(*)(void*)>;
@@ -1481,6 +1680,9 @@ Eigen::VectorXd hcvec_delta_dft(double x0, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_delta_idft(double k0, double phase0, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_delta_idft_by_index(unsigned index, unsigned nsample, bool vcl = true);
 Eigen::VectorXd hcvec_polynomial(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, bool vcl = true);
+
+Eigen::VectorXd calculate_twiddle_factors(unsigned nsample);
+Eigen::VectorXd hcvec_radix2_dit(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, const Eigen::VectorXd& twiddle);
 
 void hcvec_delta_iq_idft(Eigen::VectorXd& oivec, Eigen::VectorXd& oqvec,
   double k0, double phase0, unsigned nsample, bool vcl = true);

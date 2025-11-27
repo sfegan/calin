@@ -371,6 +371,27 @@ Eigen::VectorXd calin::math::fftw_util::hcvec_to_psd_no_square(const Eigen::Vect
   return ovec;
 }
 
+Eigen::VectorXd calin::math::fftw_util::calculate_twiddle_factors(unsigned nsample)
+{
+  Eigen::VectorXd twiddle(hcvec_num_real(nsample));
+  calculate_twiddle_factors(twiddle.data(), nsample);
+  return twiddle;
+}
+
+Eigen::VectorXd calin::math::fftw_util::hcvec_radix2_dit(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, const Eigen::VectorXd& twiddle)
+{
+  unsigned nsample = ivec1.size();
+  if(ivec2.size() != nsample) {
+    throw std::runtime_error("Input DFT vectors must have same number of elements");
+  }
+  if(twiddle.size() != hcvec_num_real(nsample)) {
+    throw std::runtime_error("Twiddle array must have " + std::to_string(hcvec_num_real(nsample)) + " elements");
+  }
+  Eigen::VectorXd ovec(nsample*2);
+  hcvec_radix2_dit(ovec.data(), ivec1.data(), ivec2.data(), twiddle.data(), nsample);
+  return ovec; 
+}
+
 bool calin::math::fftw_util::load_wisdom_from_file(std::string filename)
 {
   calin::util::file::expand_filename_in_place(filename);
