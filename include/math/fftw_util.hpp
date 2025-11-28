@@ -1623,6 +1623,10 @@ void hcvec_radix2_dit_inv(T* ovec1, T* ovec2, const T* ivec, const W* twiddle, u
 {
   // Invert a radix 2 decimation-in-time transform, splitting a DFT of size 
   // 2*nsample into two DFTs of size nsample using the twiddle factors
+
+  // Note: This follows the FFTW normalization convention, so the factor of 0.5 
+  // that would be required to correctly invert the function above is dropped !!
+
   const T*__restrict__ Xrb = ivec;
   const T*__restrict__ Xre = ivec + nsample;
   const T*__restrict__ Xce = ivec + nsample+1;
@@ -1636,17 +1640,17 @@ void hcvec_radix2_dit_inv(T* ovec1, T* ovec2, const T* ivec, const W* twiddle, u
   const W*__restrict__ Wr = twiddle;
   const W*__restrict__ Wc = twiddle+hcvec_num_imag(nsample)-1;
 
-  (*Er++) = 0.5*((*Xrb) + (*Xre));
-  (*Or++) = 0.5*((*Xrb) - (*Xre));
+  (*Er++) = (*Xrb) + (*Xre);
+  (*Or++) = (*Xrb) - (*Xre);
   ++Xrb;
   --Xre;
   while(Er < Ec) {
-    (*Er++) = 0.5*((*Xrb) + (*Xre));
-    (*Ec--) = 0.5*((*Xcb) - (*Xce));
-    T WrOr_plus_WcOc = 0.5*((*Xrb) - (*Xre));
-    T WrOc_mins_WcOr = 0.5*((*Xcb) + (*Xce));
-    (*Or++) = (*Wr) * WrOr_plus_WcOc - (*Wc) * WrOc_mins_WcOr;
-    (*Oc--) = (*Wr) * WrOc_mins_WcOr + (*Wc) * WrOr_plus_WcOc;
+    (*Er++) = (*Xrb) + (*Xre);
+    (*Ec--) = (*Xcb) - (*Xce);
+    T WrOr_plus_WcOc = (*Xrb) - (*Xre);
+    T WrOc_mnus_WcOr = (*Xcb) + (*Xce);
+    (*Or++) = (*Wr) * WrOr_plus_WcOc - (*Wc) * WrOc_mnus_WcOr;
+    (*Oc--) = (*Wr) * WrOc_mnus_WcOr + (*Wc) * WrOr_plus_WcOc;
 
     ++Xrb;
     --Xcb;
@@ -1656,8 +1660,9 @@ void hcvec_radix2_dit_inv(T* ovec1, T* ovec2, const T* ivec, const W* twiddle, u
     --Wc;
   }
   if(Er==Ec) {
-    (*Er) =  (*Xrb);
-    (*Or) = -(*Xcb);
+    // Here we need to add a factor of 2.0 to mantain the normalization
+    (*Er) =  2.0*(*Xrb);
+    (*Or) = -2.0*(*Xcb);
   }
 }
 
