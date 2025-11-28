@@ -1621,7 +1621,7 @@ void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle,
 template<typename T, typename W>
 void hcvec_radix2_dit_inv(T* ovec1, T* ovec2, const T* ivec, const W* twiddle, unsigned nsample)
 {
-  // Invert a radix 2 decimation-in-time transform, splitting on DFT of size 
+  // Invert a radix 2 decimation-in-time transform, splitting a DFT of size 
   // 2*nsample into two DFTs of size nsample using the twiddle factors
   const T*__restrict__ Xrb = ivec;
   const T*__restrict__ Xre = ivec + nsample;
