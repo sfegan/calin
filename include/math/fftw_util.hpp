@@ -1613,8 +1613,8 @@ void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle,
     --Wc;
   }
   if(Er==Ec) {
-    (*Xrb) = (*Er);
-    (*Xcb) = (*Or);
+    (*Xrb) =  (*Er);
+    (*Xcb) = -(*Or);
   }
 }
 
@@ -1656,8 +1656,8 @@ void hcvec_radix2_dit_inv(T* ovec1, T* ovec2, const T* ivec, const W* twiddle, u
     --Wc;
   }
   if(Er==Ec) {
-    (*Er) = (*Xrb);
-    (*Or) = (*Xcb);
+    (*Er) =  (*Xrb);
+    (*Or) = -(*Xcb);
   }
 }
 
