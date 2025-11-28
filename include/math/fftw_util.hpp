@@ -1546,12 +1546,12 @@ void hcvec_delta_iq_idft(double* oivec, double* oqvec, double k0, double phase0,
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 //
-//    d8888b. d888888b d888888b      .d888b.       d8888b. d888888b d88888b 
-//    88  `8D   `88'   `~~88~~'      8P   8D       88  `8D   `88'   88'     
-//    88   88    88       88         `Vb d8'       88   88    88    88ooo   
-//    88   88    88       88          d88C dD      88   88    88    88~~~   
-//    88  .8D   .88.      88         C8' d8D       88  .8D   .88.   88      
-//    Y8888D' Y888888P    YP         `888P Yb      Y8888D' Y888888P YP      
+//    d8888b. d888888b d888888b
+//    88  `8D   `88'   `~~88~~'
+//    88   88    88       88   
+//    88   88    88       88   
+//    88  .8D   .88.      88   
+//    Y8888D' Y888888P    YP   
 //                                                                          
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
@@ -1563,10 +1563,8 @@ template<typename W> void calculate_twiddle_factors(W* twiddle, unsigned nsample
   // i.e. cos(-pi*k/nsample) + i sin(-pi*k/nsample)
 
   W* Wr = twiddle;
-  W* Wc = twiddle + hcvec_num_real(nsample)-1;
+  W* Wc = twiddle + hcvec_num_imag(nsample)-1;
 
-  *(Wr++) = 1.0;
-  *(Wc--) = 0.0;
   const W angle_norm = M_PI / W(nsample);
   unsigned k=1;
   while(Wr < Wc) {
@@ -1583,19 +1581,19 @@ template<typename T, typename W>
 void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle, unsigned nsample)
 {
   // Do a radix 2 decimation-in-time transform of two DFTs of size nsample into
-  // one DFT of size 2xnsample using the twiddle factors (of size nsample)
-  T* Xrb = ovec;
-  T* Xre = ovec + nsample;
-  T* Xce = ovec + nsample+1;
-  T* Xcb = ovec + 2*nsample-1;
+  // one DFT of size 2*nsample using the twiddle factors
+  T*__restrict__ Xrb = ovec;
+  T*__restrict__ Xre = ovec + nsample;
+  T*__restrict__ Xce = ovec + nsample+1;
+  T*__restrict__ Xcb = ovec + 2*nsample-1;
   
-  const T* Er = ivec1;
-  const T* Ec = ivec1 + nsample-1;
-  const T* Or = ivec2;
-  const T* Oc = ivec2 + nsample-1;
+  const T*__restrict__ Er = ivec1;
+  const T*__restrict__ Ec = ivec1 + nsample-1;
+  const T*__restrict__ Or = ivec2;
+  const T*__restrict__ Oc = ivec2 + nsample-1;
 
-  const W* Wr = twiddle+1; // First twiddle factor is not used (unity)
-  const W* Wc = twiddle+hcvec_num_real(nsample)-2; // Neither is last (zero)
+  const W*__restrict__ Wr = twiddle;
+  const W*__restrict__ Wc = twiddle+hcvec_num_imag(nsample)-1;
 
   (*Xrb++) = (*Er) + (*Or);
   (*Xre--) = (*Er) - (*Or);
@@ -1617,6 +1615,49 @@ void hcvec_radix2_dit(T* ovec, const T* ivec1, const T* ivec2, const W* twiddle,
   if(Er==Ec) {
     (*Xrb) = (*Er);
     (*Xcb) = (*Or);
+  }
+}
+
+template<typename T, typename W>
+void hcvec_radix2_dit_inv(T* ovec1, T* ovec2, const T* ivec, const W* twiddle, unsigned nsample)
+{
+  // Invert a radix 2 decimation-in-time transform, splitting on DFT of size 
+  // 2*nsample into two DFTs of size nsample using the twiddle factors
+  const T*__restrict__ Xrb = ivec;
+  const T*__restrict__ Xre = ivec + nsample;
+  const T*__restrict__ Xce = ivec + nsample+1;
+  const T*__restrict__ Xcb = ivec + 2*nsample-1;
+  
+  T*__restrict__ Er = ovec1;
+  T*__restrict__ Ec = ovec1 + nsample-1;
+  T*__restrict__ Or = ovec2;
+  T*__restrict__ Oc = ovec2 + nsample-1;
+
+  const W*__restrict__ Wr = twiddle;
+  const W*__restrict__ Wc = twiddle+hcvec_num_imag(nsample)-1;
+
+  (*Er++) = 0.5*((*Xrb) + (*Xre));
+  (*Or++) = 0.5*((*Xrb) - (*Xre));
+  ++Xrb;
+  --Xre;
+  while(Er < Ec) {
+    (*Er++) = 0.5*((*Xrb) + (*Xre));
+    (*Ec--) = 0.5*((*Xcb) - (*Xce));
+    T WrOr_plus_WcOc = 0.5*((*Xrb) - (*Xre));
+    T WrOc_mins_WcOr = 0.5*((*Xcb) + (*Xce));
+    (*Or++) = (*Wr) * WrOr_plus_WcOc - (*Wc) * WrOc_mins_WcOr;
+    (*Oc--) = (*Wr) * WrOc_mins_WcOr + (*Wc) * WrOr_plus_WcOc;
+
+    ++Xrb;
+    --Xcb;
+    --Xre;
+    ++Xce;
+    ++Wr;
+    --Wc;
+  }
+  if(Er==Ec) {
+    (*Er) = (*Xrb);
+    (*Or) = (*Xcb);
   }
 }
 
@@ -1677,6 +1718,7 @@ Eigen::VectorXd hcvec_polynomial(const Eigen::VectorXd& ivec1, const Eigen::Vect
 
 Eigen::VectorXd calculate_twiddle_factors(unsigned nsample);
 Eigen::VectorXd hcvec_radix2_dit(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, const Eigen::VectorXd& twiddle);
+void hcvec_radix2_dit_inv(Eigen::VectorXd& oevec, Eigen::VectorXd& oovec, const Eigen::VectorXd& ivec, const Eigen::VectorXd& twiddle);
 
 void hcvec_delta_iq_idft(Eigen::VectorXd& oivec, Eigen::VectorXd& oqvec,
   double k0, double phase0, unsigned nsample, bool vcl = true);

@@ -40,4 +40,7 @@
 %apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& oivec };
 %apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& oqvec };
 
+%apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& oevec };
+%apply Eigen::VectorXd &OUTPUT { Eigen::VectorXd& oovec };
+
 %include "math/fftw_util.hpp"
