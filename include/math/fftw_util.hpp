@@ -1559,8 +1559,8 @@ void hcvec_delta_iq_idft(double* oivec, double* oqvec, double k0, double phase0,
 template<typename W> void calculate_twiddle_factors(W* twiddle, unsigned nsample)
 {
   // Calculate twiddle factors for radix-2 FFT of size 2*nsample
-  // Twiddle factors are exp(-i * 2*pi*k / (2*nsample)) for k=0..nsample
-  // i.e. cos(-pi*k/nsample) + i sin(-pi*k/nsample)
+  // Twiddle factors are exp(i * 2*pi*k / (2*nsample)) for k=0..nsample
+  // i.e. cos(pi*k/nsample) + i sin(pi*k/nsample)
 
   W* Wr = twiddle;
   W* Wc = twiddle + hcvec_num_imag(nsample)-1;
