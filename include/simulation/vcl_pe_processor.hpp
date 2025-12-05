@@ -70,6 +70,7 @@ public:
   CALIN_TYPEALIAS(real_at,   typename VCLReal::real_at);
   CALIN_TYPEALIAS(int_t,     typename VCLReal::int_t);
   CALIN_TYPEALIAS(int_vt,    typename VCLReal::int_vt);
+  CALIN_TYPEALIAS(int_at,    typename VCLReal::int_at);
   CALIN_TYPEALIAS(int_bvt,   typename VCLReal::int_bvt);
   CALIN_TYPEALIAS(uint_t,    typename VCLReal::uint_t);
   CALIN_TYPEALIAS(uint_vt,   typename VCLReal::uint_vt);
@@ -901,6 +902,83 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
   //
+  //    .d8888. d888888b d8b   db  d888b  db      d88888b .d8888. 
+  //    88'  YP   `88'   888o  88 88' Y8b 88      88'     88'  YP 
+  //    `8bo.      88    88V8o 88 88      88      88ooooo `8bo.   
+  //      `Y8b.    88    88 V8o88 88  ooo 88      88~~~~~   `Y8b. 
+  //    db   8D   .88.   88  V888 88. ~8~ 88booo. 88.     db   8D 
+  //    `8888Y' Y888888P VP   V8P  Y888P  Y88888P Y88888P `8888Y' 
+  //                                                              
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
+  unsigned trigger_singles(Eigen::VectorXi& pixel_trigger_time, const vecX_t& threshold,
+    unsigned first_sample_of_interest=0)
+  {
+    if(threshold.size()!=1 and threshold.size()!=npix_) {
+      throw std::domain_error("Trigger threshold vector length is not equal to one or number of pixels " 
+        + std::to_string(threshold.size()) + " != 1 or " + std::to_string(npix_));
+    }
+    pixel_trigger_time.resize(npix_);
+    int *__restrict__ ptt_ptr = pixel_trigger_time.data();
+
+    unsigned ntriggered = 0;
+    for(unsigned ipix=0; ipix<npix_; ipix+=VCLReal::num_real) { 
+      real_vt pix_threshold = 0;
+      if(threshold.size() == 1) {
+        pix_threshold = threshold[0];
+      } else if(ipix + VCLReal::num_real <= npix_) {
+        pix_threshold.load_a(threshold.data() + ipix);
+      } else {
+        real_at threshold_array;
+        pix_threshold.store_a(threshold_array);
+        for(unsigned i=0; i+ipix<npix_; i++) {
+          threshold_array[i] = threshold(ipix+i);
+        }
+        pix_threshold.load_a(threshold_array);
+      }
+      pix_threshold = select(VCLReal::int_iota()+ipix < npix_, pix_threshold, std::numeric_limits<real_t>::infinity());        
+
+      int_vt ptt = -1;
+      if(v_waveform_is_packed_) {
+        unsigned isample0 = first_sample_of_interest;
+        const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample0*VCLReal::num_real;
+        for(unsigned isample = isample0; isample<nsample_; ++isample) {
+          real_vt v;
+          v.load_a(v_waveform_ptr);
+          v_waveform_ptr += VCLReal::num_real;
+          ptt = vcl::select(int_bvt(v > pix_threshold) && (ptt < 0), int_vt(isample), ptt);
+        }
+      } else {
+        unsigned isample0 = first_sample_of_interest;
+        isample0 = (isample0/VCLReal::num_real)*VCLReal::num_real;
+        for(unsigned isample = isample0; isample<nsample_; isample+=VCLReal::num_real) {
+          const real_t *__restrict__ v_waveform_ptr = v_waveform_.data() + ipix*nsample_ + isample;
+          real_vt block[VCLReal::num_real]; // square matrix of reals
+          for(unsigned jpix=0;jpix<VCLReal::num_real;jpix++) {
+            block[jpix].load_a(v_waveform_ptr);
+            v_waveform_ptr += nsample_;
+          }
+          calin::util::vcl::transpose(block);
+          for(unsigned jsample=std::max(first_sample_of_interest, isample)-isample;jsample<VCLReal::num_real;++jsample) {
+            unsigned ksample = isample+jsample;
+            ptt = vcl::select(int_bvt(block[jsample] > pix_threshold) && (ptt < 0), int_vt(ksample), ptt);
+          }
+        }
+      }
+      int_at ptt_array;
+      ptt.store_a(ptt_array);
+      for(unsigned jpix=0; jpix+ipix<npix_; jpix++) {
+        ptt_ptr[ipix+jpix] = ptt_array[jpix];
+      }
+      ntriggered += vcl::horizontal_count(ptt >= 0);
+    }
+    return ntriggered;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
   //    .88b  d88. db    db db      d888888b d888888b 
   //    88'YbdP`88 88    88 88      `~~88~~'   `88'   
   //    88  88  88 88    88 88         88       88    
@@ -911,7 +989,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
 
-  int trigger_multipicity(const vecX_t& threshold, unsigned multiplicity, unsigned coincidence_window, unsigned first_sample_of_interest=0)
+  int trigger_multiplicity(const vecX_t& threshold, unsigned multiplicity, unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
     if(threshold.size()!=1 and threshold.size()!=npix_) {
       throw std::domain_error("Trigger threshold vector length is not equal to one or number of pixels " 
@@ -1751,12 +1829,19 @@ public:
     }
   }
 
-  int trigger_multipicity_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0) 
+  unsigned trigger_singles_cr(Eigen::VectorXi& pixel_trigger_time, unsigned camera_response_id, unsigned first_sample_of_interest=0){
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+
+    return trigger_singles(pixel_trigger_time, cr.threshold, first_sample_of_interest);
+  }
+
+  int trigger_multiplicity_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0) 
   {
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
 
-    return trigger_multipicity(cr.threshold, cr.multiplicity, cr.coincidence_window, 
+    return trigger_multiplicity(cr.threshold, cr.multiplicity, cr.coincidence_window, 
       first_sample_of_interest);
   }
 
