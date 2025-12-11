@@ -705,6 +705,19 @@ public:
     free(b_vec);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //    .88b  d88. db    db db      d888888b d888888b d8888b. db      d88888b 
+  //    88'YbdP`88 88    88 88      `~~88~~'   `88'   88  `8D 88      88'     
+  //    88  88  88 88    88 88         88       88    88oodD' 88      88ooooo 
+  //    88  88  88 88    88 88         88       88    88~~~   88      88~~~~~ 
+  //    88  88  88 88b  d88 88booo.    88      .88.   88      88booo. 88.     
+  //    YP  YP  YP ~Y8888P' Y88888P    YP    Y888888P 88      Y88888P Y88888P 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
   void convolve_multiple_impulse_response_fftw_codelet(
     const Eigen::VectorXi& impulse_response_id,
     const vecX_t& pedestal = vecX_t(),
@@ -979,12 +992,12 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
   //
-  //    .88b  d88. db    db db      d888888b d888888b 
-  //    88'YbdP`88 88    88 88      `~~88~~'   `88'   
-  //    88  88  88 88    88 88         88       88    
-  //    88  88  88 88    88 88         88       88    
-  //    88  88  88 88b  d88 88booo.    88      .88.   
-  //    YP  YP  YP ~Y8888P' Y88888P    YP    Y888888P 
+  //    .88b  d88. db      d888888b d8888b. db       .o88b. d888888b db    db 
+  //    88'YbdP`88 88      `~~88~~' 88  `8D 88      d8P  Y8 `~~88~~' `8b  d8' 
+  //    88  88  88 88         88    88oodD' 88      8P         88     `8bd8'  
+  //    88  88  88 88         88    88~~~   88      8b         88       88    
+  //    88  88  88 88booo.    88    88      88booo. Y8b  d8    88       88    
+  //    YP  YP  YP Y88888P    YP    88      Y88888P  `Y88P'    YP       YP    
   //
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -1805,6 +1818,83 @@ public:
     if(conincidence_window > 0) {
       cr.coincidence_window      = conincidence_window;
     }
+  }
+
+  Eigen::VectorXd get_cr_nsb_rate(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.nsb_freq_per_pixel_ghz;
+  }
+
+  calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* get_cr_pegen(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.pegen;
+  }
+
+  Eigen::VectorXi get_cr_impulse_response_id(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.impulse_response_id;
+  }
+
+  vecX_t get_cr_pedestal(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.demand_pedestal;
+  }
+  
+  vecX_t get_cr_offset(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.pedestal;
+  }
+
+  vecX_t get_cr_relative_gain(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.relative_gain;
+  }
+
+  matX_t get_cr_noise_spectrum(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.noise_spectrum;
+  }
+
+  vecX_t get_cr_threshold(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.threshold;
+  }
+
+  Eigen::MatrixXi get_cr_neighbors(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.neighbors;
+  }
+
+  unsigned get_cr_multiplicity(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.multiplicity;
+  }
+
+  unsigned get_cr_coincidence_window(unsigned camera_response_id)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+    return cr.coincidence_window;
   }
 
   void add_nsb_noise_to_waveform_cr(unsigned camera_response_id, double t0_samples = 0)
