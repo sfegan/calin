@@ -111,7 +111,7 @@ public:
   void start_processing() override;
   void process_focal_plane_hit(unsigned scope_id, int pixel_id,
     double x, double y, double ux, double uy, double t, double pe_weight) override;
-  void clear();
+  virtual void clear();
 
   unsigned npix_hit(unsigned iscope) const;
   unsigned npe(unsigned iscope, unsigned ipix) const;

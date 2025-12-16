@@ -99,4 +99,7 @@ calin::ix::iact_data::instrument_layout::CameraLayout*
 camera_layout(calin::ix::iact_data::instrument_layout::CameraLayout::CameraType camera_type);
 #endif
 
+Eigen::MatrixXi neighbor_matrix(
+  const calin::ix::iact_data::instrument_layout::CameraLayout& camera_layout, unsigned nneighbor = 0);
+
 } } } // namespace calin::iact_data::instrument_layout

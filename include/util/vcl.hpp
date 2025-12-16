@@ -359,6 +359,10 @@ template<typename VCLArchitecture> struct VCLFloatReal
   constexpr static unsigned num_real              = VCLArchitecture::num_float;
   typedef VCLArchitecture                         architecture;
 
+  template<typename T> static constexpr unsigned round_nreal_up_to_vector_size(unsigned ntype) {
+    return VCLArchitecture::template round_ntype_up_to_vector_size<float>(ntype);
+  }
+
   typedef int32_t                                 int_t;
   typedef uint32_t                                uint_t;
   typedef float                                   real_t;
@@ -373,11 +377,11 @@ template<typename VCLArchitecture> struct VCLFloatReal
 
   typedef typename VCLArchitecture::int32_vt      int_vt;
   typedef typename VCLArchitecture::uint32_vt     uint_vt;
-  typedef typename VCLArchitecture::int32_bvt     bool_int_vt;
-  typedef typename VCLArchitecture::uint32_bvt    bool_uint_vt;
+  typedef typename VCLArchitecture::int32_bvt     int_bvt;
+  typedef typename VCLArchitecture::uint32_bvt    uint_bvt;
 
   typedef typename VCLArchitecture::float_vt      real_vt;
-  typedef typename VCLArchitecture::float_bvt     bool_vt;
+  typedef typename VCLArchitecture::float_bvt     real_bvt;
 
   typedef typename VCLArchitecture::Vector3f_vt   vec3_vt;
   typedef typename VCLArchitecture::Matrix3f_vt   mat3_vt;
@@ -402,6 +406,9 @@ template<typename VCLArchitecture> struct VCLFloatReal
   }
 
   static real_vt iota() { return VCLArchitecture::float_iota(); }
+  static real_vt real_iota() { return VCLArchitecture::float_iota(); }
+  static int_vt int_iota() { return VCLArchitecture::int32_iota(); }
+  static uint_vt uint_iota() { return VCLArchitecture::uint32_iota(); }
 
   static inline void* aligned_malloc(size_t nbytes) {
     return VCLArchitecture::aligned_malloc(nbytes);
@@ -418,6 +425,10 @@ template<typename VCLArchitecture> struct VCLDoubleReal
   constexpr static unsigned num_real              = VCLArchitecture::num_double;
   typedef VCLArchitecture                         architecture;
 
+  template<typename T> static constexpr unsigned round_nreal_up_to_vector_size(unsigned ntype) {
+    return VCLArchitecture::template round_ntype_up_to_vector_size<double>(ntype);
+  }
+
   typedef int64_t                                 int_t;
   typedef uint64_t                                uint_t;
   typedef double                                  real_t;
@@ -432,11 +443,11 @@ template<typename VCLArchitecture> struct VCLDoubleReal
 
   typedef typename VCLArchitecture::int64_vt      int_vt;
   typedef typename VCLArchitecture::uint64_vt     uint_vt;
-  typedef typename VCLArchitecture::int64_bvt     bool_int_vt;
-  typedef typename VCLArchitecture::uint64_bvt    bool_uint_vt;
+  typedef typename VCLArchitecture::int64_bvt     int_bvt;
+  typedef typename VCLArchitecture::uint64_bvt    uint_bvt;
 
   typedef typename VCLArchitecture::double_vt     real_vt;
-  typedef typename VCLArchitecture::double_bvt    bool_vt;
+  typedef typename VCLArchitecture::double_bvt    real_bvt;
 
   typedef typename VCLArchitecture::Vector3d_vt   vec3_vt;
   typedef typename VCLArchitecture::Matrix3d_vt   mat3_vt;
@@ -461,6 +472,9 @@ template<typename VCLArchitecture> struct VCLDoubleReal
   }
 
   static real_vt iota() { return VCLArchitecture::double_iota(); }
+  static real_vt real_iota() { return VCLArchitecture::double_iota(); }
+  static int_vt int_iota() { return VCLArchitecture::int64_iota(); }
+  static uint_vt uint_iota() { return VCLArchitecture::uint64_iota(); }
 
   static inline void* aligned_malloc(size_t nbytes) {
     return VCLArchitecture::aligned_malloc(nbytes);
@@ -486,6 +500,12 @@ struct VCL128Architecture
   constexpr static unsigned num_uint64 = vec_bytes/sizeof(uint64_t);
   constexpr static unsigned num_float  = vec_bytes/sizeof(float);
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
+
+  template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
+    static_assert(vec_bytes % sizeof(T) == 0);
+    constexpr unsigned ntype_in_vector = vec_bytes/sizeof(T);
+    return ((ntype + ntype_in_vector - 1)/ntype_in_vector)*ntype_in_vector;
+  }
 
   typedef Vec128b bool_vt;
   typedef Vec16c  int8_vt;
@@ -538,8 +558,12 @@ struct VCL128Architecture
     return double_vt(0.0, 1.0); }
   static inline int32_vt int32_iota() {
     return int32_vt(0,1,2,3); }
+  static inline uint32_vt uint32_iota() {
+    return uint32_vt(0U,1U,2U,3U); }
   static inline int64_vt int64_iota() {
     return int64_vt(0,1); }
+  static inline uint64_vt uint64_iota() {
+    return uint64_vt(0U,1U); }
   static inline void* aligned_malloc(size_t nbytes) {
     void* p = nullptr;
     if(::posix_memalign(&p, vec_bytes, nbytes)==0) {
@@ -568,6 +592,12 @@ struct VCL256Architecture
   constexpr static unsigned num_uint64 = vec_bytes/sizeof(uint64_t);
   constexpr static unsigned num_float  = vec_bytes/sizeof(float);
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
+
+  template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
+    static_assert(vec_bytes % sizeof(T) == 0);
+    constexpr unsigned ntype_in_vector = vec_bytes/sizeof(T);
+    return ((ntype + ntype_in_vector - 1)/ntype_in_vector)*ntype_in_vector;
+  }
 
   typedef Vec256b bool_vt;
   typedef Vec32c  int8_vt;
@@ -620,8 +650,12 @@ struct VCL256Architecture
     return double_vt(0.0, 1.0, 2.0, 3.0); }
   static inline int32_vt int32_iota() {
     return int32_vt(0,1,2,3,4,5,6,7); }
+  static inline uint32_vt uint32_iota() {
+    return uint32_vt(0U,1U,2U,3U,4U,5U,6U,7U); }
   static inline int64_vt int64_iota() {
     return int64_vt(0,1,2,3); }
+  static inline uint64_vt uint64_iota() {
+    return uint64_vt(0U,1U,2U,3U); }
 
   static inline void* aligned_malloc(size_t nbytes) {
     void* p = nullptr;
@@ -651,6 +685,12 @@ struct VCL512Architecture
   constexpr static unsigned num_uint64 = vec_bytes/sizeof(uint64_t);
   constexpr static unsigned num_float  = vec_bytes/sizeof(float);
   constexpr static unsigned num_double = vec_bytes/sizeof(double);
+
+  template<typename T> static constexpr unsigned round_ntype_up_to_vector_size(unsigned ntype) {
+    static_assert(vec_bytes % sizeof(T) == 0);
+    constexpr unsigned ntype_in_vector = vec_bytes/sizeof(T);
+    return ((ntype + ntype_in_vector - 1)/ntype_in_vector)*ntype_in_vector;
+  }
 
   typedef Vec64c  int8_vt;
   typedef Vec64uc uint8_vt;
@@ -702,8 +742,12 @@ struct VCL512Architecture
     return double_vt(0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0); }
   static inline int32_vt int32_iota() {
     return int32_vt(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15); }
+  static inline uint32_vt uint32_iota() {
+    return uint32_vt(0U,1U,2U,3U,4U,5U,6U,7U,8U,9U,10U,11U,12U,13U,14U,15U); }
   static inline int64_vt int64_iota() {
     return int64_vt(0,1,2,3,4,5,6,7); }
+  static inline uint64_vt uint64_iota() {
+    return uint64_vt(0U,1U,2U,3U,4U,5U,6U,7U); }
 
   static inline void* aligned_malloc(size_t nbytes) {
     void* p = nullptr;
@@ -741,53 +785,108 @@ template<typename VCLArchitecture> std::string templated_class_name(
   return class_name + "<" + VCLArchitecture::architecture_name + ">";
 }
 
-template<typename T> struct vcl_type
+template<typename T> struct vcl_type_info
 {
+  typedef void vcl_type;
   typedef void scalar_type;
   typedef void vcl_architecture;
 };
 
-#define DEFINE_VCL_TYPE(Vec,Scalar,Arch) \
-  template<> struct vcl_type<Vec> \
+#define DEFINE_VCL_TYPE_INFO(VCLType,ScalarType,Arch) \
+  template<> struct vcl_type_info<VCLType> \
   { \
-    typedef Scalar scalar_type; \
+    typedef VCLType vcl_type; \
+    typedef ScalarType scalar_type; \
     typedef Arch vcl_architecture; \
   }
 
-DEFINE_VCL_TYPE(Vec16c,  int8_t,   VCL128Architecture);
-DEFINE_VCL_TYPE(Vec16uc, uint8_t,  VCL128Architecture);
-DEFINE_VCL_TYPE(Vec8s,   int16_t,  VCL128Architecture);
-DEFINE_VCL_TYPE(Vec8us,  uint16_t, VCL128Architecture);
-DEFINE_VCL_TYPE(Vec4i,   int32_t,  VCL128Architecture);
-DEFINE_VCL_TYPE(Vec4ui,  uint32_t, VCL128Architecture);
-DEFINE_VCL_TYPE(Vec2q,   int64_t,  VCL128Architecture);
-DEFINE_VCL_TYPE(Vec2uq,  uint64_t, VCL128Architecture);
-DEFINE_VCL_TYPE(Vec4f,   float,    VCL128Architecture);
-DEFINE_VCL_TYPE(Vec2d,   double,   VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16c,  int8_t,   VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16uc, uint8_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8s,   int16_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8us,  uint16_t, VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec4i,   int32_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec4ui,  uint32_t, VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec2q,   int64_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec2uq,  uint64_t, VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec4f,   float,    VCL128Architecture);
+DEFINE_VCL_TYPE_INFO(Vec2d,   double,   VCL128Architecture);
 
-DEFINE_VCL_TYPE(Vec32c,  int8_t,   VCL256Architecture);
-DEFINE_VCL_TYPE(Vec32uc, uint8_t,  VCL256Architecture);
-DEFINE_VCL_TYPE(Vec16s,  int16_t,  VCL256Architecture);
-DEFINE_VCL_TYPE(Vec16us, uint16_t, VCL256Architecture);
-DEFINE_VCL_TYPE(Vec8i,   int32_t,  VCL256Architecture);
-DEFINE_VCL_TYPE(Vec8ui,  uint32_t, VCL256Architecture);
-DEFINE_VCL_TYPE(Vec4q,   int64_t,  VCL256Architecture);
-DEFINE_VCL_TYPE(Vec4uq,  uint64_t, VCL256Architecture);
-DEFINE_VCL_TYPE(Vec8f,   float,    VCL256Architecture);
-DEFINE_VCL_TYPE(Vec4d,   double,   VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec32c,  int8_t,   VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec32uc, uint8_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16s,  int16_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16us, uint16_t, VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8i,   int32_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8ui,  uint32_t, VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec4q,   int64_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec4uq,  uint64_t, VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8f,   float,    VCL256Architecture);
+DEFINE_VCL_TYPE_INFO(Vec4d,   double,   VCL256Architecture);
 
-DEFINE_VCL_TYPE(Vec64c,  int8_t,   VCL512Architecture);
-DEFINE_VCL_TYPE(Vec64uc, uint8_t,  VCL512Architecture);
-DEFINE_VCL_TYPE(Vec32s,  int16_t,  VCL512Architecture);
-DEFINE_VCL_TYPE(Vec32us, uint16_t, VCL512Architecture);
-DEFINE_VCL_TYPE(Vec16i,  int32_t,  VCL512Architecture);
-DEFINE_VCL_TYPE(Vec16ui, uint32_t, VCL512Architecture);
-DEFINE_VCL_TYPE(Vec8q,   int64_t,  VCL512Architecture);
-DEFINE_VCL_TYPE(Vec8uq,  uint64_t, VCL512Architecture);
-DEFINE_VCL_TYPE(Vec16f,  float,    VCL512Architecture);
-DEFINE_VCL_TYPE(Vec8d,   double,   VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec64c,  int8_t,   VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec64uc, uint8_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec32s,  int16_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec32us, uint16_t, VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16i,  int32_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16ui, uint32_t, VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8q,   int64_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8uq,  uint64_t, VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec16f,  float,    VCL512Architecture);
+DEFINE_VCL_TYPE_INFO(Vec8d,   double,   VCL512Architecture);
 
-#undef DEFINE_VCL_TYPE
+#undef DEFINE_VCL_TYPE_INFO
+
+template<typename ScalarType, unsigned N> struct vcl_type_for_scalar
+{
+  static constexpr unsigned num_scalar = N;
+  typedef void scalar_type;
+  typedef void vcl_type;
+  typedef void vcl_architecture;
+};
+
+#define DEFINE_VCL_TYPE_FOR_SCALAR(VCLType,N,ScalarType,Arch) \
+  template<> struct vcl_type_for_scalar<ScalarType, N> \
+  { \
+    static constexpr unsigned num_scalar = N; \
+    typedef ScalarType scalar_type; \
+    typedef VCLType vcl_type; \
+    typedef Arch vcl_architecture; \
+  }
+
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16c,  16, int8_t,   VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16uc, 16, uint8_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8s,    8, int16_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8us,   8, uint16_t, VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec4i,    4, int32_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec4ui,   4, uint32_t, VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec2q,    2, int64_t,  VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec2uq,   2, uint64_t, VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec4f,    4, float,    VCL128Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec2d,    2, double,   VCL128Architecture);
+
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec32c,  32, int8_t,   VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec32uc, 32, uint8_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16s,  16, int16_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16us, 16, uint16_t, VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8i,    8, int32_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8ui,   8, uint32_t, VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec4q,    4, int64_t,  VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec4uq,   4, uint64_t, VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8f,    8, float,    VCL256Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec4d,    4, double,   VCL256Architecture);
+
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec64c,  64, int8_t,   VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec64uc, 64, uint8_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec32s,  32, int16_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec32us, 32, uint16_t, VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16i,  16, int32_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16ui, 16, uint32_t, VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8q,    8, int64_t,  VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8uq,   8, uint64_t, VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec16f,  16, float,    VCL512Architecture);
+DEFINE_VCL_TYPE_FOR_SCALAR(Vec8d,    8, double,   VCL512Architecture);
+
+#undef DEFINE_VCL_TYPE_FOR_SCALAR
+
 
 template<typename Vec> void print_vec(std::ostream& s, const Vec& v)
 {
@@ -798,7 +897,7 @@ template<typename Vec> void print_vec(std::ostream& s, const Vec& v)
 
 template<typename VCLReal> inline void
 insert_into_vec3_with_mask(typename VCLReal::vec3_vt& vv,
-    const typename VCLReal::vec3_t& vs, const typename VCLReal::bool_vt& mask) {
+    const typename VCLReal::vec3_t& vs, const typename VCLReal::real_bvt& mask) {
   vv.x() = vcl::select(mask, vs.x(), vv.x());
   vv.y() = vcl::select(mask, vs.y(), vv.y());
   vv.z() = vcl::select(mask, vs.z(), vv.z());
@@ -806,7 +905,7 @@ insert_into_vec3_with_mask(typename VCLReal::vec3_vt& vv,
 
 template<typename VCLReal> inline void
 insert_into_with_mask(typename VCLReal::real_vt& v,
-    const typename VCLReal::real_t& s, const typename VCLReal::bool_vt& mask) {
+    const typename VCLReal::real_t& s, const typename VCLReal::real_bvt& mask) {
   v = vcl::select(mask, s, v);
 }
 

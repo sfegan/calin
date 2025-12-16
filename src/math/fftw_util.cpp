@@ -29,6 +29,8 @@
 #include <util/memory.hpp>
 #include <math/fftw_util.hpp>
 
+#include "calin_global_definitions.hpp"
+
 void calin::math::fftw_util::
 hcvec_fftfreq(double* ovec, unsigned nsample, double d, bool imaginary_negative)
 {
@@ -213,6 +215,21 @@ Eigen::VectorXd calin::math::fftw_util::hcvec_scale_and_add_real(const Eigen::Ve
   return ovec;
 }
 
+Eigen::VectorXd calin::math::fftw_util::hcvec_scale_and_multiply(
+  const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, double scale, bool vcl)
+{
+  Eigen::VectorXd ovec(ivec1.size());
+  if(ivec1.size() != ivec2.size()) {
+    throw std::runtime_error("Input vectors must have same number of elements");
+  }
+  if(vcl) {
+    hcvec_scale_and_multiply(ovec.data(), ivec1.data(), ivec2.data(), ovec.size(), scale);
+  } else {
+    hcvec_scale_and_multiply<double>(ovec.data(), ivec1.data(), ivec2.data(), ovec.size(), scale);
+  }
+  return ovec;
+}
+
 double calin::math::fftw_util::hcvec_sum_real(const Eigen::VectorXd& ivec)
 {
   return hcvec_sum_real(ivec.data(), ivec.size());
@@ -317,6 +334,20 @@ void calin::math::fftw_util::hcvec_delta_iq_idft_by_index(Eigen::VectorXd& oivec
   }
 }
 
+Eigen::VectorXd calin::math::fftw_util::hcvec_polynomial(
+  const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, bool vcl)
+{
+  Eigen::VectorXd ovec(ivec1.size());
+  std::vector<double> p = eigen_to_stdvec(ivec2);
+  if(vcl) {
+    hcvec_polynomial(ovec.data(), ivec1.data(), p, ivec1.size());
+  } else {
+    hcvec_polynomial<double>(ovec.data(), ivec1.data(), p, ivec1.size());
+  }
+  return ovec;
+}
+
+
 Eigen::VectorXd calin::math::fftw_util::hcvec_psd_weight(unsigned nsample)
 {
   Eigen::VectorXd ovec(nsample);
@@ -338,6 +369,42 @@ Eigen::VectorXd calin::math::fftw_util::hcvec_to_psd_no_square(const Eigen::Vect
   Eigen::VectorXd ovec(hcvec_num_real(nsample));
   hcvec_to_psd_no_square(ovec.data(), ivec.data(), nsample);
   return ovec;
+}
+
+Eigen::VectorXd calin::math::fftw_util::calculate_twiddle_factors(unsigned nsample)
+{
+  Eigen::VectorXd twiddle(hcvec_num_imag(nsample));
+  calculate_twiddle_factors(twiddle.data(), nsample);
+  return twiddle;
+}
+
+Eigen::VectorXd calin::math::fftw_util::hcvec_radix2_dit(const Eigen::VectorXd& ivec1, const Eigen::VectorXd& ivec2, const Eigen::VectorXd& twiddle)
+{
+  unsigned nsample = ivec1.size();
+  if(ivec2.size() != nsample) {
+    throw std::runtime_error("Input DFT vectors must have same number of elements");
+  }
+  if(twiddle.size() != hcvec_num_imag(nsample)) {
+    throw std::runtime_error("Twiddle array must have " + std::to_string(hcvec_num_imag(nsample)) + " elements");
+  }
+  Eigen::VectorXd ovec(nsample*2);
+  hcvec_radix2_dit(ovec.data(), ivec1.data(), ivec2.data(), twiddle.data(), nsample);
+  return ovec; 
+}
+
+void calin::math::fftw_util::hcvec_radix2_dit_inv(
+  Eigen::VectorXd& oevec, Eigen::VectorXd& oovec, const Eigen::VectorXd& ivec, const Eigen::VectorXd& twiddle)
+{
+  if(ivec.size() % 2 != 0) {
+    throw std::runtime_error("Input DFT vector size must be even");
+  }
+  unsigned nsample = ivec.size()/2;
+  if(twiddle.size() != hcvec_num_imag(nsample)) {
+    throw std::runtime_error("Twiddle array must have " + std::to_string(hcvec_num_imag(nsample)) + " elements");
+  }
+  oevec.resize(nsample);
+  oovec.resize(nsample);
+  hcvec_radix2_dit_inv(oevec.data(), oovec.data(), ivec.data(), twiddle.data(), nsample);
 }
 
 bool calin::math::fftw_util::load_wisdom_from_file(std::string filename)

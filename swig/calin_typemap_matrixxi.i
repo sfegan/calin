@@ -160,7 +160,7 @@
 {
   // typemap(out) const Eigen::MatrixXi& -- calin_typemap_matrixxd.i
   npy_intp size[1] { $1->size() };
-  $result = PyArray_EMPTY(1, size, NPY_DOUBLE, 0);
+  $result = PyArray_EMPTY(1, size, NPY_INT, 0);
   if(!$result)SWIG_fail;
   if(!calin_eigen_int_mat_to_python($1, $result))SWIG_fail;
 }
@@ -205,7 +205,7 @@
 {
   // typemap(argout) Eigen::MatrixXi &OUTPUT -- calin_typemap_matrixxd.i
   npy_intp size[1] { $1->size() };
-  PyObject* temp_array = PyArray_EMPTY(1, size, NPY_DOUBLE, 0);
+  PyObject* temp_array = PyArray_EMPTY(1, size, NPY_INT, 0);
   if(!temp_array)SWIG_fail;
   if(!calin_eigen_int_mat_to_python($1, temp_array))
   {
@@ -229,7 +229,7 @@
 {
   // typemap(argout) Eigen::MatrixXi &INOUT -- calin_typemap_matrixXd.i
   npy_intp size[1] { $1->size() };
-  PyObject* temp_array = PyArray_EMPTY(1, size, NPY_DOUBLE, 0);
+  PyObject* temp_array = PyArray_EMPTY(1, size, NPY_INT, 0);
   if(!temp_array)SWIG_fail;
   if(!calin_eigen_int_mat_to_python($1, temp_array))
   {
@@ -245,7 +245,7 @@
 {
   // typemap(out) Eigen::MatrixXi -- calin_typemap_matrixxd.i
   npy_intp size[1] { $1.size() };
-  $result = PyArray_EMPTY(1, size, NPY_DOUBLE, 0);
+  $result = PyArray_EMPTY(1, size, NPY_INT, 0);
   if(!$result)SWIG_fail;
   if(!calin_eigen_int_mat_to_python(&$1, $result))SWIG_fail;
 }

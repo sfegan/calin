@@ -470,7 +470,7 @@ gradient_check(MultiAxisFunction& fcn, ConstVecRef x, ConstVecRef dx,
     const double fm1 = fcn.value(xh);
     xh(iaxis) = x(iaxis) - 2.0*h;
     const double fm2 = fcn.value(xh);
-    volatile double h2 = x(iaxis) + h;
+    double h2 = x(iaxis) + h;
     h2 -= (x(iaxis) - h);
 
     //double dfdx = (fm2 - 8.0*fm1 + 8.0*fp1 - fp2)/(6.0*h2);
@@ -596,7 +596,7 @@ hessian_check(MultiAxisFunction& fcn, ConstVecRef x, ConstVecRef dx,
     Eigen::VectorXd gm1(fcn_num_axes); fcn.value_and_gradient(xh,gm1);
     xh(iaxis) = x(iaxis) - 2.0*h;
     Eigen::VectorXd gm2(fcn_num_axes); fcn.value_and_gradient(xh,gm2);
-    volatile double h2v = x(iaxis) + h;
+    double h2v = x(iaxis) + h;
     h2v -= (x(iaxis) - h);
     const double h2 = h2v;
 

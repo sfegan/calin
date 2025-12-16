@@ -37,11 +37,11 @@ template<typename VCLReal> struct alignas(VCLReal::vec_bytes) VCL: public VCLRea
 public:
   using typename VCLReal::real_t;
   using typename VCLReal::real_vt;
-  using typename VCLReal::bool_vt;
+  using typename VCLReal::real_bvt;
   using typename VCLReal::vec3_vt;
   using typename VCLReal::mat3_vt;
 
-  static inline bool_vt box_has_future_intersection_dirinv(real_vt& tmin, real_vt& tmax,
+  static inline real_bvt box_has_future_intersection_dirinv(real_vt& tmin, real_vt& tmax,
     const vec3_vt& min_corner, const vec3_vt& max_corner,
     const vec3_vt& pos,
     const real_vt& ux_inv, const real_vt& uy_inv, const real_vt& uz_inv)
@@ -67,7 +67,7 @@ public:
     return tmax > max(tmin, 0.0);
   }
 
-  static inline bool_vt box_has_future_intersection(real_vt& tmin, real_vt& tmax,
+  static inline real_bvt box_has_future_intersection(real_vt& tmin, real_vt& tmax,
     const vec3_vt& min_corner, const vec3_vt& max_corner,
     const vec3_vt& pos, const vec3_vt& dir)
   {
@@ -131,7 +131,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.x(),u.x(),u.y()*u.y()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_uz, 0.0, u.y() * st_inv);
     real_vt cp = select(is_uz, 1.0, u.x() * st_inv);
     rotate_in_place_Ry(v, u.z(), st);
@@ -142,7 +142,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.x(),u.x(),u.y()*u.y()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_uz, 0.0, u.y() * st_inv);
     real_vt cp = select(is_uz, 1.0, u.x() * st_inv);
     derotate_in_place_Rz(v, cp, sp);
@@ -153,7 +153,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.x(),u.x(),u.y()*u.y()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_uz, 0.0, u.y() * st_inv);
     real_vt cp = select(is_uz, 1.0, u.x() * st_inv);
     derotate_in_place_Rz(v, cp, sp);
@@ -165,7 +165,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.x(),u.x(),u.y()*u.y()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_uz, 0.0, u.y() * st_inv);
     real_vt cp = select(is_uz, 1.0, u.x() * st_inv);
     derotate_in_place_Rz(v, cp, sp);
@@ -177,7 +177,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.z(),u.z(),u.x()*u.x()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_uy = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uy = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_uy, 0.0, u.x() * st_inv);
     real_vt cp = select(is_uy, 1.0, u.z() * st_inv);
     derotate_in_place_Ry(v, cp, sp);
@@ -189,7 +189,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.z(),u.z(),u.x()*u.x()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_uy = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uy = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_uy, 0.0, u.x() * st_inv);
     real_vt cp = select(is_uy, 1.0, u.z() * st_inv);
     derotate_in_place_Ry(v, cp, sp);
@@ -201,7 +201,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.y(),u.y(),u.z()*u.z()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_ux = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_ux = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_ux, 0.0, u.z() * st_inv);
     real_vt cp = select(is_ux, 1.0, u.y() * st_inv);
     derotate_in_place_Rx(v, cp, sp);
@@ -213,7 +213,7 @@ public:
   {
     real_vt st = sqrt(mul_add(u.y(),u.y(),u.z()*u.z()));
     real_vt st_inv = 1.0/st;
-    bool_vt is_ux = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_ux = st < std::numeric_limits<real_t>::epsilon();
     real_vt sp = select(is_ux, 0.0, u.z() * st_inv);
     real_vt cp = select(is_ux, 1.0, u.y() * st_inv);
     derotate_in_place_Rx(v, cp, sp);
@@ -229,7 +229,7 @@ public:
 
     // If we are along the z-axis (z=+/-1) then we arrange for matrix to be
     // diagonal with (+1,1,+1) or (-1,1,-1)
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
 
     real_vt sp = select(is_uz, 0.0, y * st_inv);
     real_vt cp = select(is_uz, 1.0, x * st_inv);
@@ -247,7 +247,7 @@ public:
 
     // If we are along the z-axis (z=+/-1) then we arrange for matrix to be
     // diagonal with (+1,1,+1) or (-1,1,-1)
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
 
     real_vt sp = select(is_uz, 0.0, y * st_inv);
     real_vt cp = select(is_uz, 1.0, x * st_inv);
@@ -263,7 +263,7 @@ public:
     real_vt st = sqrt(x*x+y*y);
     real_vt st_inv = 1.0/st;
 
-    bool_vt is_uz = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uz = st < std::numeric_limits<real_t>::epsilon();
 
     real_vt sp = select(is_uz, 0.0, y * st_inv);
     real_vt cp = select(is_uz, 1.0, x * st_inv);
@@ -282,7 +282,7 @@ public:
     real_vt st = sqrt(z*z+x*x);
     real_vt st_inv = 1.0/st;
 
-    bool_vt is_uy = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_uy = st < std::numeric_limits<real_t>::epsilon();
 
     real_vt sp = select(is_uy, 0.0, x * st_inv);
     real_vt cp = select(is_uy, 1.0, z * st_inv);
@@ -301,7 +301,7 @@ public:
     real_vt st = sqrt(y*y+z*z);
     real_vt st_inv = 1.0/st;
 
-    bool_vt is_ux = st < std::numeric_limits<real_t>::epsilon();
+    real_bvt is_ux = st < std::numeric_limits<real_t>::epsilon();
 
     real_vt sp = select(is_ux, 0.0, z * st_inv);
     real_vt cp = select(is_ux, 1.0, y * st_inv);

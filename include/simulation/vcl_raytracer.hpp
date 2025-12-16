@@ -62,7 +62,7 @@ template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLScopeTraceInfo: 
 public:
   using typename VCLReal::real_t;
   using typename VCLReal::real_vt;
-  using typename VCLReal::bool_vt;
+  using typename VCLReal::real_bvt;
   using typename VCLReal::int_vt;
   using typename VCLReal::uint_vt;
   using typename VCLReal::vec3_vt;
@@ -100,7 +100,7 @@ template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLObscuration: pub
 {
 public:
   using typename VCLReal::real_vt;
-  using typename VCLReal::bool_vt;
+  using typename VCLReal::real_bvt;
   using typename VCLReal::vec3_vt;
   using typename VCLReal::mat3_vt;
   using Ray = calin::math::ray::VCLRay<VCLReal>;
@@ -111,7 +111,7 @@ public:
   virtual ~VCLObscuration() {
     // nothing to see here
   }
-  virtual bool_vt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const = 0;
+  virtual real_bvt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const = 0;
   virtual VCLObscuration<VCLReal>* clone() const = 0;
 };
 
@@ -126,12 +126,12 @@ public:
   using typename VCLReal::real_t;
   using typename VCLReal::int_t;
   using typename VCLReal::uint_t;
-  using typename VCLReal::bool_int_vt;
-  using typename VCLReal::bool_uint_vt;
+  using typename VCLReal::int_bvt;
+  using typename VCLReal::uint_bvt;
   using typename VCLReal::mat3_t;
   using typename VCLReal::vec3_t;
   using typename VCLReal::real_vt;
-  using typename VCLReal::bool_vt;
+  using typename VCLReal::real_bvt;
   using typename VCLReal::int_vt;
   using typename VCLReal::uint_vt;
   using typename VCLReal::vec3_vt;
@@ -284,7 +284,7 @@ public:
     ray.rotate(scope->rotationGlobalToReflector().cast<real_vt>());
   }
 
-  bool_vt trace_global_frame(bool_vt mask, Ray& ray, TraceInfo& info,
+  real_bvt trace_global_frame(real_bvt mask, Ray& ray, TraceInfo& info,
     bool do_derotation = true)
   {
     // *************************************************************************
@@ -301,7 +301,7 @@ public:
     return mask;
   }
 
-  bool_vt trace_scope_centered_global_frame(bool_vt mask, Ray& ray, TraceInfo& info,
+  real_bvt trace_scope_centered_global_frame(real_bvt mask, Ray& ray, TraceInfo& info,
     bool do_derotation = true)
   {
     // *************************************************************************
@@ -318,14 +318,14 @@ public:
 
 //#define DEBUG_STATUS
 
-  bool_vt trace_reflector_frame(bool_vt mask, Ray& ray, TraceInfo& info)
+  real_bvt trace_reflector_frame(real_bvt mask, Ray& ray, TraceInfo& info)
   {
     info.status = STS_MASKED_ON_ENTRY;
 #ifdef DEBUG_STATUS
     std::cout << mask[0] << '/' << info.status[0];
 #endif
 
-    info.status = select(bool_int_vt(mask), STS_TRAVELLING_AWAY_REFLECTOR, info.status);
+    info.status = select(int_bvt(mask), STS_TRAVELLING_AWAY_REFLECTOR, info.status);
     mask &= ray.uy() < 0;
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
@@ -336,17 +336,17 @@ public:
     // *************************************************************************
 
     // Test for obscuration of incoming ray
-    bool_vt was_obscured = false;
+    real_bvt was_obscured = false;
     real_vt ct_obscured = std::numeric_limits<real_t>::infinity();
     uint_vt hitmask = 1;
     info.pre_reflection_obs_hitmask = uint_vt(0);
     for(const auto* obs : pre_reflection_obscuration) {
       Ray ray_out;
-      bool_vt was_obscured_here = obs->doesObscure(ray, ray_out, ref_index_);
+      real_bvt was_obscured_here = obs->doesObscure(ray, ray_out, ref_index_);
       ct_obscured = vcl::select(was_obscured_here,
         vcl::min(ct_obscured, ray_out.ct()), ct_obscured);
       was_obscured |= was_obscured_here;
-      info.pre_reflection_obs_hitmask |= vcl::select(bool_uint_vt(was_obscured_here), hitmask, 0);
+      info.pre_reflection_obs_hitmask |= vcl::select(uint_bvt(was_obscured_here), hitmask, 0);
       hitmask <<= 1;
     }
 
@@ -354,7 +354,7 @@ public:
     real_vt ct0 = ray.ct();
 
     // Propagate to intersection with the reflector sphere (allow to go backwards a bit)
-    info.status = select(bool_int_vt(mask), STS_MISSED_REFLECTOR_SPHERE, info.status);
+    info.status = select(int_bvt(mask), STS_MISSED_REFLECTOR_SPHERE, info.status);
     mask = ray.propagate_to_y_sphere_2nd_interaction_mostly_fwd_with_mask(mask,
       reflec_curvature_radius_, 0, (-2.0/CALIN_HEX_ARRAY_SQRT3)*mirror_dhex_max_, ref_index_);
 #ifdef DEBUG_STATUS
@@ -366,7 +366,7 @@ public:
     info.reflec_z     = select(mask, ray.position().z(), 0);
 
     // Test aperture
-    info.status = select(bool_int_vt(mask), STS_OUTSIDE_REFLECTOR_APERTURE, info.status);
+    info.status = select(int_bvt(mask), STS_OUTSIDE_REFLECTOR_APERTURE, info.status);
     mask &= (info.reflec_x*info.reflec_x + info.reflec_z*info.reflec_z) <= reflec_aperture2_;
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
@@ -378,14 +378,14 @@ public:
     }
 
     // Assume mirrors on hexagonal grid - use hex_array routines to find which hit
-    info.status = select(bool_int_vt(mask), STS_NO_MIRROR, info.status);
+    info.status = select(int_bvt(mask), STS_NO_MIRROR, info.status);
     info.mirror_hexid = calin::math::hex_array::VCLReal<VCLReal>::
       xy_trans_to_hexid_scaleinv(info.reflec_x, info.reflec_z,
         reflec_crot_, reflec_srot_, reflec_scaleinv_, reflec_shift_x_, reflec_shift_z_,
         reflec_cw_);
 
     // Test we have a valid mirror hexid
-    mask &= typename VCLReal::bool_vt(info.mirror_hexid < mirror_hexid_end_);
+    mask &= typename VCLReal::real_bvt(info.mirror_hexid < mirror_hexid_end_);
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
 #endif
@@ -395,13 +395,13 @@ public:
       return mask;
     }
 
-    info.mirror_hexid = select(bool_int_vt(mask), info.mirror_hexid, mirror_hexid_end_);
+    info.mirror_hexid = select(int_bvt(mask), info.mirror_hexid, mirror_hexid_end_);
 
     // Find the mirror ID
     info.mirror_id = vcl::lookup<0x40000000>(info.mirror_hexid, mirror_id_lookup_);
 
     // Test we have a valid mirror id
-    mask &= typename VCLReal::bool_vt(info.mirror_id < mirror_id_end_);
+    mask &= typename VCLReal::real_bvt(info.mirror_id < mirror_id_end_);
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
 #endif
@@ -433,7 +433,7 @@ public:
     // *************************************************************************
 
     // Propagate to intersection with the mirror sphere
-    info.status = select(bool_int_vt(mask), STS_MISSED_MIRROR_SPHERE, info.status);
+    info.status = select(int_bvt(mask), STS_MISSED_MIRROR_SPHERE, info.status);
     mask = ray.propagate_to_y_sphere_2nd_interaction_fwd_bwd_with_mask(mask,
       mirror_r, -mirror_r, ref_index_);
     mask &= ray.ct() >= ct0;
@@ -462,7 +462,7 @@ public:
     const real_vt dhex_pos60 = abs(x_cos60 - z_sin60);
     const real_vt dhex_neg60 = abs(x_cos60 + z_sin60);
 
-    info.status = select(bool_int_vt(mask), STS_MISSED_MIRROR_EDGE, info.status);
+    info.status = select(int_bvt(mask), STS_MISSED_MIRROR_EDGE, info.status);
     mask &= max(max(dhex_pos60, dhex_neg60), abs(ray_pos.x())) < mirror_dhex_max_;
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
@@ -502,7 +502,7 @@ public:
     // *************************************************************************
 
     // Finish checking obscuration before mirror hit
-    info.status = select(bool_int_vt(mask), STS_OBSCURED_BEFORE_MIRROR, info.status);
+    info.status = select(int_bvt(mask), STS_OBSCURED_BEFORE_MIRROR, info.status);
     mask &= ~(was_obscured & (ct_obscured < ray.ct()));
 
     if(not horizontal_or(mask)) {
@@ -518,11 +518,11 @@ public:
     info.post_reflection_obs_hitmask = uint_vt(0);
     for(const auto* obs : post_reflection_obscuration) {
       Ray ray_out;
-      bool_vt was_obscured_here = obs->doesObscure(ray, ray_out, ref_index_);
+      real_bvt was_obscured_here = obs->doesObscure(ray, ray_out, ref_index_);
       ct_obscured = vcl::select(was_obscured_here,
         vcl::min(ct_obscured, ray_out.ct()), ct_obscured);
       was_obscured |= was_obscured_here;
-      info.post_reflection_obs_hitmask |= vcl::select(bool_uint_vt(was_obscured_here), hitmask, 0);
+      info.post_reflection_obs_hitmask |= vcl::select(uint_bvt(was_obscured_here), hitmask, 0);
       hitmask <<= 1;
     }
 
@@ -541,23 +541,23 @@ public:
     info.camera_obs_hitmask = uint_vt(0);
     for(const auto* obs : camera_obscuration) {
       Ray ray_out;
-      bool_vt was_obscured_here = obs->doesObscure(ray, ray_out, ref_index_);
+      real_bvt was_obscured_here = obs->doesObscure(ray, ray_out, ref_index_);
       ct_obscured = vcl::select(was_obscured_here,
         vcl::min(ct_obscured, ray_out.ct()), ct_obscured);
       was_obscured |= was_obscured_here;
-      info.camera_obs_hitmask |= vcl::select(bool_uint_vt(was_obscured_here), hitmask, 0);
+      info.camera_obs_hitmask |= vcl::select(uint_bvt(was_obscured_here), hitmask, 0);
       hitmask <<= 1;
     }
 
     // Propagate to focal plane
-    info.status = select(bool_int_vt(mask), STS_TRAVELLING_AWAY_FROM_FOCAL_PLANE, info.status);
+    info.status = select(int_bvt(mask), STS_TRAVELLING_AWAY_FROM_FOCAL_PLANE, info.status);
     mask = ray.propagate_to_y_plane_with_mask(mask, 0, false, ref_index_);
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
 #endif
 
     // Finish checking obscuration after mirror reflection
-    info.status = select(bool_int_vt(mask), STS_OBSCURED_BEFORE_FOCAL_PLANE, info.status);
+    info.status = select(int_bvt(mask), STS_OBSCURED_BEFORE_FOCAL_PLANE, info.status);
     mask &= ~(was_obscured & (ct_obscured < ray.ct()));
 
     // We good, record position on focal plane etc
@@ -568,7 +568,7 @@ public:
     info.fplane_uy = select(mask, ray.uy(), 0);
     info.fplane_uz = select(mask, ray.uz(), 0);
 
-    info.status = select(bool_int_vt(mask), STS_OUTSIDE_FOCAL_PLANE_APERTURE, info.status);
+    info.status = select(int_bvt(mask), STS_OUTSIDE_FOCAL_PLANE_APERTURE, info.status);
     mask &= (info.fplane_x*info.fplane_x + info.fplane_z*info.fplane_z) <= fp_aperture2_;
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
@@ -581,23 +581,23 @@ public:
         pixel_cw_);
 
     // Test we have a valid pixel hexid
-    info.status = select(bool_int_vt(mask), STS_TS_NO_PIXEL, info.status);
-    mask &= typename VCLReal::bool_vt(info.pixel_hexid < pixel_hexid_end_);
+    info.status = select(int_bvt(mask), STS_TS_NO_PIXEL, info.status);
+    mask &= typename VCLReal::real_bvt(info.pixel_hexid < pixel_hexid_end_);
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
 #endif
 
     // Find the pixel ID
     info.pixel_id =
-      vcl::lookup<0x40000000>(select(bool_int_vt(mask), info.pixel_hexid, pixel_hexid_end_),
+      vcl::lookup<0x40000000>(select(int_bvt(mask), info.pixel_hexid, pixel_hexid_end_),
         pixel_id_lookup_);
 
-    mask &= typename VCLReal::bool_vt(info.pixel_id < pixel_id_end_);
+    mask &= typename VCLReal::real_bvt(info.pixel_id < pixel_id_end_);
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
 #endif
 
-    info.status = select(bool_int_vt(mask), STS_TS_FOUND_PIXEL, info.status);
+    info.status = select(int_bvt(mask), STS_TS_FOUND_PIXEL, info.status);
 #ifdef DEBUG_STATUS
     std::cout << ' ' << mask[0] << '/' << info.status[0];
 #endif
@@ -692,7 +692,7 @@ template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLAlignedBoxObscur
 {
 public:
   using typename VCLObscuration<VCLReal>::real_vt;
-  using typename VCLObscuration<VCLReal>::bool_vt;
+  using typename VCLObscuration<VCLReal>::real_bvt;
   using typename VCLObscuration<VCLReal>::vec3_vt;
   using typename VCLObscuration<VCLReal>::Ray;
   using typename VCLObscuration<VCLReal>::vec3_t;
@@ -714,11 +714,11 @@ public:
   {
     // nothing to see here
   }
-  bool_vt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
+  real_bvt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
   {
     real_vt tmin;
     real_vt tmax;
-    bool_vt mask = ray_in.box_has_future_intersection(tmin, tmax,
+    real_bvt mask = ray_in.box_has_future_intersection(tmin, tmax,
       min_corner_.template cast<real_vt>(), max_corner_.template cast<real_vt>());
     ray_out = ray_in;
     ray_out.propagate_dist_with_mask(mask & (tmin>0), tmin, n);
@@ -738,7 +738,7 @@ template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLAlignedCircularA
 {
 public:
   using typename VCLObscuration<VCLReal>::real_vt;
-  using typename VCLObscuration<VCLReal>::bool_vt;
+  using typename VCLObscuration<VCLReal>::real_bvt;
   using typename VCLObscuration<VCLReal>::vec3_vt;
   using typename VCLObscuration<VCLReal>::Ray;
   using typename VCLObscuration<VCLReal>::vec3_t;
@@ -761,11 +761,11 @@ public:
   {
     // nothing to see here
   }
-  bool_vt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
+  real_bvt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
   {
     using calin::math::special::SQR;
     ray_out = ray_in;
-    bool_vt ray_reaches_plane = ray_out.propagate_to_y_plane(-center_.y(),
+    real_bvt ray_reaches_plane = ray_out.propagate_to_y_plane(-center_.y(),
       /*time_reversal_ok=*/ false, n);
     const real_vt r2 =
       SQR(ray_out.x()-center_.x())+SQR(ray_out.z()-center_.z())-radius_sq_;
@@ -790,7 +790,7 @@ template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLAlignedRectangul
 {
 public:
   using typename VCLObscuration<VCLReal>::real_vt;
-  using typename VCLObscuration<VCLReal>::bool_vt;
+  using typename VCLObscuration<VCLReal>::real_bvt;
   using typename VCLObscuration<VCLReal>::vec3_vt;
   using typename VCLObscuration<VCLReal>::Ray;
   using typename VCLObscuration<VCLReal>::vec3_t;
@@ -816,11 +816,11 @@ public:
   {
     // nothing to see here
   }
-  bool_vt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
+  real_bvt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
   {
     using calin::math::special::SQR;
     ray_out = ray_in;
-    bool_vt ray_reaches_plane = ray_out.propagate_to_y_plane(-center_.y(),
+    real_bvt ray_reaches_plane = ray_out.propagate_to_y_plane(-center_.y(),
       /*time_reversal_ok=*/ false, n);
     const real_vt dx = vcl::abs(ray_out.x()-center_.x()) - flat_to_flat_x_2_;
     const real_vt dz = vcl::abs(ray_out.z()-center_.z()) - flat_to_flat_z_2_;
@@ -846,7 +846,7 @@ template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLTubeObscuration:
 {
 public:
   using typename VCLObscuration<VCLReal>::real_vt;
-  using typename VCLObscuration<VCLReal>::bool_vt;
+  using typename VCLObscuration<VCLReal>::real_bvt;
   using typename VCLObscuration<VCLReal>::vec3_vt;
   using typename VCLObscuration<VCLReal>::Ray;
   using typename VCLObscuration<VCLReal>::vec3_t;
@@ -874,7 +874,7 @@ public:
     // nothing to see here
   }
 
-  bool_vt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
+  real_bvt doesObscure(const Ray& ray_in, Ray& ray_out, real_vt n) const override
   {
     constexpr real_t inf = std::numeric_limits<real_t>::infinity();
 
@@ -895,7 +895,7 @@ public:
 
     // Find rays that come close enough to possibly obscure - rest can be ignored
     // Must handle case of rays parallel to cylinder (a=b=0)
-    const bool_vt intersects_cylinder = (vcl::select(a>0, disc, -c) >= 0);
+    const real_bvt intersects_cylinder = (vcl::select(a>0, disc, -c) >= 0);
 
     if(not horizontal_or(intersects_cylinder)) {
       // Fast exit for case where closest approach for all rays with cylinder is greater than r^2
@@ -919,7 +919,7 @@ public:
     const real_vt t_out = vcl::min(vcl::max(tc1, tc2), vcl::max(tp1, tp2));
 
     const real_vt t_prop = vcl::max(t_in, 0);
-    const bool_vt does_obscure = t_out > t_prop;
+    const real_bvt does_obscure = t_out > t_prop;
 
     // using calin::util::log::LOG;
     // using calin::util::log::INFO;

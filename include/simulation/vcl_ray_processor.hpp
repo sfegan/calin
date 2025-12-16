@@ -145,7 +145,7 @@ public:
   CALIN_TYPEALIAS(int64_at, typename VCLArchitecture::int64_at);
   CALIN_TYPEALIAS(uint64_vt, typename VCLArchitecture::uint64_vt);
   CALIN_TYPEALIAS(uint64_at, typename VCLArchitecture::uint64_at);
-  CALIN_TYPEALIAS(bool_vt, typename VCLArchitecture::double_bvt);
+  CALIN_TYPEALIAS(double_bvt, typename VCLArchitecture::double_bvt);
 
   CALIN_TYPEALIAS(VCLReal, calin::util::vcl::VCLDoubleReal<VCLArchitecture>);
   CALIN_TYPEALIAS(ArchRNG, calin::math::rng::VCLRNG<VCLArchitecture>);
@@ -259,7 +259,7 @@ private:
     unsigned iray = scope_id * buffer_depth_ * VCLArchitecture::num_double;
     nray_[scope_id] = 0;
     while(nray) {
-      bool_vt mask = true;
+      double_bvt mask = true;
       Ray ray;
       TraceInfo info;
       ray.mutable_ux().load(ray_ux_.data() + iray);
@@ -409,7 +409,7 @@ public:
   CALIN_TYPEALIAS(double_vt, typename VCLArchitecture::double_vt);
   CALIN_TYPEALIAS(int32_vt, typename VCLArchitecture::int32_vt);
   CALIN_TYPEALIAS(int32_at, typename VCLArchitecture::int32_at);
-  CALIN_TYPEALIAS(bool_vt, typename VCLArchitecture::float_bvt);
+  CALIN_TYPEALIAS(float_bvt, typename VCLArchitecture::float_bvt);
 
   CALIN_TYPEALIAS(FloatType, calin::util::vcl::VCLFloatReal<VCLArchitecture>);
   CALIN_TYPEALIAS(DoubleType, calin::util::vcl::VCLDoubleReal<VCLArchitecture>);
@@ -558,7 +558,7 @@ private:
       flt_ray.mutable_z() = compress(dbl_ray_lo.z(), dbl_ray_hi.z());
       flt_ray.mutable_ct() = 0;
 
-      bool_vt mask = true;
+      float_bvt mask = true;
       TraceInfo info;
 
       mask = ray_tracer_[scope_id]->trace_reflector_frame(mask, flt_ray, info);

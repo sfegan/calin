@@ -795,7 +795,6 @@ template<typename VCLRealArch> class VCLReal: public VCLRealArch
 public:
   using typename VCLRealArch::architecture;
   using typename VCLRealArch::real_vt;
-  using typename VCLRealArch::bool_vt;
   using typename VCLRealArch::int_vt;
   using typename VCLRealArch::uint_vt;
 
@@ -1158,14 +1157,14 @@ public:
 #endif // not defined SWIG
 
 template<typename Arch>
-inline unsigned do_test_vcl_positive_hexid_to_ringid_loop(volatile unsigned hexid, unsigned iterations = 1)
+inline unsigned do_test_vcl_positive_hexid_to_ringid_loop(unsigned hexid, unsigned iterations = 1)
 {
   unsigned result = 0;
   while(iterations--)result += VCL<Arch>::positive_hexid_to_ringid_loop(hexid)[0];
   return result;
 }
 
-inline unsigned test_vcl_positive_hexid_to_ringid_loop(volatile unsigned hexid, unsigned iterations = 1, unsigned arch=256)
+inline unsigned test_vcl_positive_hexid_to_ringid_loop(unsigned hexid, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
     case 512: return do_test_vcl_positive_hexid_to_ringid_loop<calin::util::vcl::VCL512Architecture>(hexid,iterations);
@@ -1176,14 +1175,14 @@ inline unsigned test_vcl_positive_hexid_to_ringid_loop(volatile unsigned hexid, 
 }
 
 template<typename Arch>
-inline unsigned do_test_vcl_positive_hexid_to_ringid_root(volatile unsigned hexid, unsigned iterations = 1)
+inline unsigned do_test_vcl_positive_hexid_to_ringid_root(unsigned hexid, unsigned iterations = 1)
 {
   unsigned result = 0;
   while(iterations--)result += VCL<Arch>::positive_hexid_to_ringid_root(hexid)[0];
   return result;
 }
 
-inline unsigned test_vcl_positive_hexid_to_ringid_root(volatile unsigned hexid, unsigned iterations = 1, unsigned arch=256)
+inline unsigned test_vcl_positive_hexid_to_ringid_root(unsigned hexid, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
     case 512: return do_test_vcl_positive_hexid_to_ringid_root<calin::util::vcl::VCL512Architecture>(hexid,iterations);
@@ -1194,7 +1193,7 @@ inline unsigned test_vcl_positive_hexid_to_ringid_root(volatile unsigned hexid, 
 }
 
 template<typename Arch>
-inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_onestep(volatile unsigned hexid,
+inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_onestep(unsigned hexid,
   unsigned& ringid, unsigned& segid, unsigned& runid, unsigned iterations = 1)
 {
   ringid = 0;
@@ -1211,7 +1210,7 @@ inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_onestep(volatile un
   }
 }
 
-inline void test_vcl_positive_hexid_to_ringid_segid_runid_onestep(volatile unsigned hexid,
+inline void test_vcl_positive_hexid_to_ringid_segid_runid_onestep(unsigned hexid,
   unsigned& ringid, unsigned& segid, unsigned& runid, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
@@ -1224,7 +1223,7 @@ inline void test_vcl_positive_hexid_to_ringid_segid_runid_onestep(volatile unsig
 }
 
 template<typename Arch>
-inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_twostep(volatile unsigned hexid,
+inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_twostep(unsigned hexid,
   unsigned& ringid, unsigned& segid, unsigned& runid, unsigned iterations = 1)
 {
   ringid = 0;
@@ -1241,7 +1240,7 @@ inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_twostep(volatile un
   }
 }
 
-inline void test_vcl_positive_hexid_to_ringid_segid_runid_twostep(volatile unsigned hexid,
+inline void test_vcl_positive_hexid_to_ringid_segid_runid_twostep(unsigned hexid,
   unsigned& ringid, unsigned& segid, unsigned& runid, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
@@ -1254,7 +1253,7 @@ inline void test_vcl_positive_hexid_to_ringid_segid_runid_twostep(volatile unsig
 }
 
 template<typename Arch>
-inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_muldiv(volatile unsigned hexid,
+inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_muldiv(unsigned hexid,
   unsigned& ringid, unsigned& segid, unsigned& runid, unsigned iterations = 1)
 {
   ringid = 0;
@@ -1271,7 +1270,7 @@ inline void do_test_vcl_positive_hexid_to_ringid_segid_runid_muldiv(volatile uns
   }
 }
 
-inline void test_vcl_positive_hexid_to_ringid_segid_runid_muldiv(volatile unsigned hexid,
+inline void test_vcl_positive_hexid_to_ringid_segid_runid_muldiv(unsigned hexid,
   unsigned& ringid, unsigned& segid, unsigned& runid, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
@@ -1284,7 +1283,7 @@ inline void test_vcl_positive_hexid_to_ringid_segid_runid_muldiv(volatile unsign
 }
 
 template<typename Arch>
-inline unsigned do_test_vcl_uv_to_hexid_ccw_twostep(volatile int u, volatile int v, unsigned iterations = 1)
+inline unsigned do_test_vcl_uv_to_hexid_ccw_twostep(int u, int v, unsigned iterations = 1)
 {
   int result = 0;
   while(iterations--) {
@@ -1295,7 +1294,7 @@ inline unsigned do_test_vcl_uv_to_hexid_ccw_twostep(volatile int u, volatile int
   return result;
 }
 
-inline unsigned test_vcl_uv_to_hexid_ccw_twostep(volatile int u, volatile int v, unsigned iterations = 1, unsigned arch=256)
+inline unsigned test_vcl_uv_to_hexid_ccw_twostep(int u, int v, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
     case 512: return do_test_vcl_uv_to_hexid_ccw_twostep<calin::util::vcl::VCL512Architecture>(u,v,iterations);
@@ -1306,7 +1305,7 @@ inline unsigned test_vcl_uv_to_hexid_ccw_twostep(volatile int u, volatile int v,
 }
 
 template<typename Arch>
-inline int do_test_vcl_uv_to_hexid_ccw_onestep(volatile int u, volatile int v, unsigned iterations = 1)
+inline int do_test_vcl_uv_to_hexid_ccw_onestep(int u, int v, unsigned iterations = 1)
 {
   int result = 0;
   while(iterations--) {
@@ -1317,7 +1316,7 @@ inline int do_test_vcl_uv_to_hexid_ccw_onestep(volatile int u, volatile int v, u
   return result;
 }
 
-inline unsigned test_vcl_uv_to_hexid_ccw_onestep(volatile int u, volatile int v, unsigned iterations = 1, unsigned arch=256)
+inline unsigned test_vcl_uv_to_hexid_ccw_onestep(int u, int v, unsigned iterations = 1, unsigned arch=256)
 {
   switch(arch) {
     case 512: return do_test_vcl_uv_to_hexid_ccw_onestep<calin::util::vcl::VCL512Architecture>(u,v,iterations);

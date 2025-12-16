@@ -74,6 +74,8 @@
 %include "simulation/nspace_pe_processor.hpp"
 %include "simulation/nspace_ray_processor.hpp"
 
+%apply Eigen::VectorXi& OUTPUT { Eigen::VectorXi& pixel_trigger_time };
+
 %include "simulation/vcl_ray_processor.hpp"
 
 %template (VCLWaveformPEProcessorDouble128) calin::simulation::vcl_pe_processor::VCLWaveformPEProcessor<calin::util::vcl::VCL128DoubleReal>;

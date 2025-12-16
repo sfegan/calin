@@ -344,7 +344,7 @@ TYPED_TEST(VCLRNGTests, SinCosDoubleMoments)
   verify_double_range("m2sc", m2sc, -0.002, 0.002);
 }
 
-TYPED_TEST(VCLRNGTests, NormalFloatMoments)
+TYPED_TEST(VCLRNGTests, NormalFloatBMMoments)
 {
   uint64_t seed = RNG::std_test_seed; //RNG::uint64_from_random_device();
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
@@ -386,7 +386,7 @@ TYPED_TEST(VCLRNGTests, NormalFloatMoments)
   verify_float_range("m2xy", m2xy, -0.005, 0.005);
 }
 
-TYPED_TEST(VCLRNGTests, NormalDoubleMoments)
+TYPED_TEST(VCLRNGTests, NormalDoubleBMMoments)
 {
   uint64_t seed = RNG::std_test_seed; //RNG::uint64_from_random_device();
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
@@ -426,6 +426,56 @@ TYPED_TEST(VCLRNGTests, NormalDoubleMoments)
   verify_double_range("m2y", m2y, 1.0-0.005,  1.0+0.005);
   verify_double_range("m3y", m3y, -0.02, 0.02);
   verify_double_range("m2xy", m2xy, -0.005, 0.005);
+}
+
+TYPED_TEST(VCLRNGTests, NormalFloatZigguratMoments)
+{
+  uint64_t seed = RNG::std_test_seed; //RNG::uint64_from_random_device();
+  VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
+  const unsigned N = 1000000;
+  BasicKahanAccumulator<typename TypeParam::float_vt> sumx;
+  BasicKahanAccumulator<typename TypeParam::float_vt> sumxx;
+  BasicKahanAccumulator<typename TypeParam::float_vt> sumxxx;
+  typename TypeParam::float_vt x;
+  for(unsigned i=0;i<N;i++) {
+    x = core.normal_float_ziggurat();
+    sumx.accumulate(x);
+    sumxx.accumulate(x*x);
+    sumxxx.accumulate(x*x*x);
+  }
+
+  typename TypeParam::float_vt m1x = sumx.total()/float(N);
+  typename TypeParam::float_vt m2x = sumxx.total()/float(N);
+  typename TypeParam::float_vt m3x = sumxxx.total()/float(N);
+
+  verify_float_range("m1x", m1x, -0.005, 0.005);
+  verify_float_range("m2x", m2x, 1.0-0.005,  1.0+0.005);
+  verify_float_range("m3x", m3x, -0.02, 0.02);
+}
+
+TYPED_TEST(VCLRNGTests, NormalDoubleZigguratMoments)
+{
+  uint64_t seed = RNG::std_test_seed; //RNG::uint64_from_random_device();
+  VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
+  const unsigned N = 1000000;
+  BasicKahanAccumulator<typename TypeParam::double_vt> sumx;
+  BasicKahanAccumulator<typename TypeParam::double_vt> sumxx;
+  BasicKahanAccumulator<typename TypeParam::double_vt> sumxxx;
+  typename TypeParam::double_vt x;
+  for(unsigned i=0;i<N;i++) {
+    x = core.normal_double_ziggurat();
+    sumx.accumulate(x);
+    sumxx.accumulate(x*x);
+    sumxxx.accumulate(x*x*x);
+  }
+
+  typename TypeParam::double_vt m1x = sumx.total()/double(N);
+  typename TypeParam::double_vt m2x = sumxx.total()/double(N);
+  typename TypeParam::double_vt m3x = sumxxx.total()/double(N);
+
+  verify_double_range("m1x", m1x, -0.005, 0.005);
+  verify_double_range("m2x", m2x, 1.0-0.005,  1.0+0.005);
+  verify_double_range("m3x", m3x, -0.02, 0.02);
 }
 
 TYPED_TEST(VCLRNGTests, CDFUniformFloatZCMoments)

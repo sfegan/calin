@@ -61,6 +61,8 @@ using namespace calin::util::log;
 
 */
 
+// Reference CTA-SPE-COM-000000-0002-2c
+
 NectarCam_ACADACameraEventDecoder_R1v1::
 NectarCam_ACADACameraEventDecoder_R1v1(const std::string& filename, 
     const config_type& config):
