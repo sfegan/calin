@@ -41,6 +41,7 @@ parser.add_argument('--star_rate', type=float, nargs='*', default=[],
 parser.add_argument('-t', '--threshold', type=float, default=120.0,
                    help='Specify the threshold in DC')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
+parser.add_argument('--no_after_pulsing', action='store_true', help='Disable after-pulsing in SPE spectrum (default: enabled)')
 parser.add_argument('-o', '--output', type=str, default=None,
                     help='Write trigger times to this file')
 parser.add_argument('-a', '--algorithm', type=str, default='3nn', choices=['3nn','4nn','m3','m4','multiplicity'],
@@ -101,10 +102,13 @@ def init():
     else:
         raise ValueError(f'Unknown trigger algorithm: {args.algorithm}')
 
-
     # Instantiate PE generator
-    ap_pe_gen = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
-    ap_pe_gen.this.disown() # Let pe_list_processor own it
+    pe_gen = None
+    if args.no_after_pulsing:
+        pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+    else:
+        pe_gen = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
+    pe_gen.this.disown() # Let pe_list_processor own it
 
     # Define NSB
     nsb = numpy.zeros(scam.channel_size()) + nsb_rate
@@ -112,7 +116,7 @@ def init():
     for i, star_pe_rate in enumerate(args.star_rate):
         if i < len(nsb):
             nsb[i] += star_pe_rate
-    pe_list_processor.set_cr_nsb_rate(0, nsb, ap_pe_gen, True)
+    pe_list_processor.set_cr_nsb_rate(0, nsb, pe_gen, True)
 
     # Define noise spectrum
     if(args.noise):
@@ -180,4 +184,4 @@ with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_wo
 if args.output and (len(trigger_times)==0 or (len(trigger_times)%100)!=0):
     numpy.savetxt(args.output, trigger_times, header=header, fmt='%d')
     print(f'Wrote {len(trigger_times)} trigger times to {args.output}')
-
+    
