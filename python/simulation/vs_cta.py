@@ -145,7 +145,7 @@ def ctas_assets(filename = 'CTAS_ArrayElements_Positions.ecsv',
 def ctan_observation_level(level_km = 2.156):
     return level_km * 1e5
 
-def ctas_observation_level(level_km = 2.162):
+def ctas_observation_level(level_km = 2.147):
     return level_km * 1e5
 
 def ctan_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
