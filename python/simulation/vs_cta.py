@@ -145,6 +145,9 @@ def ctas_assets(filename = 'CTAS_ArrayElements_Positions.ecsv',
 def ctan_observation_level(level_km = 2.156):
     return level_km * 1e5
 
+def ctas_observation_level(level_km = 2.162):
+    return level_km * 1e5
+
 def ctan_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
             'ecmwf_intermediate': 'atmprof_ecmwf_north_intermediate_fixed.dat',
             'ecmwf_summer': 'atmprof_ecmwf_north_summer_fixed.dat',
@@ -172,6 +175,12 @@ def ctan_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
 
     return atm
 
+def ctas_atmosphere(profile = 'ecmwf_winter', standard_profiles = {
+            'ecmwf_winter': 'atmprof_ecmwf_south_winter_fixed.dat' },
+        zobs = ctas_observation_level(), quiet=False):
+    return ctan_atmosphere(profile = profile, standard_profiles = standard_profiles,
+        zobs = zobs, quiet=quiet)
+
 def ctan_atmospheric_absorption(absorption_model = 'navy_maritime', standard_models = {
             'low_extinction': 'atm_trans_2156_1_3_2_0_0_0.1_0.1.dat',
             'navy_maritime': 'atm_trans_2156_1_3_0_0_0.dat' },
@@ -183,6 +192,12 @@ def ctan_atmospheric_absorption(absorption_model = 'navy_maritime', standard_mod
         print('Loading atmospheric absoprtion model :',absorption_model)
 
     return atm_abs
+
+def ctas_atmospheric_absorption(absorption_model = 'desert', standard_models = {
+            'desert': 'atm_trans_2147_1_10_2_0_2147.dat' },
+        quiet=False):
+    return ctan_atmospheric_absorption(absorption_model = absorption_model,
+        standard_models = standard_models, quiet=quiet)
 
 def mstn_detection_efficiency(qe = 'qe_R12992-100-05b.dat',
         mirror = 'ref_MST-North-MLT_2022_06_28.dat',
