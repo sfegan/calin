@@ -66,7 +66,7 @@ message DetectorEvent
     [(CFO).desc = "Detector reference time for this event.",
      (CFO).units = "ns" ];
 
-  map<int32, PixelEvent> pixel_events                     = 10
+  map<int32, PixelEvent> pixel_event                      = 10
     [(CFO).desc = "Events for each pixel in this detector" ];
 };
 
@@ -80,10 +80,10 @@ message DetectorSetEvent
     [(CFO).desc = "Scattered detector offset for this event.",
      (CFO).units = "cm" ];
 
-  repeated DetectorSphere detector_spheres                 = 3
+  repeated DetectorSphere detector_sphere                  = 3
     [(CFO).desc = "Configuration of each detector in this set" ];
 
-   map<int32, DetectorEvent> detector_events               = 10
+   map<int32, DetectorEvent> detector_event                = 10
     [(CFO).desc = "Events for each detector in this set that detected a photon" ];
 };
 
@@ -136,6 +136,6 @@ message SimulatedEvent
   double weight                                           = 10
     [(CFO).desc = "Event weighting for thinning" ];
 
-  repeated DetectorSetEvent detector_set_events           = 20
+  repeated DetectorSetEvent detector_set_event            = 20
     [(CFO).desc = "Event as seen by each of the configured detector sets" ];
 };

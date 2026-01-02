@@ -42,6 +42,7 @@
 #include <simulation/detector_efficiency.hpp>
 #include <simulation/vcl_detector_efficiency.hpp>
 #include <simulation/atmosphere.hpp>
+#include <simulation/simulated_event.pb.h>
 
 namespace calin { namespace simulation { namespace vcl_iact {
 
@@ -430,6 +431,8 @@ public:
   calin::math::spline_interpolation::CubicSpline* new_height_dependent_pe_bandwidth_spline() const;
   double fixed_pe_bandwidth() const;
 
+  void to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const;
+
 #ifndef SWIG
   void visit_event(const calin::simulation::tracker::Event& event, bool& kill_event) final;
   void propagate_rays(calin::math::ray::VCLRay<double_real> ray, double_bvt ray_mask,
@@ -547,6 +550,8 @@ protected:
   double* grid_detector_z_ = nullptr;
   double* grid_detector_ssr_ = nullptr;
   int64_t* grid_idetector_ = nullptr;
+
+  calin::simulation::tracker::Event saved_event_;
 
   struct BandwidthManagerCacheEntry {
     std::string name;
@@ -1029,8 +1034,81 @@ VCLIACTArray<VCLArchitecture>::new_height_dependent_pe_bandwidth_spline() const
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
+to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const
+{
+  sim_event->set_event_id(saved_event_.event_id);
+  switch(saved_event_.type) {
+  case calin::simulation::tracker::ParticleType::GAMMA:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::GAMMA);
+    break;
+  case calin::simulation::tracker::ParticleType::ELECTRON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::ELECTRON);
+    break;
+  case calin::simulation::tracker::ParticleType::POSITRON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::POSITRON);
+    break;
+  case calin::simulation::tracker::ParticleType::MUON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::MUON);
+    break;
+  case calin::simulation::tracker::ParticleType::ANTI_MUON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::ANTI_MUON);
+    break;
+  case calin::simulation::tracker::ParticleType::PROTON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::PROTON);
+    break;
+  case calin::simulation::tracker::ParticleType::ANTI_PROTON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::ANTI_PROTON);
+    break;
+  case calin::simulation::tracker::ParticleType::OTHER:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::OTHER);
+    break;
+  }
+  sim_event->set_pdg_type(saved_event_.pdg_type);
+  sim_event->set_q(saved_event_.q);
+  sim_event->set_mass(saved_event_.mass);
+  auto* x0 = sim_event->mutable_x0();
+  x0->set_x(saved_event_.x0.x());
+  x0->set_y(saved_event_.x0.y());
+  x0->set_z(saved_event_.x0.z());
+  auto* u0 = sim_event->mutable_u0();
+  u0->set_x(saved_event_.u0.x());
+  u0->set_y(saved_event_.u0.y());
+  u0->set_z(saved_event_.u0.z());
+  sim_event->set_energy(saved_event_.e0);
+  sim_event->set_t0(saved_event_.t0);
+  sim_event->set_weight(saved_event_.weight);
+  sim_event->clear_detector_set_event();
+  for(const auto* propagator_set : propagator_set_) {
+    auto* new_detector_set_event = sim_event->add_detector_set_event();
+    new_detector_set_event->set_scattered_distance(propagator_set->scattered_distance);
+    auto* so = new_detector_set_event->mutable_scattered_offset();
+    so->set_x(propagator_set->scattered_offset.x());
+    so->set_y(propagator_set->scattered_offset.y());
+    so->set_z(propagator_set->scattered_offset.z());
+    for(const auto* propagator : propagator_set->propagators) {
+      for(const auto* detector_info : propagator->detector_infos) {
+        auto* new_detector_sphere = new_detector_set_event->add_detector_sphere();
+        auto* r0 = new_detector_sphere->mutable_r0();
+        r0->set_x(detector_info->sphere.r0.x());
+        r0->set_y(detector_info->sphere.r0.y());
+        r0->set_z(detector_info->sphere.r0.z());
+        new_detector_sphere->set_radius(detector_info->sphere.radius);
+        auto* obs_dir = new_detector_sphere->mutable_obs_dir();
+        obs_dir->set_x(detector_info->sphere.obs_dir.x());
+        obs_dir->set_y(detector_info->sphere.obs_dir.y());
+        obs_dir->set_z(detector_info->sphere.obs_dir.z());
+        new_detector_sphere->set_field_of_view_radius(detector_info->sphere.field_of_view_radius);
+        new_detector_sphere->set_iobs(detector_info->sphere.iobs);
+      }
+    }
+  }
+}
+
+template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
 visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
 {
+  saved_event_ = event;
+  
   if(update_detector_efficiencies_is_pending_) {
     do_update_detector_efficiencies();
     update_detector_efficiencies_is_pending_ = false;
