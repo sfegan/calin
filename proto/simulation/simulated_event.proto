@@ -80,7 +80,7 @@ message DetectorSetEvent
     [(CFO).desc = "Scattered detector offset for this event.",
      (CFO).units = "cm" ];
 
-  repeated DetectorSphere configured_detectors             = 3
+  repeated DetectorSphere detector_spheres                 = 3
     [(CFO).desc = "Configuration of each detector in this set" ];
 
    map<int32, DetectorEvent> detector_events               = 10
