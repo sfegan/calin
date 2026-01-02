@@ -1,0 +1,141 @@
+/*
+
+   calin/proto/simulations/simulated_event.proto -- Stephen Fegan -- 2026-01-02
+
+   Protobufs for simulated events
+
+   Copyright 2026, Stephen Fegan <sfegan@llr.in2p3.fr>
+   Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
+
+   This file is part of "calin"
+
+   "calin" is free software: you can redistribute it and/or modify it
+   under the terms of the GNU General Public License version 2 or
+   later, as published by the Free Software Foundation.
+
+   "calin" is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+*/
+
+syntax = "proto3";
+
+import "calin.proto";
+import "common_types.proto";
+
+package calin.ix.simulation.simulated_event;
+
+message DetectorSphere
+{
+  calin.ix.common_types.Vector3D r0                        = 1
+    [(CFO).desc = "Position of the detector",
+     (CFO).units = "cm" ];
+  
+  double radius                                            = 2
+    [(CFO).desc = "Radius of the detector",
+     (CFO).units = "cm" ];
+
+  uint32 iobs                                              = 3
+    [(CFO).desc = "Observation layer associated with this detector" ];
+
+  calin.ix.common_types.Vector3D obs_dir                   = 4
+    [(CFO).desc = "Pointing direction of detector",
+     (CFO).units = "1" ];
+
+  double field_of_view_radius                              = 5
+    [(CFO).desc = "Field of view radius of detector",
+    (CFO).units = "degrees" ];
+};
+
+message PixelEvent
+{
+  repeated double time                                    = 1
+    [(CFO).desc = "Photon detection times relative to detector reference time.",
+     (CFO).units = "ns" ];
+
+  repeated double weight                                  = 2
+    [(CFO).desc = "Photon weights",
+     (CFO).units = "1" ];
+};
+
+message DetectorEvent
+{
+  double reference_time                                    = 1
+    [(CFO).desc = "Detector reference time for this event.",
+     (CFO).units = "ns" ];
+
+  map<int32, PixelEvent> pixel_events                     = 10
+    [(CFO).desc = "Events for each pixel in this detector" ];
+};
+
+message DetectorSetEvent
+{
+  double scattered_distance                                = 1
+    [(CFO).desc = "Scattered detector distance for this event.",
+     (CFO).units = "cm" ];
+
+  calin.ix.common_types.Vector3D scattered_offset          = 2
+    [(CFO).desc = "Scattered detector offset for this event.",
+     (CFO).units = "cm" ];
+
+  repeated DetectorSphere configured_detectors             = 3
+    [(CFO).desc = "Configuration of each detector in this set" ];
+
+   map<int32, DetectorEvent> detector_events               = 10
+    [(CFO).desc = "Events for each detector in this set that detected a photon" ];
+};
+
+enum ParticleType { 
+    GAMMA       = 0;
+    ELECTRON    = 1;
+    POSITRON    = 2;
+    MUON        = 3;
+    ANTI_MUON   = 4;
+    PROTON      = 5;
+    ANTI_PROTON = 6;
+    OTHER       = 7;
+};
+
+message SimulatedEvent 
+{
+  int64  event_id                                          = 1
+    [(CFO).desc = "Unique identifier for simulated event" ];
+
+  ParticleType type                                       =  2
+    [(CFO).desc = "Simplified particle type" ];
+
+  int32 pdg_type                                          =  3
+    [(CFO).desc = "PDG particle type code" ];   
+
+  double q                                                =  4
+    [(CFO).desc = "Particle charge",
+     (CFO).units = "e" ];
+
+  double mass                                              = 5
+    [(CFO).desc = "Particle rest mass",
+     (CFO).units = "MeV" ];
+
+  calin.ix.common_types.Vector3D x0                        = 6
+    [(CFO).desc = "Position of start of event",
+     (CFO).units = "cm" ];
+
+  calin.ix.common_types.Vector3D u0                        = 7
+    [(CFO).desc = "Direction of start of event",
+     (CFO).units = "1" ];
+
+  double energy                                            = 8
+    [(CFO).desc = "Primary energy at start of event",
+     (CFO).units = "MeV" ];
+
+  double t0                                                = 9  
+    [(CFO).desc = "Time at start of event",
+     (CFO).units = "ns" ];
+
+  double weight                                           = 10
+    [(CFO).desc = "Event weighting for thinning" ];
+
+  repeated DetectorSetEvent detector_set_events           = 20
+    [(CFO).desc = "Event as seen by each of the configured detector sets" ];
+};
