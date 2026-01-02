@@ -30,6 +30,7 @@
 #include <math/accumulator.hpp>
 #include <math/moments_calc.hpp>
 #include <simulation/detector_efficiency.hpp>
+#include <simulation/simulated_event.pb.h>
 
 namespace calin { namespace simulation { namespace pe_processor {
 
@@ -126,6 +127,8 @@ public:
   Eigen::VectorXi npe_vec(unsigned iscope) const;
   Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
   Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
+
+  void to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const;
 
 protected:
 #ifndef SWIG

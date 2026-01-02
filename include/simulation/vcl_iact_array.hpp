@@ -1100,6 +1100,16 @@ to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_e
         new_detector_sphere->set_field_of_view_radius(detector_info->sphere.field_of_view_radius);
         new_detector_sphere->set_iobs(detector_info->sphere.iobs);
       }
+      auto* peproc = dynamic_cast<const calin::simlulation::pe_processor::SimplePEProcessor*>(propagator->pe_processor);
+      if(peproc == nullptr) {
+        throw std::runtime_error("Only SimplePEProcessor supported in to_simulated_event()");
+      }
+      for(unsigned idetector=0; idetector<propagator->ndetector; idetector++) {
+        if(peproc->npix_hit(idetector)) {
+          auto& detector_event = new_detector_set_event->mutable_detector_event()[idetector + propagator->detector0];
+          peproc->to_simulated_detector_event(idetector, &detector_event);
+        }
+      }
     }
   }
 }

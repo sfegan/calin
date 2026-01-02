@@ -360,6 +360,25 @@ Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) 
   }
 }
 
+void SimpleListPEProcessor::to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const
+{
+  validate_iscope_ipix(iscope, 0);
+  double ref_time = tmin(iscope);
+  detector_event->set_reference_time(ref_time);
+  detector_event->set_time_max(tmax(iscope) - ref_time);
+  detector_event->clear_pixel_event();
+  for(unsigned ipix=0; ipix<npix_; ++ipix) {
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    if(pd != nullptr) {
+      auto pixel_event = (*detector_event->mutable_pixel_event())[ipix];      
+      for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
+        pixel_event.add_time(pd->t[ipe] - ref_time);
+        pixel_event.add_weight(pd->w[ipe]);
+      }
+    }
+  }
+}
+
 SimpleListPEProcessor::PixelData::PixelData():
   nalloc(64), 
   t(calin::util::memory::safe_aligned_calloc<double>(nalloc)), 

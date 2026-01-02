@@ -66,6 +66,10 @@ message DetectorEvent
     [(CFO).desc = "Detector reference time for this event.",
      (CFO).units = "ns" ];
 
+  double time_max                                          = 2
+    [(CFO).desc = "Maximum photon detection time for this event relative to reference time.",
+     (CFO).units = "ns" ];
+
   map<int32, PixelEvent> pixel_event                      = 10
     [(CFO).desc = "Events for each pixel in this detector" ];
 };
