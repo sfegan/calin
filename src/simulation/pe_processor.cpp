@@ -370,7 +370,7 @@ void SimpleListPEProcessor::to_simulated_event(unsigned iscope, calin::ix::simul
   for(unsigned ipix=0; ipix<npix_; ++ipix) {
     auto pd = scopes_[iscope].pixel_data[ipix];
     if(pd != nullptr) {
-      auto pixel_event = (*detector_event->mutable_pixel_event())[ipix];      
+      auto& pixel_event = (*detector_event->mutable_pixel_event())[ipix];      
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
         pixel_event.add_time(pd->t[ipe] - ref_time);
         pixel_event.add_weight(pd->w[ipe]);
