@@ -127,7 +127,9 @@ public:
   Eigen::VectorXi npe_vec(unsigned iscope) const;
   Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
   Eigen::VectorXd pe_w_vec(unsigned iscope, unsigned ipix) const;
-
+  
+  unsigned nscope() const { return nscope_; }
+  unsigned npix() const { return npix_; }
   void to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const;
 
 protected:
