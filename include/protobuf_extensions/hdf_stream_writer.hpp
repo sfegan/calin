@@ -441,6 +441,18 @@ private:
   std::vector<char*> cache_;
 };
 
+//  .d8888b.  888            d8b                          d8888                                  
+// d88P  Y88b 888            Y8P                         d88888                                  
+// Y88b.      888                                       d88P888                                  
+//  "Y888b.   888888 888d888 888 88888b.   .d88b.      d88P 888 888d888 888d888 8888b.  888  888 
+//     "Y88b. 888    888P"   888 888 "88b d88P"88b    d88P  888 888P"   888P"      "88b 888  888 
+//       "888 888    888     888 888  888 888  888   d88P   888 888     888    .d888888 888  888 
+// Y88b  d88P Y88b.  888     888 888  888 Y88b 888  d8888888888 888     888    888  888 Y88b 888 
+//  "Y8888P"   "Y888 888     888 888  888  "Y88888 d88P     888 888     888    "Y888888  "Y88888 
+//                                             888                                           888 
+//                                        Y8b d88P                                      Y8b d88P 
+//                                         "Y88P"                                        "Y88P"  
+
 class StringArrayDatasetWriter{
 public:
   StringArrayDatasetWriter(const HDFStreamWriterBase* base_ptr, const std::string dataset_name);
@@ -521,6 +533,18 @@ private:
   hsize_t nrow_ = 0;
   std::vector<std::string> cache_;
 };
+
+// 888888b.            888                            d8888                                  
+// 888  "88b           888                           d88888                                  
+// 888  .88P           888                          d88P888                                  
+// 8888888K.  888  888 888888 .d88b.  .d8888b      d88P 888 888d888 888d888 8888b.  888  888 
+// 888  "Y88b 888  888 888   d8P  Y8b 88K         d88P  888 888P"   888P"      "88b 888  888 
+// 888    888 888  888 888   88888888 "Y8888b.   d88P   888 888     888    .d888888 888  888 
+// 888   d88P Y88b 888 Y88b. Y8b.          X88  d8888888888 888     888    888  888 Y88b 888 
+// 8888888P"   "Y88888  "Y888 "Y8888   88888P' d88P     888 888     888    "Y888888  "Y88888 
+//                 888                                                                   888 
+//            Y8b d88P                                                              Y8b d88P 
+//             "Y88P"                                                                "Y88P"  
 
 class BytesArrayDatasetWriter{
 public:
