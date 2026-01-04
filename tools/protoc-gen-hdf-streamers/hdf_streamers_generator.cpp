@@ -549,6 +549,18 @@ void generate_message_stream_writers_impl(
       "dsw_type", dsw_type(f),
       "dsw_name", dsw_name(f),
       "name", f->name());
+    if(!cfo->desc().empty()) {
+      printer.Print(
+        "$dsw_name$->write_attribute(\"description\",\"$desc$\");\n",
+          "dsw_name", dsw_name(f),
+          "desc", string_escape(cfo->desc()));
+    }
+    if(!cfo->units().empty()) {
+      printer.Print(
+        "$dsw_name$->write_attribute(\"units\",\"$units$\");\n",
+          "dsw_name", dsw_name(f),
+          "units", string_escape(cfo->units()));
+    }
   }
   printer.Outdent();
   printer.Print("}\n\n");
