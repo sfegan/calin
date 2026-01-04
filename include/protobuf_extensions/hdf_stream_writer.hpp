@@ -429,6 +429,10 @@ public:
 
   void flush();
 
+  template<typename ValueType> void write_attribute(const std::string& name,  ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
+
 private:
   std::string dataset_name_;
   hid_t dataset_id_ = -1;
@@ -505,6 +509,10 @@ public:
   }
 
   void flush();
+
+  template<typename ValueType> void write_attribute(const std::string& name,  ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
 
 private:
   std::string dataset_name_;
@@ -681,7 +689,7 @@ public:
   // to internal datasets for the moment. They can write other attribute types to the parent type
   // using the generated API, but not to internal messages. This could change. The function below
   // is only used to write the description and units attributes to internal messages.
-  
+
   void write_attribute(const std::string& name, const std::string& value) {
     if(message_writer_) {
       message_writer_->write_attribute(name, value);
