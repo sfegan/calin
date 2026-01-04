@@ -649,6 +649,8 @@ void generate_message_stream_writers_impl(
   for(const auto& attr_type: attr_types) {
     printer.Print(
       "void $hdf_stream_writer_name$::write_attribute(const std::string& name, $attr_type$ value) {\n"
+      "  if(name.empty()) { throw std::invalid_argument(\"Attribute name is empty\"); }\n"
+      "  if(name[0]=='_') { throw std::invalid_argument(\"Attribute name cannot start with underscore: \" + name); }\n"
       "  HDFStreamWriterBase::write_attribute(name, value);\n"
       "}\n\n",
       "hdf_stream_writer_name", hdf_stream_writer_name(d),

@@ -76,13 +76,13 @@ open_group(hid_t file_id, const std::string& groupname)
 {
   h5g_ = H5Gopen(file_id, groupname.c_str(), H5P_DEFAULT);
   if (h5g_ >= 0) {
-    hid_t h5d_nrow = H5Aopen(h5g_, "nrow", H5P_DEFAULT);
+    hid_t h5d_nrow = H5Aopen(h5g_, "_nrow", H5P_DEFAULT);
     if (h5d_nrow < 0) {
-      throw std::runtime_error("Failed to open attribute: nrow");
+      throw std::runtime_error("Failed to open attribute: \"_nrow\"");
     }
     if(H5Aread(h5d_nrow, H5T_NATIVE_UINT64, &nrow_) < 0) {
       H5Aclose(h5d_nrow);
-      throw std::runtime_error("Failed to read attribute: nrow");
+      throw std::runtime_error("Failed to read attribute: \"_nrow\"");
     }
     H5Aclose(h5d_nrow);
   }

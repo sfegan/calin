@@ -139,20 +139,20 @@ open_group(hid_t file_id, const std::string& groupname, const std::string& messa
     throw std::runtime_error("Failed to create group: " + groupname);
   }
 
-  h5d_nrow_ = H5Aopen(h5g_, "nrow", H5P_DEFAULT);
+  h5d_nrow_ = H5Aopen(h5g_, "_nrow", H5P_DEFAULT);
   if (h5d_nrow_ < 0) {
     hid_t space_id = H5Screate(H5S_SCALAR);
-    h5d_nrow_ = H5Acreate(h5g_, "nrow", H5T_INTEL_U64, space_id, H5P_DEFAULT, H5P_DEFAULT);
+    h5d_nrow_ = H5Acreate(h5g_, "_nrow", H5T_INTEL_U64, space_id, H5P_DEFAULT, H5P_DEFAULT);
     H5Sclose(space_id);
     if (h5d_nrow_ < 0) {
-      throw std::runtime_error("Failed to create attribute: nrow");
+      throw std::runtime_error("Failed to create attribute: \"_nrow\"");
     }
     if(H5Awrite(h5d_nrow_, H5T_NATIVE_UINT64, &nrow_) < 0) {
-      throw std::runtime_error("Failed to write attribute: nrow");
+      throw std::runtime_error("Failed to write attribute: \"_nrow\"");
     }
   } else {
     if(H5Aread(h5d_nrow_, H5T_NATIVE_UINT64, &nrow_) < 0) {
-      throw std::runtime_error("Failed to read attribute: nrow");
+      throw std::runtime_error("Failed to read attribute: \"_nrow\"");
     }
   }
 }
