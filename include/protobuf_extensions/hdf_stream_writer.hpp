@@ -705,7 +705,9 @@ private:
       message_writer_->write_attribute(attr.first, attr.second);
     }
     start_writer_ = std::make_unique<DatasetWriter<uint64_t> >(base_ptr_, field_name_+"::start", message_writer_->nrow());
+    start_writer_->write_attribute("description", "Index of first message for " + field_name);
     count_writer_ = std::make_unique<DatasetWriter<uint64_t> >(base_ptr_, field_name_+"::count", 0);
+    count_writer_->write_attribute("description", "Number of messages for " + field_name);
   }
 
   const HDFStreamWriterBase* base_ptr_ = nullptr;
