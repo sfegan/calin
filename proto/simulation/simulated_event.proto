@@ -53,26 +53,32 @@ message DetectorSphere
 
 message PixelEvent
 {
-  repeated float time                                      = 1
+  int32 pixel_id                                           = 1
+    [(CFO).desc = "Pixel identifier" ];
+
+  repeated float time                                      = 2
     [(CFO).desc = "Photon detection times relative to detector reference time.",
      (CFO).units = "ns" ];
 
-  repeated float weight                                    = 2
+  repeated float weight                                    = 3
     [(CFO).desc = "Photon weights",
      (CFO).units = "1" ];
 };
 
 message DetectorEvent
 {
-  double reference_time                                    = 1
-    [(CFO).desc = "Detector reference time for this event.",
+  int32 detector_id                                        = 1
+    [(CFO).desc = "Unique identifier for this detector within the set" ];
+
+  double reference_time                                    = 2
+    [(CFO).desc = "Detector reference (absolute) time for this event.",
      (CFO).units = "ns" ];
 
-  double time_max                                          = 2
+  double time_max                                          = 3
     [(CFO).desc = "Maximum photon detection time for this event relative to reference time.",
      (CFO).units = "ns" ];
 
-  map<int32, PixelEvent> pixel_event                      = 10
+  repeated PixelEvent pixel_event                          = 4
     [(CFO).desc = "Events for each pixel in this detector" ];
 };
 
@@ -89,7 +95,7 @@ message DetectorSetEvent
   repeated DetectorSphere detector_sphere                  = 3
     [(CFO).desc = "Configuration of each detector in this set" ];
 
-   map<int32, DetectorEvent> detector_event                = 10
+   repeated DetectorEvent detector_event                   = 10
     [(CFO).desc = "Events for each detector in this set that detected a photon" ];
 };
 

@@ -1079,6 +1079,7 @@ to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_e
   sim_event->set_weight(saved_event_.weight);
   sim_event->clear_detector_set_event();
   for(const auto* propagator_set : propagator_set_) {
+    unsigned idetector_global = 0;
     auto* new_detector_set_event = sim_event->add_detector_set_event();
     new_detector_set_event->set_scattered_distance(propagator_set->scattered_distance);
     auto* so = new_detector_set_event->mutable_scattered_offset();
@@ -1104,10 +1105,11 @@ to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_e
       if(peproc == nullptr) {
         throw std::runtime_error("Only SimpleListPEProcessor supported in to_simulated_event()");
       }
-      for(unsigned idetector=0; idetector<propagator->ndetector; idetector++) {
+      for(unsigned idetector=0; idetector<propagator->ndetector; idetector++,idetector_global++) {
         if(peproc->npix_hit(idetector)) {
-          auto& detector_event = (*new_detector_set_event->mutable_detector_event())[idetector + propagator->detector0];
-          peproc->to_simulated_event(idetector, &detector_event);
+          auto* detector_event = new_detector_set_event->add_detector_event();
+          peproc->to_simulated_event(idetector, detector_event);
+          detector_event->set_detector_id(idetector_global); // Override with global ID
         }
       }
     }

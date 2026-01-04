@@ -364,16 +364,18 @@ void SimpleListPEProcessor::to_simulated_event(unsigned iscope, calin::ix::simul
 {
   validate_iscope_ipix(iscope, 0);
   double ref_time = tmin(iscope);
+  detector_event->set_detector_id(iscope);
   detector_event->set_reference_time(ref_time);
   detector_event->set_time_max(tmax(iscope) - ref_time);
   detector_event->clear_pixel_event();
   for(unsigned ipix=0; ipix<npix_; ++ipix) {
     auto pd = scopes_[iscope].pixel_data[ipix];
     if(pd != nullptr) {
-      auto& pixel_event = (*detector_event->mutable_pixel_event())[ipix];      
+      auto* pixel_event = detector_event->add_pixel_event();
+      pixel_event->set_pixel_id(ipix);
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
-        pixel_event.add_time(pd->t[ipe] - ref_time);
-        pixel_event.add_weight(pd->w[ipe]);
+        pixel_event->add_time(pd->t[ipe] - ref_time);
+        pixel_event->add_weight(pd->w[ipe]);
       }
     }
   }
