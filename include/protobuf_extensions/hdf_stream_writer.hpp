@@ -677,6 +677,11 @@ public:
     }
   }
 
+  // Only support string for the moment since there is no way for user to write attributes
+  // to internal datasets for the moment. They can write other attribute types to the parent type
+  // using the generated API, but not to internal messages. This could change. The function below
+  // is only used to write the description and units attributes to internal messages.
+  
   void write_attribute(const std::string& name, const std::string& value) {
     if(message_writer_) {
       message_writer_->write_attribute(name, value);
