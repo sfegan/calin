@@ -1059,6 +1059,27 @@ to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_e
   case calin::simulation::tracker::ParticleType::ANTI_PROTON:
     sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::ANTI_PROTON);
     break;
+  case calin::simulation::tracker::ParticleType::NEUTRON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::NEUTRON);
+    break;
+  case calin::simulation::tracker::ParticleType::HELIUM:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::HELIUM);
+    break;
+  case calin::simulation::tracker::ParticleType::CARBON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::CARBON);
+    break;
+  case calin::simulation::tracker::ParticleType::OXYGEN:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::OXYGEN);
+    break;
+  case calin::simulation::tracker::ParticleType::MAGNESIUM:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::MAGNESIUM);
+    break;
+  case calin::simulation::tracker::ParticleType::SILICON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::SILICON);
+    break;
+  case calin::simulation::tracker::ParticleType::IRON:
+    sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::IRON);
+    break;
   case calin::simulation::tracker::ParticleType::OTHER:
     sim_event->set_type(calin::ix::simulation::simulated_event::ParticleType::OTHER);
     break;

@@ -102,6 +102,7 @@ public:
     uint32_t seed = 0, double default_cut_value_cm = 10.0);
 
   std::string pdg_type_to_string(int pdg_type);
+  double pdg_type_to_mass(int pdg_type);
 
 protected:
   void construct();

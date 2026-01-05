@@ -537,6 +537,13 @@ visit_track(const Track& track, bool& kill_track)
       break;
     case calin::simulation::tracker::ParticleType::PROTON:
     case calin::simulation::tracker::ParticleType::ANTI_PROTON:
+    case calin::simulation::tracker::ParticleType::NEUTRON:
+    case calin::simulation::tracker::ParticleType::HELIUM:
+    case calin::simulation::tracker::ParticleType::CARBON:
+    case calin::simulation::tracker::ParticleType::OXYGEN:
+    case calin::simulation::tracker::ParticleType::MAGNESIUM:
+    case calin::simulation::tracker::ParticleType::SILICON:
+    case calin::simulation::tracker::ParticleType::IRON:
     case calin::simulation::tracker::ParticleType::OTHER:
       frame.other.emplace_back(x0,x1);
       break;

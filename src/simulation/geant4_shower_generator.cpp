@@ -21,6 +21,7 @@
 */
 
 #include <G4StateManager.hh>
+#include <G4IonTable.hh>
 
 #include <math/rng.hpp>
 #include <simulation/geant4_shower_generator.hpp>
@@ -157,6 +158,15 @@ void Geant4ShowerGenerator::construct()
 
   // initialize G4 kernel
   run_manager_->Initialize();
+
+  // Make the ions we support
+
+  // G4IonTable::GetIonTable()->GetIon(2, 4, 0.0); // Helium - already made by G4 as "alpha"
+  G4IonTable::GetIonTable()->GetIon(6, 12, 0.0); // Carbon
+  G4IonTable::GetIonTable()->GetIon(8, 16, 0.0); // Oxygen
+  G4IonTable::GetIonTable()->GetIon(12, 24, 0.0); // Magnesium
+  G4IonTable::GetIonTable()->GetIon(14, 28, 0.0); // Silicon
+  G4IonTable::GetIonTable()->GetIon(26, 56, 0.0); // Iron
 }
 
 Geant4ShowerGenerator::~Geant4ShowerGenerator()
@@ -263,6 +273,18 @@ std::string Geant4ShowerGenerator::pdg_type_to_string(int pdg_type)
     }
   }
   return std::to_string(pdg_type);
+}
+
+double Geant4ShowerGenerator::pdg_type_to_mass(int pdg_type)
+{
+  G4ParticleTable* table = G4ParticleTable::GetParticleTable();
+  if(table) {
+    const G4ParticleDefinition* particle = table->FindParticle(pdg_type);
+    if(particle) {
+      return particle->GetPDGMass() / CLHEP::MeV;
+    }
+  }
+  return -1;
 }
 
 Geant4ShowerGenerator::config_type Geant4ShowerGenerator::default_config()

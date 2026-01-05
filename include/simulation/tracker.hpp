@@ -37,7 +37,8 @@
 namespace calin { namespace simulation { namespace tracker {
 
 enum class ParticleType { GAMMA, ELECTRON, POSITRON, MUON, ANTI_MUON,
-    PROTON, ANTI_PROTON, OTHER };
+    PROTON, ANTI_PROTON, NEUTRON, HELIUM, CARBON, OXYGEN, MAGNESIUM, 
+    SILICON, IRON, OTHER };
 
 ParticleType pdg_type_to_particle_type(int pdg_type);
 int particle_type_to_pdg_type(ParticleType track_type);

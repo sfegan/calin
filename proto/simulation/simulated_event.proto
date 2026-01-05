@@ -113,7 +113,14 @@ enum ParticleType {
     ANTI_MUON   = 4;
     PROTON      = 5;
     ANTI_PROTON = 6;
-    OTHER       = 7;
+    NEUTRON     = 7;
+    HELIUM      = 8;
+    CARBON      = 9;
+    OXYGEN      = 10;
+    MAGNESIUM   = 11;
+    SILICON     = 12;
+    IRON        = 13;
+    OTHER       = 14;
 };
 
 message SimulatedEvent 
