@@ -360,6 +360,16 @@ Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) 
   }
 }
 
+void SimpleListPEProcessor::to_simulated_event(calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event) const
+{
+  for(unsigned iscope=0; iscope<nscope_; iscope++) {
+    if(npix_hit(iscope)) {
+      auto* detector_event = detector_group_event->add_detector_event();
+      to_simulated_event(iscope, detector_event);
+    }
+  }
+}
+
 void SimpleListPEProcessor::to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const
 {
   validate_iscope_ipix(iscope, 0);
