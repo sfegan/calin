@@ -431,7 +431,7 @@ public:
   calin::math::spline_interpolation::CubicSpline* new_height_dependent_pe_bandwidth_spline() const;
   double fixed_pe_bandwidth() const;
 
-  void to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const;
+  void save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const;
 
 #ifndef SWIG
   void visit_event(const calin::simulation::tracker::Event& event, bool& kill_event) final;
@@ -1034,7 +1034,7 @@ VCLIACTArray<VCLArchitecture>::new_height_dependent_pe_bandwidth_spline() const
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
-to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const
+save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const
 {
   sim_event->set_event_id(saved_event_.event_id);
   switch(saved_event_.type) {
@@ -1124,9 +1124,9 @@ to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_e
       }
       auto* peproc = dynamic_cast<const calin::simulation::pe_processor::SimpleListPEProcessor*>(propagator->pe_processor);
       if(peproc == nullptr) {
-        throw std::runtime_error("Only SimpleListPEProcessor supported in to_simulated_event()");
+        throw std::runtime_error("Only SimpleListPEProcessor supported in save_to_simulated_event()");
       }
-      peproc->to_simulated_event(new_detector_group_event);
+      peproc->save_to_simulated_event(new_detector_group_event);
     }
   }
 }

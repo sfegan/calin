@@ -130,8 +130,10 @@ public:
   
   unsigned nscope() const { return nscope_; }
   unsigned npix() const { return npix_; }
-  void to_simulated_event(calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event) const;
-  void to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const;
+
+  void save_to_simulated_event(calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event) const;
+  void save_to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const;
+  void load_from_simulated_event(const calin::ix::simulation::simulated_event::DetectorGroupEvent& detector_group_event);
 
 protected:
 #ifndef SWIG

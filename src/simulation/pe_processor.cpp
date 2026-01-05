@@ -247,7 +247,7 @@ void SimpleListPEProcessor::start_processing()
 }
 
 void SimpleListPEProcessor::process_focal_plane_hit(unsigned scope_id, int pixel_id,
-    double x, double y, double ux, double uy, double t, double pe_weight)
+  double x, double y, double ux, double uy, double t, double pe_weight)
 {
   if(pixel_id < 0) {
     return;
@@ -360,17 +360,17 @@ Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) 
   }
 }
 
-void SimpleListPEProcessor::to_simulated_event(calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event) const
+void SimpleListPEProcessor::save_to_simulated_event(calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event) const
 {
   for(unsigned iscope=0; iscope<nscope_; iscope++) {
     if(npix_hit(iscope)) {
       auto* detector_event = detector_group_event->add_detector_event();
-      to_simulated_event(iscope, detector_event);
+      save_to_simulated_event(iscope, detector_event);
     }
   }
 }
 
-void SimpleListPEProcessor::to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const
+void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const
 {
   validate_iscope_ipix(iscope, 0);
   double ref_time = tmin(iscope);
@@ -389,6 +389,26 @@ void SimpleListPEProcessor::to_simulated_event(unsigned iscope, calin::ix::simul
       }
     }
   }
+}
+
+void SimpleListPEProcessor::load_from_simulated_event(const calin::ix::simulation::simulated_event::DetectorGroupEvent& detector_group_event)
+{
+  this->start_processing();
+  for(int idetector=0; idetector<detector_group_event.detector_event_size(); ++idetector) {
+    const auto& detector_event = detector_group_event.detector_event(idetector);
+    unsigned iscope = detector_event.detector_id();
+    double ref_time = detector_event.reference_time();
+    for(int jpixel=0; jpixel<detector_event.pixel_event_size(); ++jpixel) {
+      const auto& pixel_event = detector_event.pixel_event(jpixel);
+      int ipix = pixel_event.pixel_id();
+      for(int kpe=0; kpe<pixel_event.time_size(); ++kpe) {
+        double t = pixel_event.time(kpe) + ref_time;
+        double w = pixel_event.weight(kpe);
+        this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, w);
+      }
+    }
+  }
+  this->finish_processing();
 }
 
 SimpleListPEProcessor::PixelData::PixelData():

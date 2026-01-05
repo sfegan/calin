@@ -84,10 +84,10 @@ message DetectorEvent
 
 message DetectorGroupEvent
 {
-  repeated DetectorSphere detector_sphere                  = 1
+  repeated DetectorSphere sphere                           = 1
     [(CFO).desc = "Details of containing sphere and pointing direction for each detector in this group." ];
 
-  repeated DetectorEvent detector_event                    = 10
+  repeated DetectorEvent detector                          = 10
     [(CFO).desc = "Events for each detector in this group that detected a photon." ];
 };
 
@@ -101,7 +101,7 @@ message DetectorArrayEvent
     [(CFO).desc = "Scattered detector offset for this event.",
      (CFO).units = "cm" ];
 
-   repeated DetectorGroupEvent detector_group_event        = 10
+   repeated DetectorGroupEvent group                        = 10
     [(CFO).desc = "Events for each detector group in the array." ];
 };
 
@@ -129,7 +129,7 @@ message SimulatedEvent
     [(CFO).desc = "Unique identifier for simulated event." ];
 
   ParticleType type                                        =  2
-    [(CFO).desc = "Simplified particle type" ];
+    [(CFO).desc = "Simplified particle type." ];
 
   int32 pdg_type                                           =  3
     [(CFO).desc = "PDG particle type code." ];   
@@ -161,7 +161,7 @@ message SimulatedEvent
   double weight                                            = 10
     [(CFO).desc = "Event weighting for thinning." ];
 
-  repeated DetectorArrayEvent detector_array_event         = 20
+  repeated DetectorArrayEvent array                        = 20
     [(CFO).desc = "Event as seen by each of the configured detector arrays." ];
 };
 
