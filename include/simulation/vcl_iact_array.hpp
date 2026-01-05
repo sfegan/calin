@@ -1098,18 +1098,18 @@ save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* 
   sim_event->set_energy(saved_event_.e0);
   sim_event->set_t0(saved_event_.t0);
   sim_event->set_weight(saved_event_.weight);
-  sim_event->clear_detector_array_event();
+  sim_event->clear_array();
   for(const auto* propagator_set : propagator_set_) {
-    auto* new_detector_array_event = sim_event->add_detector_array_event();
+    auto* new_detector_array_event = sim_event->add_array();
     new_detector_array_event->set_scattered_distance(propagator_set->scattered_distance);
     auto* so = new_detector_array_event->mutable_scattered_offset();
     so->set_x(propagator_set->scattered_offset.x());
     so->set_y(propagator_set->scattered_offset.y());
     so->set_z(propagator_set->scattered_offset.z());
     for(const auto* propagator : propagator_set->propagators) {
-      auto* new_detector_group_event = new_detector_array_event->add_detector_group_event();
+      auto* new_detector_group_event = new_detector_array_event->add_group();
       for(const auto* detector_info : propagator->detector_infos) {
-        auto* new_detector_sphere = new_detector_group_event->add_detector_sphere();
+        auto* new_detector_sphere = new_detector_group_event->add_sphere();
         auto* r0 = new_detector_sphere->mutable_r0();
         r0->set_x(detector_info->sphere.r0.x());
         r0->set_y(detector_info->sphere.r0.y());

@@ -78,7 +78,7 @@ message DetectorEvent
     [(CFO).desc = "Maximum photon detection time for this event relative to reference time.",
      (CFO).units = "ns" ];
 
-  repeated PixelEvent pixel_event                          = 4
+  repeated PixelEvent pixel                                = 4
     [(CFO).desc = "Events for each pixel in this detector." ];
 };
 
@@ -101,7 +101,7 @@ message DetectorArrayEvent
     [(CFO).desc = "Scattered detector offset for this event.",
      (CFO).units = "cm" ];
 
-   repeated DetectorGroupEvent group                        = 10
+   repeated DetectorGroupEvent group                       = 10
     [(CFO).desc = "Events for each detector group in the array." ];
 };
 
@@ -161,7 +161,7 @@ message SimulatedEvent
   double weight                                            = 10
     [(CFO).desc = "Event weighting for thinning." ];
 
-  repeated DetectorArrayEvent array                        = 20
+  repeated DetectorArrayEvent array                         = 20
     [(CFO).desc = "Event as seen by each of the configured detector arrays." ];
 };
 

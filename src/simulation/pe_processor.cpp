@@ -364,7 +364,7 @@ void SimpleListPEProcessor::save_to_simulated_event(calin::ix::simulation::simul
 {
   for(unsigned iscope=0; iscope<nscope_; iscope++) {
     if(npix_hit(iscope)) {
-      auto* detector_event = detector_group_event->add_detector_event();
+      auto* detector_event = detector_group_event->add_detector();
       save_to_simulated_event(iscope, detector_event);
     }
   }
@@ -377,11 +377,11 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope, calin::ix::
   detector_event->set_detector_id(iscope);
   detector_event->set_reference_time(ref_time);
   detector_event->set_time_max(tmax(iscope) - ref_time);
-  detector_event->clear_pixel_event();
+  detector_event->clear_pixel();
   for(unsigned ipix=0; ipix<npix_; ++ipix) {
     auto pd = scopes_[iscope].pixel_data[ipix];
     if(pd != nullptr) {
-      auto* pixel_event = detector_event->add_pixel_event();
+      auto* pixel_event = detector_event->add_pixel();
       pixel_event->set_pixel_id(ipix);
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
         pixel_event->add_time(pd->t[ipe] - ref_time);
@@ -394,12 +394,12 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope, calin::ix::
 void SimpleListPEProcessor::load_from_simulated_event(const calin::ix::simulation::simulated_event::DetectorGroupEvent& detector_group_event)
 {
   this->start_processing();
-  for(int idetector=0; idetector<detector_group_event.detector_event_size(); ++idetector) {
-    const auto& detector_event = detector_group_event.detector_event(idetector);
+  for(int idetector=0; idetector<detector_group_event.detector_size(); ++idetector) {
+    const auto& detector_event = detector_group_event.detector(idetector);
     unsigned iscope = detector_event.detector_id();
     double ref_time = detector_event.reference_time();
-    for(int jpixel=0; jpixel<detector_event.pixel_event_size(); ++jpixel) {
-      const auto& pixel_event = detector_event.pixel_event(jpixel);
+    for(int jpixel=0; jpixel<detector_event.pixel_size(); ++jpixel) {
+      const auto& pixel_event = detector_event.pixel(jpixel);
       int ipix = pixel_event.pixel_id();
       for(int kpe=0; kpe<pixel_event.time_size(); ++kpe) {
         double t = pixel_event.time(kpe) + ref_time;
