@@ -299,6 +299,28 @@ def mstn_spe_and_afterpulsing_amplitude_generator(spe = "spe_nectarcam_lmp_run15
         args['rescale_gain_to_unity'] = False
     return mstn_spe_amplitude_generator(spe = spe, spline_ninterval = spline_ninterval, **args)
 
+def mstn_impulse_response(pulse_file = "Pulse_template_nectarCam_17042020-noshift.dat", pulse_length_ns=60.0, pulse_decay_ns=8.0):
+    with open(pulse_file, 'r') as file:
+        file_record = calin.provenance.chronicle.register_file_open(pulse_file,
+            calin.ix.provenance.chronicle.AT_READ, 'calin.simulation.vs_cta.mstn_impulse_response')
+        comment = ""
+        for line in file.readlines():
+            if(line[0]=='#'):
+                comment += line
+        file_record.set_comment(comment)
+        calin.provenance.chronicle.register_file_close(file_record)   
+    pulse = numpy.loadtxt(pulse_file)
+    t = pulse[:,0]
+    dt = numpy.mean(numpy.diff(t))
+    nsample = int(pulse_length_ns/dt)
+    hg = numpy.zeros(nsample)
+    hg[0:len(pulse)] = pulse[:,1]
+    hg[len(pulse):] = pulse[-1,1] * numpy.exp(-numpy.arange(nsample-len(pulse))/pulse_decay_ns)
+    lg = numpy.zeros(nsample)
+    lg[0:len(pulse)] = pulse[:,2]
+    lg[len(pulse):] = pulse[-1,2] * numpy.exp(-numpy.arange(nsample-len(pulse))/pulse_decay_ns)
+    return dict(hg=hg, lg=lg, dt=dt)
+
 def dms(d,m,s):
     # Note that "negative" d=0 (e.g. -00:30:00) must be specified as 00:-30:00 or 00:00:-30
     sign = 1
