@@ -12,7 +12,7 @@
 #
 # SJF 2026-01-07: modified to add third digit to time column to allow 1/8 ns time
 # resolution be correctly represented
-$
+#
 # T     HG      LG
 #[ns]   [adc.]  [adc.]
 #
