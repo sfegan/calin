@@ -263,61 +263,6 @@ void SimpleListPEProcessor::clear()
   }
 }
 
-unsigned SimpleListPEProcessor::npix_hit(unsigned iscope) const
-{
-  validate_iscope_ipix(iscope, 0);
-  return scopes_[iscope].npix_hit;
-}
-
-unsigned SimpleListPEProcessor::npe(unsigned iscope, unsigned ipix) const
-{
-  validate_iscope_ipix(iscope, ipix);
-  auto pd = scopes_[iscope].pixel_data[ipix];
-  return pd==nullptr? 0 : pd->npe;
-}
-
-double SimpleListPEProcessor::tmin(unsigned iscope) const
-{
-  validate_iscope_ipix(iscope, 0);
-  return scopes_[iscope].tmin;
-}
-
-double SimpleListPEProcessor::tmax(unsigned iscope) const
-{
-  validate_iscope_ipix(iscope, 0);
-  return scopes_[iscope].tmax;
-}
-
-unsigned SimpleListPEProcessor::pe_ptrs(unsigned iscope, unsigned ipix, 
-  const double** t_ptr, const double** w_ptr) const
-{
-  validate_iscope_ipix(iscope, ipix);
-  auto pd = scopes_[iscope].pixel_data[ipix];
-  if(pd==nullptr) {
-    *t_ptr = nullptr;
-    *w_ptr = nullptr;
-    return 0;
-  } else {
-    *t_ptr = pd->t;
-    *w_ptr = pd->w;
-    return pd->npe;
-  }
-}
-
-const double* SimpleListPEProcessor::pe_t_ptr(unsigned iscope, unsigned ipix) const
-{
-  validate_iscope_ipix(iscope, ipix);
-  auto pd = scopes_[iscope].pixel_data[ipix];
-  return pd==nullptr? nullptr : pd->t;
-}
-
-const double* SimpleListPEProcessor::pe_w_ptr(unsigned iscope, unsigned ipix) const
-{
-  validate_iscope_ipix(iscope, ipix);
-  auto pd = scopes_[iscope].pixel_data[ipix];
-  return pd==nullptr? nullptr : pd->w;
-}
-
 Eigen::VectorXi SimpleListPEProcessor::npix_hit_vec() const
 {
   Eigen::VectorXi npix_hit(nscope_);

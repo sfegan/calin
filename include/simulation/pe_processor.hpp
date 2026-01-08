@@ -114,15 +114,52 @@ public:
     double x, double y, double ux, double uy, double t, double pe_weight) override;
   virtual void clear();
 
-  unsigned npix_hit(unsigned iscope) const;
-  unsigned npe(unsigned iscope, unsigned ipix) const;
-  double tmin(unsigned iscope) const;
-  double tmax(unsigned iscope) const;
+  unsigned npix_hit(unsigned iscope) const {
+    validate_iscope_ipix(iscope, 0);
+    return scopes_[iscope].npix_hit;
+  }
+
+  unsigned npe(unsigned iscope, unsigned ipix) const {
+    validate_iscope_ipix(iscope, ipix);
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    return pd==nullptr? 0 : pd->npe;
+  }
+
+  double tmin(unsigned iscope) const {
+    validate_iscope_ipix(iscope, 0);
+    return scopes_[iscope].tmin;
+  }
+
+  double tmax(unsigned iscope) const {
+    validate_iscope_ipix(iscope, 0);
+    return scopes_[iscope].tmax;
+  }
+
 #ifndef SWIG
-  unsigned pe_ptrs(unsigned iscope, unsigned ipix, const double** t_ptr, const double** w_ptr) const;
-  const double* pe_t_ptr(unsigned iscope, unsigned ipix) const;
-  const double* pe_w_ptr(unsigned iscope, unsigned ipix) const;
+  unsigned pe_ptrs(unsigned iscope, unsigned ipix, const double*& t_ptr, const double*& w_ptr) const {
+    validate_iscope_ipix(iscope, ipix);
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    if(pd==nullptr) {
+      return 0;
+    }     
+    t_ptr = pd->t;
+    w_ptr = pd->w;
+    return pd->npe;
+  }
+
+  const double* pe_t_ptr(unsigned iscope, unsigned ipix) const {
+    validate_iscope_ipix(iscope, ipix);
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    return pd==nullptr? nullptr : pd->t;
+  }
+
+  const double* pe_w_ptr(unsigned iscope, unsigned ipix) const {
+    validate_iscope_ipix(iscope, ipix);
+    auto pd = scopes_[iscope].pixel_data[ipix];
+    return pd==nullptr? nullptr : pd->w;
+  }
 #endif
+
   Eigen::VectorXi npix_hit_vec() const;
   Eigen::VectorXi npe_vec(unsigned iscope) const;
   Eigen::VectorXd pe_t_vec(unsigned iscope, unsigned ipix) const;
@@ -137,7 +174,7 @@ public:
 
 protected:
 #ifndef SWIG
-  void validate_iscope_ipix(unsigned iscope, unsigned ipix) const
+  inline void validate_iscope_ipix(unsigned iscope, unsigned ipix) const
   {
     if(iscope >= nscope_) {
       throw std::out_of_range("SimpleListPEProcessor: iscope out of range : "
