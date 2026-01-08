@@ -126,7 +126,6 @@ def load_assets(filename, utm_zone, utm_hemi,
         assets = [[a[0],a[1],a[2],a[3],a[4],a[5],a[6],(x-ref_X)*scale,(y-ref_Y)*scale] for (a,x,y) in zip(assets,X,Y)]
     else:
         assets = [[a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[5]-ref_E,a[6]-ref_N] for a in assets]
-
     return lat_ref,lon_ref,ref_alt,assets
 
 def ctan_default_assets_filename():
@@ -137,7 +136,10 @@ def ctan_assets(filename = ctan_default_assets_filename(),
         **args):
     return load_assets(ds_filename(filename), utm_zone, utm_hemi, **args)
 
-def ctas_assets(filename = 'CTAS_ArrayElements_Positions.ecsv',
+def ctas_default_assets_filename():
+    return 'CTAS_ArrayElements_Positions.ecsv'
+
+def ctas_assets(filename = ctas_default_assets_filename(),
         utm_zone = calin.util.utm.UTM_ZONE_19, utm_hemi = calin.util.utm.HEMI_SOUTH,
         **args):
     return load_assets(ds_filename(filename), utm_zone, utm_hemi, **args)
@@ -343,8 +345,8 @@ def dms(d,m,s):
 def mstn_generic_config(scope_x, scope_y, scope_z, array_lat, array_lon, array_alt,
         obscure_camera = True, include_window = False):
     mst = calin.ix.simulation.vs_optics.IsotropicDCArrayParameters()
-    mst.mutable_array_origin().set_latitude(array_lon/180*numpy.pi)
-    mst.mutable_array_origin().set_longitude(array_lon/180*numpy.pi)
+    mst.mutable_array_origin().set_latitude(array_lat*180/numpy.pi)
+    mst.mutable_array_origin().set_longitude(array_lon*180/numpy.pi)
     mst.mutable_array_origin().set_elevation(array_alt)
     try:
         for i in range(numpy.max([len(scope_x), len(scope_y), len(scope_z)])):
@@ -435,6 +437,20 @@ def mstn1_config(obscure_camera = True, assets_file = ctan_default_assets_filena
     scope_z = []
     for a in all_assets:
         if(a[0]=='MSTN' and a[1]=='03'):
+            scope_x.append(a[7]*100)
+            scope_y.append(a[8]*100)
+            scope_z.append(a[4]*100)
+    return mstn_generic_config(scope_x, scope_y, scope_z, array_lat, array_lon, array_alt*100,
+        obscure_camera = obscure_camera, include_window = include_window)
+
+def msts1_config(obscure_camera = True, assets_file = ctas_default_assets_filename(),
+        include_window = False):
+    array_lat,array_lon,array_alt,all_assets = ctas_assets(filename = assets_file)
+    scope_x = []
+    scope_y = []
+    scope_z = []
+    for a in all_assets:
+        if(a[0]=='MSTS' and a[1]=='02'):
             scope_x.append(a[7]*100)
             scope_y.append(a[8]*100)
             scope_z.append(a[4]*100)
