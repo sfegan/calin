@@ -299,7 +299,8 @@ def mstn_spe_and_afterpulsing_amplitude_generator(spe = "spe_nectarcam_lmp_run15
         args['rescale_gain_to_unity'] = False
     return mstn_spe_amplitude_generator(spe = spe, spline_ninterval = spline_ninterval, **args)
 
-def mstn_impulse_response(pulse_file = "Pulse_template_nectarCam_17042020-noshift.dat", pulse_length_ns=60.0, pulse_decay_ns=8.0):
+def mstn_impulse_response(pulse_file = "Pulse_template_nectarCam_17042020-noshift.dat", pulse_length_ns=60.0, pulse_decay_ns=3.5):
+    pulse_file = ds_filename(pulse_file)
     with open(pulse_file, 'r') as file:
         file_record = calin.provenance.chronicle.register_file_open(pulse_file,
             calin.ix.provenance.chronicle.AT_READ, 'calin.simulation.vs_cta.mstn_impulse_response')
@@ -315,10 +316,14 @@ def mstn_impulse_response(pulse_file = "Pulse_template_nectarCam_17042020-noshif
     nsample = int(pulse_length_ns/dt)
     hg = numpy.zeros(nsample)
     hg[0:len(pulse)] = pulse[:,1]
-    hg[len(pulse):] = pulse[-1,1] * numpy.exp(-numpy.arange(nsample-len(pulse))/pulse_decay_ns)
+    def decay():
+        n = nsample-len(pulse)
+        # return numpy.exp(-numpy.arange(nsample-len(pulse))/pulse_decay_ns*dt)
+        return 0.5*(1.0-numpy.tanh((numpy.arange(n)-n/2)/pulse_decay_ns*dt))
+    hg[len(pulse):] = pulse[-1,1] * decay()
     lg = numpy.zeros(nsample)
     lg[0:len(pulse)] = pulse[:,2]
-    lg[len(pulse):] = pulse[-1,2] * numpy.exp(-numpy.arange(nsample-len(pulse))/pulse_decay_ns)
+    lg[len(pulse):] = pulse[-1,2] * decay()
     return dict(hg=hg, lg=lg, dt=dt)
 
 def dms(d,m,s):
