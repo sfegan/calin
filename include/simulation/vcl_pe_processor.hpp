@@ -137,40 +137,47 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
 
-  void transfer_scope_pes_to_waveform(unsigned iscope, const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd())
+  // This function transfers PEs from the list into the waveform array. It can be used
+  // with any instance of SimpleListPEProcessor, not just this one. This allows
+  // the electronics simulation to be separated from the PE generation.
+  
+  void transfer_scope_pes_to_waveform(const calin::simulation::pe_processor::SimpleListPEProcessor& pe_list, unsigned iscope, 
+    const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd())
   {
     // Non-vectorized version. Takes advantage of "approximate" ordering of PEs
     // in time within each pixel to minimize memory accesses. Vectorized version
     // was more complex and was tested to be not much faster.
-    validate_iscope_ipix(iscope, 0);
+    
     if(channel_time_offset_ns.size()!=0 and channel_time_offset_ns.size()!=npix_) {
       throw std::domain_error("Time offset vector length is not equal to number of pixels " 
         + std::to_string(channel_time_offset_ns.size()) + " != " + std::to_string(npix_));
     }
 
-    double t0 = get_t0_for_scope(iscope);    
+    double t0 = pe_list.tmin(iscope) - time_advance_;
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
       double t0ipix = t0;
       if(channel_time_offset_ns.size()) {
         t0ipix -= channel_time_offset_ns[ipix];
       }
       real_t *__restrict__ pe_waveform_ptr_ = &pe_waveform_(0, ipix);
-      auto pd = scopes_[iscope].pixel_data[ipix];
-      if(pd==nullptr) {
+      const double* t_ptr = nullptr;
+      const double* w_ptr = nullptr;
+      unsigned npe = pe_list.pe_ptrs(iscope, ipix, t_ptr, w_ptr);
+      if(t_ptr==nullptr) {
         continue;
       }
-      int it = int(floor((pd->t[0] - t0ipix) * sampling_freq_ghz_));
-      double wt = pd->w[0];
-      for(unsigned ipe=1; ipe<pd->npe; ++ipe) {
-        int jt = int(floor((pd->t[ipe] - t0ipix) * sampling_freq_ghz_));
+      int it = int(floor((t_ptr[0] - t0ipix) * sampling_freq_ghz_));
+      double wt = w_ptr[0];
+      for(unsigned ipe=1; ipe<npe; ++ipe) {
+        int jt = int(floor((t_ptr[ipe] - t0ipix) * sampling_freq_ghz_));
         if(it==jt) {
-          wt += pd->w[ipe];
+          wt += w_ptr[ipe];
         } else {
           if(it>=0 and it<int(nsample_)) {
             pe_waveform_ptr_[it] += wt;
           }
           it = jt;
-          wt = pd->w[ipe];
+          wt = w_ptr[ipe];
         }
       }
       if(it>=0 and it<int(nsample_)) {
@@ -179,7 +186,12 @@ public:
     }
   }
 
-    vecX_t estimate_pes_in_window(unsigned window_size, unsigned window_start=0)
+  void transfer_scope_pes_to_waveform(unsigned iscope, const Eigen::VectorXd& channel_time_offset_ns = Eigen::VectorXd())
+  {
+    return transfer_scope_pes_to_waveform(*this, iscope, channel_time_offset_ns);
+  }
+
+  vecX_t estimate_pes_in_window(unsigned window_size, unsigned window_start=0)
   {
     if(window_size == 0) {
       throw std::out_of_range("Window size must be non-zero");
@@ -314,7 +326,6 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
 
-
   unsigned register_impulse_response(vecX_t& impulse_response, 
     const std::string& units, double window_fraction=0.6)
   {
@@ -420,6 +431,27 @@ public:
     s += "%)=" + calin::util::string::to_string_with_commas(ir.response_window_lo*time_resolution_ns_,1);
     s += "->" + calin::util::string::to_string_with_commas(ir.response_window_hi*time_resolution_ns_,1) + "ns";
     return s;
+  }
+
+  double impulse_response_peak_value(unsigned impulse_response_id) const
+  {
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+    return ir.response_peak_value;
+  }
+
+  double impulse_response_peak_time_ns(unsigned impulse_response_id) const
+  {
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+    return ir.response_peak_index * time_resolution_ns_;
+  }
+
+  double impulse_response_integral_peak_value(unsigned impulse_response_id) const
+  {
+    validate_impulse_response_id(impulse_response_id);
+    const ImpulseResponse& ir = impulse_responses_[impulse_response_id];
+    return ir.response_integral_peak_value * time_resolution_ns_;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -2135,10 +2167,6 @@ private:
   static inline unsigned round_nreal_to_vector(unsigned n) {
     return VCLReal::template round_nreal_up_to_vector_size<real_t>(n);
   } 
-
-  inline double get_t0_for_scope(unsigned iscope) const {
-    return scopes_[iscope].tmin - time_advance_;
-  }
 
   inline void validate_impulse_response_id(unsigned impulse_response_id) const {
     if(impulse_response_id >= impulse_responses_.size()) {
