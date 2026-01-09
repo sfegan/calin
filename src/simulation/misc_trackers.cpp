@@ -22,6 +22,7 @@
 
 #include <sys/time.h>
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <simulation/tracker.hpp>
 #include <simulation/misc_trackers.hpp>
@@ -366,6 +367,65 @@ replay_event_with_new_origin(calin::simulation::tracker::TrackVisitor* visitor, 
     }
   }
   visitor->leave_event();
+}
+
+// =============================================================================
+// =============================================================================
+//
+// LoggingTrackVisitor
+//
+// =============================================================================
+// =============================================================================
+
+LoggingTrackVisitor::LoggingTrackVisitor(unsigned logmax, const std::string& filename):
+  TrackVisitor(), logmax_(logmax) 
+{
+  if(filename != "") {
+    stream = new std::ofstream(filename);
+  }
+}
+
+LoggingTrackVisitor::~LoggingTrackVisitor()
+{
+  delete stream;
+}
+
+void LoggingTrackVisitor::visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
+{
+  logleft_ = logmax_;
+}
+
+namespace {
+  template<typename STREAM> void stream_track(STREAM&& stream, const calin::simulation::tracker::Track& track)
+  {
+    stream
+      << int(track.type) << ' '
+      << track.pdg_type << ' '
+      << track.q << ' '
+      << track.mass << ' '
+      << "[ " << track.x0.transpose() << " ] "
+      << "[ " << track.u0.transpose() << " ] "
+      << track.e0 << ' '
+      << track.t0 << ' '
+      << "[ " << track.dx_hat.transpose() << " ] "
+      << track.dx << ' '
+      << track.de << ' '
+      << track.dt;
+  }
+}
+
+void LoggingTrackVisitor::visit_track(const calin::simulation::tracker::Track& track, bool& kill_track)
+{
+  if(logmax_==0 or logleft_) {
+    if(stream) {
+      stream_track(*stream, track);
+      (*stream) << '\n';
+      stream->flush();
+    } else {
+      stream_track(LOG(INFO), track);
+    }
+    --logleft_;
+  }
 }
 
 // =============================================================================
