@@ -361,6 +361,20 @@ generate_mc_rays(bool drain_tracks)
     double_vt yield_per_ev = track_yield_const_ * sin2thetac;
     double_vt mfp = cherenkov_weight_/(bandwidth * yield_per_ev);
     double_vt dx_emission = vcl::min(mfp * rng_->exponential_double(), track_dx_);
+    if(vcl::horizontal_or(mfp <= 0)) {
+      LOG(ERROR) 
+        << "Non-positive mean-free-path encountered:\n"
+        << "z:          " << track_x_.z() << '\n'
+        << "NMO:        " << atm_->vcl_n_minus_one<VCLArchitecture>(track_x_.z()) << '\n'
+        << "Bandwidth:  " << bandwidth  << '\n'
+        << "Sin2thetac: " << sin2thetac << '\n'
+        << "Yield/eV:   " << yield_per_ev << '\n'
+        << "MFP:        " << mfp << '\n'
+        << "Track dx:   " << track_dx_;
+      throw std::logic_error(
+        calin::util::vcl::templated_class_name<VCLArchitecture>("VCLIACTTrackVisitor")
+        + "::generate_mc_rays: Non-positive mean-free-path encountered");
+    }
 
     double_vt sum_yield_z_to_the_n = dx_emission*yield_per_ev;
     sum_yield_ += sum_yield_z_to_the_n;

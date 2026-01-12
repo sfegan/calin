@@ -80,12 +80,12 @@ public:
   uint64_t ncached() const { return ncached_; }
   bool cache_full() const { return h5f_!=-1 and ncached_>=cache_size_; }
 
-  template<typename T> void write_attribute(const std::string& name, T value) {
-    hid_t attribute_id = H5Aopen(h5g_, name.c_str(), H5P_DEFAULT);
+  template<typename T> static void write_attribute_to_hid(hid_t hid, const std::string& name, T value) {
+    hid_t attribute_id = H5Aopen(hid, name.c_str(), H5P_DEFAULT);
     hid_t type_id = h5_datatype_selector<T>();
     if(attribute_id < 0) {
       hid_t space_id = H5Screate(H5S_SCALAR);
-      attribute_id = H5Acreate(h5g_, name.c_str(), type_id, space_id, H5P_DEFAULT, H5P_DEFAULT);
+      attribute_id = H5Acreate(hid, name.c_str(), type_id, space_id, H5P_DEFAULT, H5P_DEFAULT);
       H5Sclose(space_id);
       if (attribute_id < 0) {
         H5Tclose(type_id);
@@ -101,8 +101,12 @@ public:
     H5Aclose(attribute_id);
   }
 
-  void write_attribute(const std::string& name, const std::string& value) {
-    write_attribute(name, value.c_str());
+  static void write_attribute_to_hid(hid_t hid, const std::string& name, const std::string& value) {
+    write_attribute_to_hid(hid, name, value.c_str());
+  }
+
+  template<typename T> void write_attribute(const std::string& name, T value) {
+    write_attribute_to_hid(h5g_, name, value);
   }
 
   template<typename T> bool read_attribute(const std::string& name, T* value) {
@@ -244,6 +248,10 @@ public:
     cache_.clear();
   }
 
+  template<typename ValueType> void write_attribute(const std::string& name, ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
+
 private:
   std::string dataset_name_;
   hid_t dataset_id_ = -1;
@@ -377,6 +385,10 @@ public:
     cache_.clear();
   }
 
+  template<typename ValueType> void write_attribute(const std::string& name,  ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
+
 private:
   std::string dataset_name_;
   hid_t dataset_id_ = -1;
@@ -417,6 +429,10 @@ public:
 
   void flush();
 
+  template<typename ValueType> void write_attribute(const std::string& name,  ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
+
 private:
   std::string dataset_name_;
   hid_t dataset_id_ = -1;
@@ -424,6 +440,18 @@ private:
   hsize_t nrow_ = 0;
   std::vector<char*> cache_;
 };
+
+//  .d8888b.  888            d8b                          d8888                                  
+// d88P  Y88b 888            Y8P                         d88888                                  
+// Y88b.      888                                       d88P888                                  
+//  "Y888b.   888888 888d888 888 88888b.   .d88b.      d88P 888 888d888 888d888 8888b.  888  888 
+//     "Y88b. 888    888P"   888 888 "88b d88P"88b    d88P  888 888P"   888P"      "88b 888  888 
+//       "888 888    888     888 888  888 888  888   d88P   888 888     888    .d888888 888  888 
+// Y88b  d88P Y88b.  888     888 888  888 Y88b 888  d8888888888 888     888    888  888 Y88b 888 
+//  "Y8888P"   "Y888 888     888 888  888  "Y88888 d88P     888 888     888    "Y888888  "Y88888 
+//                                             888                                           888 
+//                                        Y8b d88P                                      Y8b d88P 
+//                                         "Y88P"                                        "Y88P"  
 
 class StringArrayDatasetWriter{
 public:
@@ -453,6 +481,10 @@ public:
   }
 
   void flush();
+
+  template<typename ValueType> void write_attribute(const std::string& name, ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
 
 private:
   std::string dataset_name_;
@@ -490,6 +522,10 @@ public:
 
   void flush();
 
+  template<typename ValueType> void write_attribute(const std::string& name,  ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
+
 private:
   std::string dataset_name_;
   hid_t dataset_id_ = -1;
@@ -497,6 +533,18 @@ private:
   hsize_t nrow_ = 0;
   std::vector<std::string> cache_;
 };
+
+// 888888b.            888                            d8888                                  
+// 888  "88b           888                           d88888                                  
+// 888  .88P           888                          d88P888                                  
+// 8888888K.  888  888 888888 .d88b.  .d8888b      d88P 888 888d888 888d888 8888b.  888  888 
+// 888  "Y88b 888  888 888   d8P  Y8b 88K         d88P  888 888P"   888P"      "88b 888  888 
+// 888    888 888  888 888   88888888 "Y8888b.   d88P   888 888     888    .d888888 888  888 
+// 888   d88P Y88b 888 Y88b. Y8b.          X88  d8888888888 888     888    888  888 Y88b 888 
+// 8888888P"   "Y88888  "Y888 "Y8888   88888P' d88P     888 888     888    "Y888888  "Y88888 
+//                 888                                                                   888 
+//            Y8b d88P                                                              Y8b d88P 
+//             "Y88P"                                                                "Y88P"  
 
 class BytesArrayDatasetWriter{
 public:
@@ -528,6 +576,10 @@ public:
 
   void flush();
 
+  template<typename ValueType> void write_attribute(const std::string& name, ValueType value) {
+    HDFStreamWriterBase::write_attribute_to_hid(dataset_id_, name, value);
+  }
+
 private:
   std::string dataset_name_;
   hid_t dataset_id_ = -1;
@@ -553,6 +605,7 @@ template<typename KeyWriter, typename ValueWriter> class MapWriter {
 public:
   MapWriter(const HDFStreamWriterBase* base_ptr, const std::string field_name) {
     key_writer_ = std::make_unique<KeyWriter>(base_ptr, field_name+"::key");
+    key_writer_->write_attribute("description", "Key for map field " + field_name);
     value_writer_ = std::make_unique<ValueWriter>(base_ptr, field_name);
   }
 
@@ -568,6 +621,10 @@ public:
   void flush() {
     key_writer_->flush();
     value_writer_->flush();
+  }
+
+  template<typename ValueType> void write_attribute(const std::string& name, ValueType value) {
+    value_writer_->write_attribute(name, value);
   }
 
 private:
@@ -652,15 +709,34 @@ public:
     }
   }
 
+  // Only support string for the moment since there is no way for user to write attributes
+  // to internal datasets for the moment. They can write other attribute types to the parent type
+  // using the generated API, but not to internal messages. This could change. The function below
+  // is only used to write the description and units attributes to internal messages.
+
+  void write_attribute(const std::string& name, const std::string& value) {
+    if(message_writer_) {
+      message_writer_->write_attribute(name, value);
+    } else {
+      deferred_attributes_.emplace_back(name, value);
+    }
+  } 
+
 private:
   void deferred_open_datasets() {
     message_writer_.reset(Message::__NewHDFStreamWriter(base_ptr_, field_name_));
+    for(const auto& attr : deferred_attributes_) {
+      message_writer_->write_attribute(attr.first, attr.second);
+    }
     start_writer_ = std::make_unique<DatasetWriter<uint64_t> >(base_ptr_, field_name_+"::start", message_writer_->nrow());
+    start_writer_->write_attribute("description", "Index of first message for " + field_name_);
     count_writer_ = std::make_unique<DatasetWriter<uint64_t> >(base_ptr_, field_name_+"::count", 0);
+    count_writer_->write_attribute("description", "Number of messages for " + field_name_);
   }
 
   const HDFStreamWriterBase* base_ptr_ = nullptr;
   const std::string field_name_;
+  std::vector<std::pair<std::string, std::string> > deferred_attributes_;
 
   std::unique_ptr<typename Message::stream_writer> message_writer_;
   std::unique_ptr<DatasetWriter<uint64_t> > start_writer_;

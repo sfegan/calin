@@ -111,7 +111,7 @@ message VCLIACTArrayConfiguration
 message VCLIACTGroundMapDetectorConfiguration
 {
   double x_gnd                                             = 1
-    [(CFO).desc = "X-osition of center of detector on ground.",
+    [(CFO).desc = "X-position of center of detector on ground.",
      (CFO).units = "cm" ];
   double y_gnd                                             = 2
     [(CFO).desc = "Y-position of center of detector on ground.",

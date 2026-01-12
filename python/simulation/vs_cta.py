@@ -126,7 +126,6 @@ def load_assets(filename, utm_zone, utm_hemi,
         assets = [[a[0],a[1],a[2],a[3],a[4],a[5],a[6],(x-ref_X)*scale,(y-ref_Y)*scale] for (a,x,y) in zip(assets,X,Y)]
     else:
         assets = [[a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[5]-ref_E,a[6]-ref_N] for a in assets]
-
     return lat_ref,lon_ref,ref_alt,assets
 
 def ctan_default_assets_filename():
@@ -137,12 +136,18 @@ def ctan_assets(filename = ctan_default_assets_filename(),
         **args):
     return load_assets(ds_filename(filename), utm_zone, utm_hemi, **args)
 
-def ctas_assets(filename = 'CTAS_ArrayElements_Positions.ecsv',
+def ctas_default_assets_filename():
+    return 'CTAS_ArrayElements_Positions.ecsv'
+
+def ctas_assets(filename = ctas_default_assets_filename(),
         utm_zone = calin.util.utm.UTM_ZONE_19, utm_hemi = calin.util.utm.HEMI_SOUTH,
         **args):
     return load_assets(ds_filename(filename), utm_zone, utm_hemi, **args)
 
 def ctan_observation_level(level_km = 2.156):
+    return level_km * 1e5
+
+def ctas_observation_level(level_km = 2.147):
     return level_km * 1e5
 
 def ctan_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
@@ -172,6 +177,12 @@ def ctan_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
 
     return atm
 
+def ctas_atmosphere(profile = 'ecmwf_winter', standard_profiles = {
+            'ecmwf_winter': 'atmprof_ecmwf_south_winter_fixed.dat' },
+        zobs = ctas_observation_level(), quiet=False):
+    return ctan_atmosphere(profile = profile, standard_profiles = standard_profiles,
+        zobs = zobs, quiet=quiet)
+
 def ctan_atmospheric_absorption(absorption_model = 'navy_maritime', standard_models = {
             'low_extinction': 'atm_trans_2156_1_3_2_0_0_0.1_0.1.dat',
             'navy_maritime': 'atm_trans_2156_1_3_0_0_0.dat' },
@@ -183,6 +194,12 @@ def ctan_atmospheric_absorption(absorption_model = 'navy_maritime', standard_mod
         print('Loading atmospheric absoprtion model :',absorption_model)
 
     return atm_abs
+
+def ctas_atmospheric_absorption(absorption_model = 'desert', standard_models = {
+            'desert': 'atm_trans_2147_1_10_2_0_2147.dat' },
+        quiet=False):
+    return ctan_atmospheric_absorption(absorption_model = absorption_model,
+        standard_models = standard_models, quiet=quiet)
 
 def mstn_detection_efficiency(qe = 'qe_R12992-100-05b.dat',
         mirror = 'ref_MST-North-MLT_2022_06_28.dat',
@@ -284,6 +301,33 @@ def mstn_spe_and_afterpulsing_amplitude_generator(spe = "spe_nectarcam_lmp_run15
         args['rescale_gain_to_unity'] = False
     return mstn_spe_amplitude_generator(spe = spe, spline_ninterval = spline_ninterval, **args)
 
+def mstn_impulse_response(pulse_file = "Pulse_template_nectarCam_17042020-noshift.dat", pulse_length_ns=60.0, pulse_decay_ns=3.5):
+    pulse_file = ds_filename(pulse_file)
+    with open(pulse_file, 'r') as file:
+        file_record = calin.provenance.chronicle.register_file_open(pulse_file,
+            calin.ix.provenance.chronicle.AT_READ, 'calin.simulation.vs_cta.mstn_impulse_response')
+        comment = ""
+        for line in file.readlines():
+            if(line[0]=='#'):
+                comment += line
+        file_record.set_comment(comment)
+        calin.provenance.chronicle.register_file_close(file_record)   
+    pulse = numpy.loadtxt(pulse_file)
+    t = pulse[:,0]
+    dt = numpy.mean(numpy.diff(t))
+    nsample = int(pulse_length_ns/dt)
+    hg = numpy.zeros(nsample)
+    hg[0:len(pulse)] = pulse[:,1]
+    def decay():
+        n = nsample-len(pulse)
+        # return numpy.exp(-numpy.arange(nsample-len(pulse))/pulse_decay_ns*dt)
+        return 0.5*(1.0-numpy.tanh((numpy.arange(n)-n/2)/pulse_decay_ns*dt))
+    hg[len(pulse):] = pulse[-1,1] * decay()
+    lg = numpy.zeros(nsample)
+    lg[0:len(pulse)] = pulse[:,2]
+    lg[len(pulse):] = pulse[-1,2] * decay()
+    return dict(hg=hg, lg=lg, dt=dt)
+
 def dms(d,m,s):
     # Note that "negative" d=0 (e.g. -00:30:00) must be specified as 00:-30:00 or 00:00:-30
     sign = 1
@@ -301,8 +345,8 @@ def dms(d,m,s):
 def mstn_generic_config(scope_x, scope_y, scope_z, array_lat, array_lon, array_alt,
         obscure_camera = True, include_window = False):
     mst = calin.ix.simulation.vs_optics.IsotropicDCArrayParameters()
-    mst.mutable_array_origin().set_latitude(array_lon/180*numpy.pi)
-    mst.mutable_array_origin().set_longitude(array_lon/180*numpy.pi)
+    mst.mutable_array_origin().set_latitude(array_lat*180/numpy.pi)
+    mst.mutable_array_origin().set_longitude(array_lon*180/numpy.pi)
     mst.mutable_array_origin().set_elevation(array_alt)
     try:
         for i in range(numpy.max([len(scope_x), len(scope_y), len(scope_z)])):
@@ -393,6 +437,20 @@ def mstn1_config(obscure_camera = True, assets_file = ctan_default_assets_filena
     scope_z = []
     for a in all_assets:
         if(a[0]=='MSTN' and a[1]=='03'):
+            scope_x.append(a[7]*100)
+            scope_y.append(a[8]*100)
+            scope_z.append(a[4]*100)
+    return mstn_generic_config(scope_x, scope_y, scope_z, array_lat, array_lon, array_alt*100,
+        obscure_camera = obscure_camera, include_window = include_window)
+
+def msts1_config(obscure_camera = True, assets_file = ctas_default_assets_filename(),
+        include_window = False):
+    array_lat,array_lon,array_alt,all_assets = ctas_assets(filename = assets_file)
+    scope_x = []
+    scope_y = []
+    scope_z = []
+    for a in all_assets:
+        if(a[0]=='MSTS' and a[1]=='02'):
             scope_x.append(a[7]*100)
             scope_y.append(a[8]*100)
             scope_z.append(a[4]*100)

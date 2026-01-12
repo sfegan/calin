@@ -56,14 +56,21 @@ calin::simulation::tracker::pdg_type_to_particle_type(int pdg_type)
 {
   switch(pdg_type)
   {
-    case 22:    return ParticleType::GAMMA;
-    case 11:    return ParticleType::ELECTRON;
-    case -11:   return ParticleType::POSITRON;
-    case 13:    return ParticleType::MUON;
-    case -13:   return ParticleType::ANTI_MUON;
-    case 2212:  return ParticleType::PROTON;
-    case -2212: return ParticleType::ANTI_PROTON;
-    default:    return ParticleType::OTHER;
+    case 22:         return ParticleType::GAMMA;
+    case 11:         return ParticleType::ELECTRON;
+    case -11:        return ParticleType::POSITRON;
+    case 13:         return ParticleType::MUON;
+    case -13:        return ParticleType::ANTI_MUON;
+    case 2212:       return ParticleType::PROTON;
+    case -2212:      return ParticleType::ANTI_PROTON;
+    case 2112:       return ParticleType::NEUTRON;
+    case 1000020040: return ParticleType::HELIUM;
+    case 1000060120: return ParticleType::CARBON;
+    case 1000080160: return ParticleType::OXYGEN;
+    case 1000120240: return ParticleType::MAGNESIUM;
+    case 1000140280: return ParticleType::SILICON;
+    case 1000260560: return ParticleType::IRON;
+    default:         return ParticleType::OTHER;
   };
   assert(0);
   return ParticleType::OTHER;
@@ -81,12 +88,23 @@ particle_type_to_pdg_type(calin::simulation::tracker::ParticleType track_type)
     case ParticleType::ANTI_MUON:   return -13;
     case ParticleType::PROTON:      return 2212;
     case ParticleType::ANTI_PROTON: return -2212;
+    case ParticleType::NEUTRON:     return 2112;
+    case ParticleType::HELIUM:      return 1000020040;
+    case ParticleType::CARBON:      return 1000060120;
+    case ParticleType::OXYGEN:      return 1000080160;
+    case ParticleType::MAGNESIUM:   return 1000120240;
+    case ParticleType::SILICON:     return 1000140280;
+    case ParticleType::IRON:        return 1000260560;
     case ParticleType::OTHER:
       throw(std::runtime_error("ParticleType::OTHER has no PDG type code"));
   };
   assert(0);
   return 0;
 }
+
+// Masses extracted from G4 in Python with:
+// for pdg in [ 22, 11, -11, 13, -13, 2212, -2212, 2112, 1000020040, 1000060120, 1000080160, 1000120240, 1000140280, 1000260560]:
+//     print(pdg, generator.pdg_type_to_string(pdg), generator.pdg_type_to_mass(pdg))
 
 double calin::simulation::tracker::
 particle_type_to_mass(ParticleType track_type)
@@ -97,13 +115,27 @@ particle_type_to_mass(ParticleType track_type)
       return 0.0;
     case ParticleType::ELECTRON:
     case ParticleType::POSITRON:
-      return 0.510998928;
+      return 0.51099891;
     case ParticleType::MUON:
     case ParticleType::ANTI_MUON:
       return 105.6583715;
     case ParticleType::PROTON:
     case ParticleType::ANTI_PROTON:
-      return 938.262046;
+      return 938.272013;
+    case ParticleType::NEUTRON:
+      return 939.56536;
+    case ParticleType::HELIUM:
+      return 3727.379;
+    case ParticleType::CARBON:
+      return 11174.86338798439;
+    case ParticleType::OXYGEN:
+      return 14895.081534649964;
+    case ParticleType::MAGNESIUM:
+      return 22335.796596658216;
+    case ParticleType::SILICON:
+      return 26053.193927338805;
+    case ParticleType::IRON:
+      return 52089.808009454995;
     case ParticleType::OTHER:
       throw(std::runtime_error("ParticleType::OTHER has no mass"));
   };
@@ -117,6 +149,7 @@ particle_type_to_charge(ParticleType track_type)
   switch(track_type)
   {
   case ParticleType::GAMMA:
+  case ParticleType::NEUTRON:
     return 0.0;
   case ParticleType::ELECTRON:
   case ParticleType::MUON:
@@ -126,6 +159,18 @@ particle_type_to_charge(ParticleType track_type)
   case ParticleType::ANTI_MUON:
   case ParticleType::PROTON:
     return 1.0;
+  case ParticleType::HELIUM:
+    return 2.0;
+  case ParticleType::CARBON:
+    return 6.0;
+  case ParticleType::OXYGEN:
+    return 8.0;
+  case ParticleType::MAGNESIUM:
+    return 12.0;
+  case ParticleType::SILICON:
+    return 14.0;
+  case ParticleType::IRON:
+    return 26.0;
   case ParticleType::OTHER:
     throw(std::runtime_error("ParticleType::OTHER has no charge"));
   };
@@ -152,6 +197,20 @@ particle_type_to_string(ParticleType track_type)
     return "PROTON-";
   case ParticleType::PROTON:
     return "PROTON+";
+  case ParticleType::NEUTRON:
+    return "NEUTRON";
+  case ParticleType::HELIUM:
+    return "HELIUM";
+  case ParticleType::CARBON:
+    return "CARBON";
+  case ParticleType::OXYGEN:
+    return "OXYGEN";
+  case ParticleType::MAGNESIUM:
+    return "MAGNESIUM";
+  case ParticleType::SILICON:
+    return "SILICON";
+  case ParticleType::IRON:
+    return "IRON";
   case ParticleType::OTHER:
     return "OTHER";
   };

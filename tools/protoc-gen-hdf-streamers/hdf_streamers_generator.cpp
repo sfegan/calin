@@ -373,6 +373,13 @@ void generate_message_stream_headers(
     "  virtual uint64_t nrow() = 0;\n"
     "  virtual void write(const $message_name$& m) = 0;\n"
     "  virtual void flush() = 0;\n"
+    "  virtual void write_attribute(const std::string& name, const std::string& value) = 0;\n"
+    "  virtual void write_attribute(const std::string& name, int32_t value) = 0;\n"
+    "  virtual void write_attribute(const std::string& name, uint32_t value) = 0;\n"
+    "  virtual void write_attribute(const std::string& name, int64_t value) = 0;\n"
+    "  virtual void write_attribute(const std::string& name, uint64_t value) = 0;\n"
+    "  virtual void write_attribute(const std::string& name, float value) = 0;\n"
+    "  virtual void write_attribute(const std::string& name, double value) = 0;\n"
     "};\n"
     "class $stream_reader_name$\n"
     "{\n"
@@ -454,6 +461,13 @@ void generate_message_stream_writers_impl(
     "  uint64_t nrow() final;\n"
     "  void write(const $message_name$& m) final;\n"
     "  void flush() final;\n"
+    "  void write_attribute(const std::string& name, const std::string& value) final;\n"
+    "  void write_attribute(const std::string& name, int32_t value) final;\n"
+    "  void write_attribute(const std::string& name, uint32_t value) final;\n"
+    "  void write_attribute(const std::string& name, int64_t value) final;\n"
+    "  void write_attribute(const std::string& name, uint64_t value) final;\n"
+    "  void write_attribute(const std::string& name, float value) final;\n"
+    "  void write_attribute(const std::string& name, double value) final;\n"
     "private:\n"
     "  void open_datasets();\n\n",
     "message_name", message_fullname(d),
@@ -535,6 +549,18 @@ void generate_message_stream_writers_impl(
       "dsw_type", dsw_type(f),
       "dsw_name", dsw_name(f),
       "name", f->name());
+    if(!cfo->desc().empty()) {
+      printer.Print(
+        "$dsw_name$->write_attribute(\"description\",\"$desc$\");\n",
+          "dsw_name", dsw_name(f),
+          "desc", string_escape(cfo->desc()));
+    }
+    if(!cfo->units().empty()) {
+      printer.Print(
+        "$dsw_name$->write_attribute(\"units\",\"$units$\");\n",
+          "dsw_name", dsw_name(f),
+          "units", string_escape(cfo->units()));
+    }
   }
   printer.Outdent();
   printer.Print("}\n\n");
@@ -614,6 +640,33 @@ void generate_message_stream_writers_impl(
 
   for(int i=0;i<d->nested_type_count();++i) {
     generate_message_stream_writers_impl(d->nested_type(i), printer);    
+  }
+
+  // ===================================================================================================
+  // ===================================================================================================
+  // WRITE ATTRIBUTES
+  // ===================================================================================================
+  // ===================================================================================================
+
+  std::vector<std::string> attr_types = {
+    "const std::string&",
+    "int32_t",
+    "uint32_t",
+    "int64_t",
+    "uint64_t",
+    "float",
+    "double"
+  };
+
+  for(const auto& attr_type: attr_types) {
+    printer.Print(
+      "void $hdf_stream_writer_name$::write_attribute(const std::string& name, $attr_type$ value) {\n"
+      "  if(name.empty()) { throw std::invalid_argument(\"Attribute name is empty\"); }\n"
+      "  if(name[0]=='_') { throw std::invalid_argument(\"Attribute name cannot start with underscore: \" + name); }\n"
+      "  HDFStreamWriterBase::write_attribute(name, value);\n"
+      "}\n\n",
+      "hdf_stream_writer_name", hdf_stream_writer_name(d),
+      "attr_type", attr_type);
   }
 }
 

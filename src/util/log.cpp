@@ -187,6 +187,7 @@ void MultiLogger::log_message(Level level, const std::string& message,
         ss.apply_timestamp_?timestamp_string.c_str():nullptr, this_level_string,
         ss.use_colors_?apply_color_string:nullptr, reset_color_string,
         message);
+      stream->flush();
     }
     catch(...)
     {

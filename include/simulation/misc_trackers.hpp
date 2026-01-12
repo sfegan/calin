@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <Eigen/Dense>
 #include <simulation/tracker.pb.h>
 #include <simulation/tracker.hpp>
@@ -117,6 +118,19 @@ private:
   std::vector<calin::simulation::tracker::Track> ground_tracks_;
   double ground_level_cm_ = 0;
   std::set<calin::simulation::tracker::ParticleType> type_filter_;
+};
+
+class LoggingTrackVisitor: public calin::simulation::tracker::TrackVisitor
+{
+public:
+  LoggingTrackVisitor(unsigned logmax = 0, const std::string& filename = "");
+  virtual ~LoggingTrackVisitor();
+  void visit_event(const calin::simulation::tracker::Event& event, bool& kill_event) override;
+  void visit_track(const calin::simulation::tracker::Track& track, bool& kill_track) override;
+private:
+  std::ostream* stream = nullptr;
+  unsigned logmax_ = 0;
+  unsigned logleft_ = 0;
 };
 
 class RecordingTrackVisitor: public calin::simulation::tracker::TrackVisitor

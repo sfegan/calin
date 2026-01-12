@@ -1,0 +1,281 @@
+/*
+
+   calin/proto/simulations/simulated_event.proto -- Stephen Fegan -- 2026-01-02
+
+   Protobufs for simulated events
+
+   Copyright 2026, Stephen Fegan <sfegan@llr.in2p3.fr>
+   Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
+
+   This file is part of "calin"
+
+   "calin" is free software: you can redistribute it and/or modify it
+   under the terms of the GNU General Public License version 2 or
+   later, as published by the Free Software Foundation.
+
+   "calin" is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+*/
+
+syntax = "proto3";
+
+import "calin.proto";
+import "common_types.proto";
+import "simulation/vcl_iact.proto";
+import "simulation/geant4_shower_generator.proto";
+
+package calin.ix.simulation.simulated_event;
+
+message DetectorSphere
+{
+  calin.ix.common_types.Vector3D r0                        = 1
+    [(CFO).desc = "Position of the detector.",
+     (CFO).units = "cm" ];
+  
+  double radius                                            = 2
+    [(CFO).desc = "Radius of the detector.",
+     (CFO).units = "cm" ];
+
+  uint32 iobs                                              = 3
+    [(CFO).desc = "Observation layer associated with this detector." ];
+
+  calin.ix.common_types.Vector3D obs_dir                   = 4
+    [(CFO).desc = "Pointing direction of detector.",
+     (CFO).units = "1" ];
+
+  double field_of_view_radius                              = 5
+    [(CFO).desc = "Field of view radius of detector.",
+    (CFO).units = "degrees" ];
+};
+
+message PixelEvent
+{
+  int32 pixel_id                                           = 1
+    [(CFO).desc = "Pixel identifier." ];
+
+  repeated float time                                      = 2
+    [(CFO).desc = "Photon detection times relative to detector reference time.",
+     (CFO).units = "ns" ];
+
+  repeated float weight                                    = 3
+    [(CFO).desc = "Photon weights",
+     (CFO).units = "1" ];
+};
+
+message DetectorEvent
+{
+  int32 detector_id                                        = 1
+    [(CFO).desc = "Unique identifier for this detector within the group." ];
+
+  double reference_time                                    = 2
+    [(CFO).desc = "Detector reference (absolute) time for this event.",
+     (CFO).units = "ns" ];
+
+  double time_max                                          = 3
+    [(CFO).desc = "Maximum photon detection time for this event relative to reference time.",
+     (CFO).units = "ns" ];
+
+  repeated PixelEvent pixel                                = 4
+    [(CFO).desc = "Events for each pixel in this detector." ];
+};
+
+message DetectorGroupEvent
+{
+  repeated DetectorSphere sphere                           = 1
+    [(CFO).desc = "Details of containing sphere and pointing direction for each detector in this group." ];
+
+  repeated DetectorEvent detector                          = 10
+    [(CFO).desc = "Events for each detector in this group that detected a photon." ];
+};
+
+message DetectorArrayEvent
+{
+  double scattered_distance                                = 1
+    [(CFO).desc = "Scattered detector distance for this event.",
+     (CFO).units = "cm" ];
+
+  calin.ix.common_types.Vector3D scattered_offset          = 2
+    [(CFO).desc = "Scattered detector offset for this event.",
+     (CFO).units = "cm" ];
+
+   repeated DetectorGroupEvent group                       = 10
+    [(CFO).desc = "Events for each detector group in the array." ];
+};
+
+enum ParticleType { 
+    GAMMA       = 0;
+    ELECTRON    = 1;
+    POSITRON    = 2;
+    MUON        = 3;
+    ANTI_MUON   = 4;
+    PROTON      = 5;
+    ANTI_PROTON = 6;
+    NEUTRON     = 7;
+    HELIUM      = 8;
+    CARBON      = 9;
+    OXYGEN      = 10;
+    MAGNESIUM   = 11;
+    SILICON     = 12;
+    IRON        = 13;
+    OTHER       = 14;
+};
+
+message SimulatedEvent 
+{
+  int64  event_id                                          = 1
+    [(CFO).desc = "Unique identifier for simulated event." ];
+
+  ParticleType type                                        =  2
+    [(CFO).desc = "Simplified particle type." ];
+
+  int32 pdg_type                                           =  3
+    [(CFO).desc = "PDG particle type code." ];   
+
+  double q                                                 =  4
+    [(CFO).desc = "Particle charge.",
+     (CFO).units = "e" ];
+
+  double mass                                              = 5
+    [(CFO).desc = "Particle rest mass.",
+     (CFO).units = "MeV" ];
+
+  calin.ix.common_types.Vector3D x0                        = 6
+    [(CFO).desc = "Position of start of event.",
+     (CFO).units = "cm" ];
+
+  calin.ix.common_types.Vector3D u0                        = 7
+    [(CFO).desc = "Direction of start of event.",
+     (CFO).units = "1" ];
+
+  double energy                                            = 8
+    [(CFO).desc = "Primary energy at start of event.",
+     (CFO).units = "MeV" ];
+
+  double t0                                                = 9  
+    [(CFO).desc = "Time at start of event.",
+     (CFO).units = "ns" ];
+
+  double weight                                            = 10
+    [(CFO).desc = "Event weighting for thinning." ];
+
+  repeated DetectorArrayEvent array                         = 20
+    [(CFO).desc = "Event as seen by each of the configured detector arrays." ];
+};
+
+message AtmosphericLayer
+{
+  double altitude_top                                      = 1
+    [(CFO).desc = "Altitude at top of layer.",
+     (CFO).units = "cm" ];
+
+  double altitude_bottom                                   = 2
+    [(CFO).desc = "Altitude at bottom of layer.",
+     (CFO).units = "cm" ];
+
+  double thickness_top                                     = 3
+    [(CFO).desc = "Thickness at top of layer.",
+     (CFO).units = "g/cm2" ];
+
+  double density                                           = 4
+    [(CFO).desc = "Mean density of layer.",
+     (CFO).units = "g/cm3" ];
+
+  double n_minus_one_top                                   = 5
+    [(CFO).desc = "Refractive index minus 1 at top of layer.",
+     (CFO).units = "1" ];
+
+  double yield_top                                         = 6
+    [(CFO).desc = "Cherenkov yield at top of layer.",
+     (CFO).units = "ph/cm" ];
+
+  calin.ix.common_types.Vector3D bfield_top                = 7
+    [(CFO).desc = "Geomagnetic field vector at top of layer.",
+     (CFO).units = "nT" ];
+
+  double absorption_1x0ev_top                              = 8
+    [(CFO).desc = "Absorption probability for 1.0 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+
+  double absorption_1x5ev_top                              = 9
+    [(CFO).desc = "Absorption probability for 1.5 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+
+  double absorption_2x0ev_top                              = 10
+    [(CFO).desc = "Absorption probability for 2.0 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+
+  double absorption_2x5ev_top                              = 11
+    [(CFO).desc = "Absorption probability for 2.5 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+
+  double absorption_3x0ev_top                              = 12
+    [(CFO).desc = "Absorption probability for 3.0 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+
+  double absorption_3x5ev_top                              = 13
+    [(CFO).desc = "Absorption probability for 3.5 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+
+  double absorption_4x0ev_top                              = 14
+    [(CFO).desc = "Absorption probability for 4.0 eV photon from top of layer.",
+     (CFO).units = "cm" ];
+};
+
+message DetectorGroupConfiguration
+{
+  string name                                              = 1
+    [(CFO).desc = "Name of this detector group." ];
+
+  uint32 ndetector                                         = 2
+    [(CFO).desc = "Number of detectors in this group" ];
+
+  uint32 detector0                                         = 3
+    [(CFO).desc = "Index of first detector in this group." ];
+  
+  string propagator_banner                                 = 10
+    [(CFO).desc = "Banner or description for the propagator." ];
+
+  string bandwidth_manager_banner                          = 11
+    [(CFO).desc = "Banner or description for the bandwidth manager." ];
+
+  string pe_processor_banner                               = 12
+    [(CFO).desc = "Banner or description for the PE processor." ];
+
+  double pe_time_spread                                    = 13
+    [(CFO).desc = "Time resolution for pe detector.",
+     (CFO).units = "ns" ];
+};
+
+message DetectorArrayConfiguration
+{
+  string name                                              = 1
+    [(CFO).desc = "Name of this detector set." ];
+
+  double scattered_distance                                = 2
+    [(CFO).desc = "Scattered detector distance for this set.",
+     (CFO).units = "cm" ];
+
+  repeated DetectorGroupConfiguration detector_group_config = 10
+    [(CFO).desc = "Configuration for the detector groups in this set."];
+};  
+
+message SimulationConfiguration
+{
+  string banner                                            = 1
+    [(CFO).desc = "Banner or description for this simulation run." ];
+
+  repeated AtmosphericLayer atmospheric_layer              = 2
+    [(CFO).desc = "Atmospheric layers." ];
+
+  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 10
+    [(CFO).desc = "Configuration for GEANT4 shower generation." ];
+
+  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 20
+    [(CFO).desc = "Configuration for IACT array simulation." ];
+
+  DetectorArrayConfiguration detector_array_config             = 30
+    [(CFO).desc = "Configuration for detector arrays in this simulation." ];
+};

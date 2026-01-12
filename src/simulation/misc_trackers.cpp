@@ -22,6 +22,7 @@
 
 #include <sys/time.h>
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <simulation/tracker.hpp>
 #include <simulation/misc_trackers.hpp>
@@ -371,6 +372,65 @@ replay_event_with_new_origin(calin::simulation::tracker::TrackVisitor* visitor, 
 // =============================================================================
 // =============================================================================
 //
+// LoggingTrackVisitor
+//
+// =============================================================================
+// =============================================================================
+
+LoggingTrackVisitor::LoggingTrackVisitor(unsigned logmax, const std::string& filename):
+  TrackVisitor(), logmax_(logmax) 
+{
+  if(filename != "") {
+    stream = new std::ofstream(filename);
+  }
+}
+
+LoggingTrackVisitor::~LoggingTrackVisitor()
+{
+  delete stream;
+}
+
+void LoggingTrackVisitor::visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
+{
+  logleft_ = logmax_;
+}
+
+namespace {
+  template<typename STREAM> void stream_track(STREAM&& stream, const calin::simulation::tracker::Track& track)
+  {
+    stream
+      << int(track.type) << ' '
+      << track.pdg_type << ' '
+      << track.q << ' '
+      << track.mass << ' '
+      << "[ " << track.x0.transpose() << " ] "
+      << "[ " << track.u0.transpose() << " ] "
+      << track.e0 << ' '
+      << track.t0 << ' '
+      << "[ " << track.dx_hat.transpose() << " ] "
+      << track.dx << ' '
+      << track.de << ' '
+      << track.dt;
+  }
+}
+
+void LoggingTrackVisitor::visit_track(const calin::simulation::tracker::Track& track, bool& kill_track)
+{
+  if(logmax_==0 or logleft_) {
+    if(stream) {
+      stream_track(*stream, track);
+      (*stream) << '\n';
+      stream->flush();
+    } else {
+      stream_track(LOG(INFO), track);
+    }
+    --logleft_;
+  }
+}
+
+// =============================================================================
+// =============================================================================
+//
 // SubshowerTrackVisitor
 //
 // =============================================================================
@@ -537,6 +597,13 @@ visit_track(const Track& track, bool& kill_track)
       break;
     case calin::simulation::tracker::ParticleType::PROTON:
     case calin::simulation::tracker::ParticleType::ANTI_PROTON:
+    case calin::simulation::tracker::ParticleType::NEUTRON:
+    case calin::simulation::tracker::ParticleType::HELIUM:
+    case calin::simulation::tracker::ParticleType::CARBON:
+    case calin::simulation::tracker::ParticleType::OXYGEN:
+    case calin::simulation::tracker::ParticleType::MAGNESIUM:
+    case calin::simulation::tracker::ParticleType::SILICON:
+    case calin::simulation::tracker::ParticleType::IRON:
     case calin::simulation::tracker::ParticleType::OTHER:
       frame.other.emplace_back(x0,x1);
       break;
