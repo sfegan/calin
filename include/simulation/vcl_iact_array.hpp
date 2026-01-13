@@ -32,10 +32,12 @@
 #include <vector>
 #include <sstream>
 
+#include <calin_global_definitions.hpp>
 #include <util/log.hpp>
 #include <util/string.hpp>
 #include <math/special.hpp>
 #include <math/hex_array.hpp>
+#include <math/least_squares.hpp>
 #include <simulation/vcl_iact.hpp>
 #include <simulation/vcl_ray_propagator.hpp>
 #include <simulation/vcl_raytracer.hpp>
@@ -350,6 +352,7 @@ public:
 
   virtual ~VCLIACTArray();
 
+  unsigned add_propagator_set(Eigen::VectorXd scattering_radius_polynomial, const std::string& name = "");
   unsigned add_propagator_set(double scattering_radius = 0.0, const std::string& name = "");
 
   DaviesCottonVCLFocalPlaneRayPropagator* add_davies_cotton_propagator(
@@ -413,8 +416,12 @@ public:
     return propagator_set_.at(ipropagator_set)->scattered_distance; }
   Eigen::Vector3d scattered_offset(unsigned ipropagator_set) const {
     return propagator_set_.at(ipropagator_set)->scattered_offset; }
-  double scattering_radius(unsigned ipropagator_set) const {
-    return propagator_set_.at(ipropagator_set)->scattering_radius; }
+  Eigen::VectorXd scattering_radius_polynomial(unsigned ipropagator_set) const {
+    return propagator_set_.at(ipropagator_set)->scattering_radius_polynomial; }
+  double scattering_radius(unsigned ipropagator_set, double energy_mev) const {
+    return calin::math::least_squares::polyval(
+      propagator_set_.at(ipropagator_set)->scattering_radius_polynomial,
+      std::log10(energy_mev)-6); }
 
   unsigned num_propagators() const { return propagator_.size(); }
   unsigned num_scopes() const { return detector_.size(); }
@@ -461,7 +468,7 @@ protected:
 
   struct PropagatorSet {
     unsigned ipropagator_set;
-    double scattering_radius;
+    Eigen::VectorXd scattering_radius_polynomial;
     double scattered_distance;
     Eigen::Vector3d scattered_offset;
     std::string name;
@@ -652,11 +659,14 @@ template<typename VCLArchitecture> VCLIACTArray<VCLArchitecture>::
 }
 
 template<typename VCLArchitecture> unsigned VCLIACTArray<VCLArchitecture>::
-add_propagator_set(double scattering_radius, const std::string& name)
+add_propagator_set(Eigen::VectorXd scattering_radius_polynomial, const std::string& name)
 {
+  if(scattering_radius_polynomial.size() == 0) {
+    scattering_radius_polynomial.setZero(1);
+  }
   auto* propagator_set = new PropagatorSet;
   propagator_set->ipropagator_set = propagator_set_.size();
-  propagator_set->scattering_radius = scattering_radius;
+  propagator_set->scattering_radius_polynomial = scattering_radius_polynomial;
   propagator_set->scattered_distance = 0.0;
   propagator_set->scattered_offset = Eigen::Vector3d::Zero();
   if(name == "") {
@@ -666,6 +676,14 @@ add_propagator_set(double scattering_radius, const std::string& name)
   }
   propagator_set_.emplace_back(propagator_set);
   return propagator_set->ipropagator_set;
+}
+
+template<typename VCLArchitecture> unsigned VCLIACTArray<VCLArchitecture>::
+add_propagator_set(double scattering_radius, const std::string& name)
+{
+  Eigen::VectorXd scattering_radius_polynomial(1);
+  scattering_radius_polynomial.setConstant(scattering_radius);
+  return add_propagator_set(scattering_radius_polynomial, name);
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
@@ -721,7 +739,9 @@ add_propagator(FocalPlaneRayPropagator* propagator, PEProcessor* pe_processor,
   }
 
   if(propagator_set_.empty()) {
-    add_propagator_set(config_.scattering_radius(), "default_propagator_set");
+    Eigen::VectorXd scattering_radius_polynomial = calin::protobuf_to_eigenvec(
+      config_.scattering_radius_polynomial());
+    add_propagator_set(scattering_radius_polynomial, "default_propagator_set");
   }
   PropagatorSet* propagator_set = propagator_set_.back();
   propagator_set->propagators.emplace_back(propagator_info);
@@ -1157,9 +1177,14 @@ visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
     detector->nrays_propagated = 0;
     detector->sphere = detector->unscattered_sphere;
   }
+
+  double log10_energy_tev = std::log10(event.e0) - 6.0;
   for(auto* propagator_set : propagator_set_) {
-    if(propagator_set->scattering_radius > 0.0) {
-      double b = propagator_set->scattering_radius*std::sqrt(scalar_rng.uniform());
+    double scattering_radius = 
+      calin::math::least_squares::polyval(
+        propagator_set->scattering_radius_polynomial, log10_energy_tev);
+    if(scattering_radius > 0.0) {
+      double b = scattering_radius*std::sqrt(scalar_rng.uniform());
       propagator_set->scattered_distance = b;
       double theta = scalar_rng.uniform()*M_PI*2.0;
       double bx = b*std::cos(theta);
@@ -1334,7 +1359,7 @@ do_propagate_rays_for_detector(DetectorInfo* detector)
   double_vt emission_z = ray.z();
   double_vt emission_uz = ray.uz();
 
-  if(detector->propagator_info->propagator_set->scattering_radius > 0.0) {
+  if(detector->propagator_info->propagator_set->scattered_distance > 0.0) {
     // Translate the ray to unscattered frame since this is how the propagator works
     ray.translate_origin(detector->propagator_info->propagator_set->scattered_offset.template cast<double_vt>());
   }
@@ -1590,6 +1615,7 @@ VCLIACTArray<VCLArchitecture>::default_config()
   config.set_detector_energy_lo(1.25);
   config.set_detector_energy_hi(4.8);
   config.set_detector_energy_bin_width(0.05);
+  config.add_scattering_radius_polynomial(0.0);
   config.set_grid_theshold(4);
   config.set_grid_area_divisor(256.0);
   return config;
