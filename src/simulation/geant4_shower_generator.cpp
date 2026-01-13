@@ -156,11 +156,15 @@ void Geant4ShowerGenerator::construct()
   gen_action_ = new EAS_PrimaryGeneratorAction();
   run_manager_->SetUserAction(gen_action_);
 
+  // Set minimum energy cut if requested
+  if(config_.minimum_energy_cut() > 0) {
+    set_minimum_energy_cut(config_.minimum_energy_cut());
+  }
+
   // initialize G4 kernel
   run_manager_->Initialize();
 
   // Make the ions we support
-
   // G4IonTable::GetIonTable()->GetIon(2, 4, 0.0); // Helium - already made by G4 as "alpha"
   G4IonTable::GetIonTable()->GetIon(6, 12, 0.0); // Carbon
   G4IonTable::GetIonTable()->GetIon(8, 16, 0.0); // Oxygen
@@ -294,6 +298,7 @@ Geant4ShowerGenerator::config_type Geant4ShowerGenerator::default_config()
   config.set_zground(0);
   config.set_ztop_of_atmosphere(100E5);
   config.set_tracking_cut_scale(10);
+  config.set_minimum_energy_cut(20);
   config.set_detector_box_size(1000E5);
   config.set_material("G4_AIR");
   config.set_seed(0);
@@ -303,13 +308,15 @@ Geant4ShowerGenerator::config_type Geant4ShowerGenerator::default_config()
 
 Geant4ShowerGenerator::config_type Geant4ShowerGenerator::customized_config(
   unsigned num_atm_layers, double zground, double ztop_of_atmosphere,
-  VerbosityLevel verbose_level, uint32_t seed, double default_cut_value_cm)
+  VerbosityLevel verbose_level, uint32_t seed, double default_cut_value_cm,
+  double default_set_minimum_energy_cut_mev)
 {
   config_type config = default_config();
   config.set_num_atm_layers(num_atm_layers);
   config.set_zground(zground);
   config.set_ztop_of_atmosphere(ztop_of_atmosphere);
   config.set_tracking_cut_scale(default_cut_value_cm);
+  config.set_minimum_energy_cut(20);
   config.set_seed(seed);
   switch(verbose_level) {
     case VerbosityLevel::SUPPRESSED_ALL:

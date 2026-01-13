@@ -99,7 +99,8 @@ public:
 
   static config_type customized_config(unsigned num_atm_layers, double zground, double ztop,
     VerbosityLevel verbose_level = VerbosityLevel::SUPRESSED_STDOUT,
-    uint32_t seed = 0, double default_cut_value_cm = 10.0);
+    uint32_t seed = 0, double default_cut_value_cm = 10.0,
+    double default_set_minimum_energy_cut_mev = 20.0);
 
   std::string pdg_type_to_string(int pdg_type);
   double pdg_type_to_mass(int pdg_type);
