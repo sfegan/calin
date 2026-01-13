@@ -90,6 +90,16 @@ std::vector<T> protobuf_to_stdvec(const google::protobuf::RepeatedField<T>* x)
   return std::vector<T>(x->begin(), x->end());
 }
 
+inline  Eigen::VectorXd protobuf_to_eigenvec(const google::protobuf::RepeatedField<double>& x)
+{
+  return Eigen::Map<const Eigen::VectorXd>(x.data(), x.size());
+}
+
+inline Eigen::VectorXd protobuf_to_eigenvec(const google::protobuf::RepeatedField<double>* x)
+{
+  return Eigen::Map<const Eigen::VectorXd>(x->data(), x->size());
+}
+
 template<typename T> inline void stdvec_to_existing_protobuf(
   google::protobuf::RepeatedField<T>& y, const std::vector<int> &x)
 {
