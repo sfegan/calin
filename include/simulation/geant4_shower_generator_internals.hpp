@@ -73,9 +73,10 @@ void eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec,
 
 inline bool apply_kinetic_energy_cut(int pdg_type)
 {
-  return pdg_type==11 // electron
-      or pdg_type==2212 // proton
-      or pdg_type==2112 // neutron
+  return pdg_type==11         // electron
+      or pdg_type==2212       // proton
+      or pdg_type==2112       // neutron
+      or pdg_type>=1000000000 // all ions
       ;
 }
 
