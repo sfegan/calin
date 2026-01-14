@@ -168,7 +168,7 @@ def init():
     # Instantiate Geant4 shower generator
     global generator
     generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, cfg, bfield);
-    generator.set_minimum_energy_cut(20);
+    generator.set_minimum_energy_cut(20); # 20 MeV cut on KE (e-,p+,n,ions) or Etot
 
     # Load impulse response
     global isample0
