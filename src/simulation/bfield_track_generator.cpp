@@ -27,6 +27,8 @@
 #include <math/constants.hpp>
 #include <math/special.hpp>
 
+using calin::math::constants::g4_1_c;
+
 using namespace calin::simulation::bfield_track_generator;
 using calin::math::special::SQR;
 
@@ -38,6 +40,7 @@ BFieldTrackGenerator::
 BFieldTrackGenerator(const Eigen::Vector3d& bfield_nT,
     double zground_or_dist, double step_size,
     PropagationMode propagation_mode):
+  calin::simulation::tracker::ShowerGenerator(),
   bfield_(bfield_nT),
   propagation_mode_(propagation_mode), zground_or_dist_(zground_or_dist),
   step_size_(std::abs(step_size))
@@ -62,7 +65,7 @@ BFieldTrackGenerator::~BFieldTrackGenerator()
 
 void BFieldTrackGenerator::generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
   unsigned num_events, calin::simulation::tracker::ParticleType type, double total_energy,
-  const Eigen::Vector3d& x0, const Eigen::Vector3d& u0, double weight)
+  const Eigen::Vector3d& x0, const Eigen::Vector3d& u0, double ct0, double weight)
 {
   tracker::Event event;
   event.type            = type;
@@ -73,7 +76,7 @@ void BFieldTrackGenerator::generate_showers(calin::simulation::tracker::TrackVis
   event.u0              = u0;
   event.u0.normalize();
   event.e0              = total_energy;
-  event.t0              = 0.0;
+  event.t0              = ct0 * g4_1_c;
   event.weight          = weight;
 
   tracker::Track track;

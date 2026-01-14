@@ -25,6 +25,8 @@
 #include <math/constants.hpp>
 #include <math/special.hpp>
 
+using calin::math::constants::g4_1_c;
+
 using namespace calin::simulation::straight_track_generator;
 using calin::math::special::SQR;
 
@@ -43,7 +45,7 @@ StraightTrackGenerator::~StraightTrackGenerator()
 void StraightTrackGenerator::generate_showers(
   calin::simulation::tracker::TrackVisitor* visitor, unsigned num_events,
   calin::simulation::tracker::ParticleType type, double total_energy,
-  const Eigen::Vector3d& x0, const Eigen::Vector3d& u0, double weight)
+  const Eigen::Vector3d& x0, const Eigen::Vector3d& u0, double ct0, double weight)
 {
   tracker::Event event;
   event.type            = type;
@@ -54,7 +56,7 @@ void StraightTrackGenerator::generate_showers(
   event.u0              = u0;
   event.u0.normalize();
   event.e0              = total_energy;
-  event.t0              = 0.0;
+  event.t0              = ct0 * g4_1_c;
   event.weight          = weight;
 
   tracker::Track track;

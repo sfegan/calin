@@ -86,7 +86,7 @@ public:
                         double total_energy,
                         const Eigen::Vector3d& x0 = Eigen::Vector3d(0,0,0),
                         const Eigen::Vector3d& u0 = Eigen::Vector3d(0,0,-1),
-                        double weight=1.0) override;
+                        double ct0=0.0, double weight=1.0) override;
 
   const config_type& config() const { return config_; }
   uint32_t random_seed() const { return config_.seed(); }

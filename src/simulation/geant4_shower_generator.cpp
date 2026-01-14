@@ -28,6 +28,8 @@
 #include <simulation/geant4_shower_generator_internals.hpp>
 #include <provenance/chronicle.hpp>
 
+using calin::math::constants::g4_1_c;
+
 using namespace calin::simulation::geant4_shower_generator;
 using namespace calin::util::log;
 
@@ -213,19 +215,18 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
                 double total_energy,
                 const Eigen::Vector3d& x0,
                 const Eigen::Vector3d& u0,
-                double weight)
+                double ct0, double weight)
 {
   event_action_->set_visitor(visitor);
   step_action_->set_visitor(visitor);
-
-  G4GeneralParticleSource* gps = new G4GeneralParticleSource();
 
   // default particle kinematic
   G4ParticleTable* particle_table = G4ParticleTable::GetParticleTable();
   G4ParticleDefinition* particle
       = particle_table->FindParticle(particle_type_to_pdg_type(type));
 
-  if(total_energy * CLHEP::MeV < particle->GetPDGMass())
+  double kinetic_energy = total_energy * CLHEP::MeV - particle->GetPDGMass();
+  if(kinetic_energy < 0)
     throw std::invalid_argument(
       "Total energy must be larger than particle rest mass ("
       + std::to_string(particle->GetPDGMass()/CLHEP::MeV) + " MeV)");
@@ -236,16 +237,13 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
   G4ThreeVector momentum_direction;
   eigen_to_g4vec(momentum_direction, u0);
 
-  G4SingleParticleSource* sps = gps->GetCurrentSource();
-  sps->SetParticleDefinition(particle);
-  sps->GetPosDist()->SetPosDisType("Point");
-  sps->GetPosDist()->SetCentreCoords(position);
-  sps->GetAngDist()->SetAngDistType("planar");
-  sps->GetAngDist()->SetParticleMomentumDirection(momentum_direction);
-  sps->GetEneDist()->SetEnergyDisType("Mono");
-  sps->GetEneDist()->SetMonoEnergy(total_energy * CLHEP::MeV - particle->GetPDGMass());
-
-  gen_action_->setGPS(gps);
+  auto* particle_generator = gen_action_->particleGenerator();
+  particle_generator->SetParticleDefinition(particle);
+  particle_generator->SetParticleEnergy(kinetic_energy);
+  particle_generator->SetParticlePosition(position);
+  particle_generator->SetParticleMomentumDirection(momentum_direction);
+  particle_generator->SetParticleTime(ct0 * g4_1_c * CLHEP::ns);
+  particle_generator->SetParticleWeight(weight);
 
   // start a run
   run_manager_->BeamOn(num_events);

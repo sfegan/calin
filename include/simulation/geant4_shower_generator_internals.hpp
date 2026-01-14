@@ -54,7 +54,8 @@ using calin::math::special::SQR;
 #include <G4NistManager.hh>
 #include <G4VModularPhysicsList.hh>
 #include <G4PhysListFactory.hh>
-#include <G4GeneralParticleSource.hh>
+// #include <G4GeneralParticleSource.hh>
+#include <G4ParticleGun.hh>
 #include <G4VUserActionInitialization.hh>
 #include <G4UserEventAction.hh>
 #include <FTFP_BERT.hh>
@@ -121,10 +122,13 @@ public:
 
   void GeneratePrimaries(G4Event* the_event) override;
 
-  void setGPS(G4GeneralParticleSource* particle_source) {
-    delete particle_source_; particle_source_ = particle_source; }
+  // void setGPS(G4GeneralParticleSource* particle_source) {
+    // delete particle_source_; particle_source_ = particle_source; }
+  // G4GeneralParticleSource* getGPS() { return particle_source_; }
+  G4ParticleGun* particleGenerator() { return particle_gun_; }
 protected:
-  G4GeneralParticleSource* particle_source_ = nullptr;
+  // G4GeneralParticleSource* particle_source_ = nullptr;
+  G4ParticleGun* particle_gun_ = nullptr;
 };
 
 class EAS_DetectorConstruction: public G4VUserDetectorConstruction

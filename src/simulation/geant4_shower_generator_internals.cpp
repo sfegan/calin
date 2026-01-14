@@ -201,20 +201,22 @@ void EAS_SteppingAction::UserSteppingAction(const G4Step* the_step)
 // ============================================================================
 
 EAS_PrimaryGeneratorAction::EAS_PrimaryGeneratorAction()
-    : G4VUserPrimaryGeneratorAction()
+    : G4VUserPrimaryGeneratorAction(), particle_gun_(new G4ParticleGun)
 {
   // nothing to see here
 }
 
 EAS_PrimaryGeneratorAction::~EAS_PrimaryGeneratorAction()
 {
-  delete(particle_source_);
+  // delete(particle_source_);
+  delete particle_gun_;
 }
 
 void EAS_PrimaryGeneratorAction::GeneratePrimaries(G4Event* the_event)
 {
   // this function is called at the begining of event
-  particle_source_->GeneratePrimaryVertex(the_event);
+  // particle_source_->GeneratePrimaryVertex(the_event);
+  particle_gun_->GeneratePrimaryVertex(the_event);
 }
 
 // ============================================================================
@@ -266,7 +268,7 @@ G4VPhysicalVolume* EAS_FlatDetectorConstruction::Construct()
 
   G4double world_hx = layer_side_cm_*CLHEP::cm;
   G4double world_hy = layer_side_cm_*CLHEP::cm;
-  G4double world_hz = ztop_of_atm_cm_*CLHEP::cm;
+  G4double world_hz = (ztop_of_atm_cm_ + 100.0)*CLHEP::cm;
 
   G4GeometryManager::GetInstance()->SetWorldMaximumExtent(
     std::max({world_hx, world_hy, world_hz}));
@@ -281,7 +283,7 @@ G4VPhysicalVolume* EAS_FlatDetectorConstruction::Construct()
 
   G4VPhysicalVolume* world_physical
       = new G4PVPlacement(0,                           // no rotation
-                          G4ThreeVector(0, 0, 0), // translation
+                          G4ThreeVector(0, 0, 0),      // translation
                           world_logical    ,           // its logical volume
                           std::string("PHY_WORLD"),    // its name
                           0,                           // its mother volume

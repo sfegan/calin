@@ -66,6 +66,8 @@
 #include <simulation/corsika8_shower_generator.hpp>
 #include <provenance/chronicle.hpp>
 
+using calin::math::constants::g4_1_c;
+
 using namespace calin::simulation::corsika8_shower_generator;
 using namespace calin::util::log;
 using namespace corsika;
@@ -248,7 +250,7 @@ namespace {
                           double total_energy,
                           const Eigen::Vector3d& x0 = Eigen::Vector3d(0,0,0),
                           const Eigen::Vector3d& u0 = Eigen::Vector3d(0,0,-1),
-                          double weight=1.0) override;
+                          double ct0=0.0, double weight=1.0) override;
 
   private:
     config_type config_; 
@@ -540,7 +542,7 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
                  double total_energy,
                  const Eigen::Vector3d& x0,
                  const Eigen::Vector3d& u0,
-                 double weight)
+                 double ct0, double weight)
 {
   if(visitor == nullptr) {
     throw std::runtime_error("Visitor must be non-null");
@@ -558,7 +560,7 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
   event.x0         = x0;
   event.u0         = u0;
   event.e0         = total_energy;
-  event.t0         = 0.0;
+  event.t0         = ct0 * g4_1_c;
   event.weight     = weight;
 
   const DirectionVector prop_dir{root_cs_, {u0.x(), u0.y(), u0.z()}};
@@ -567,7 +569,7 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
   const auto e_kin = std::max(total_energy - event.mass, 0.0) * 1_MeV;
 
   const auto primary_properties =
-    std::make_tuple(beam_code, e_kin, prop_dir.normalized(), injection_pos, 0_ns);
+    std::make_tuple(beam_code, e_kin, prop_dir.normalized(), injection_pos, event.t0*1_ns);
 
   track_handoff_->set_visitor(visitor);
   for(unsigned i=0; i<num_events; ++i)
