@@ -48,6 +48,8 @@ message GEANT4ShowerGeneratorConfiguration
     [(CFO).desc = "Particle tracking cut scale.", (CFO).units = "cm" ];
   double minimum_energy_cut                                = 5
     [(CFO).desc = "Cut on minimum energy of tracked particles (KE for e-,p+,n,ions or Etot).", (CFO).units = "MeV" ];
+  bool enable_ions                                         = 6
+    [(CFO).desc = "Enable simulation of ions (as primaries and secondaries)" ];
 
   double detector_box_size                                 = 10
     [(CFO).desc = "Size of box containing detector (in X & Y).",

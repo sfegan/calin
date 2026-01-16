@@ -166,13 +166,15 @@ void Geant4ShowerGenerator::construct()
   // initialize G4 kernel
   run_manager_->Initialize();
 
-  // Make the ions we support
-  // G4IonTable::GetIonTable()->GetIon(2, 4, 0.0); // Helium - already made by G4 as "alpha"
-  G4IonTable::GetIonTable()->GetIon(6, 12, 0.0); // Carbon
-  G4IonTable::GetIonTable()->GetIon(8, 16, 0.0); // Oxygen
-  G4IonTable::GetIonTable()->GetIon(12, 24, 0.0); // Magnesium
-  G4IonTable::GetIonTable()->GetIon(14, 28, 0.0); // Silicon
-  G4IonTable::GetIonTable()->GetIon(26, 56, 0.0); // Iron
+  if(config_.enable_ions()) {
+    // Make the ions we support
+    // G4IonTable::GetIonTable()->GetIon(2, 4, 0.0); // Helium - already made by G4 as "alpha"
+    G4IonTable::GetIonTable()->GetIon(6, 12, 0.0); // Carbon
+    G4IonTable::GetIonTable()->GetIon(8, 16, 0.0); // Oxygen
+    G4IonTable::GetIonTable()->GetIon(12, 24, 0.0); // Magnesium
+    G4IonTable::GetIonTable()->GetIon(14, 28, 0.0); // Silicon
+    G4IonTable::GetIonTable()->GetIon(26, 56, 0.0); // Iron
+  }
 }
 
 Geant4ShowerGenerator::~Geant4ShowerGenerator()
@@ -220,16 +222,20 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
   event_action_->set_visitor(visitor);
   step_action_->set_visitor(visitor);
 
-  // default particle kinematic
   G4ParticleTable* particle_table = G4ParticleTable::GetParticleTable();
-  G4ParticleDefinition* particle
-      = particle_table->FindParticle(particle_type_to_pdg_type(type));
+  auto pdg_type = particle_type_to_pdg_type(type);
+  if(std::abs(pdg_type) >= 1000000000 and config_.enable_ions() == false) {
+    throw std::invalid_argument(
+      "Cannot simulate ion primaries unless \"enable_ions\" option is selected");
+  }
+  G4ParticleDefinition* particle = particle_table->FindParticle(pdg_type);
 
   double kinetic_energy = total_energy * CLHEP::MeV - particle->GetPDGMass();
-  if(kinetic_energy < 0)
+  if(kinetic_energy < 0) {
     throw std::invalid_argument(
       "Total energy must be larger than particle rest mass ("
       + std::to_string(particle->GetPDGMass()/CLHEP::MeV) + " MeV)");
+  }
 
   G4ThreeVector position;
   eigen_to_g4vec(position, x0, CLHEP::cm);
