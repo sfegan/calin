@@ -374,19 +374,19 @@ hartree-atomic mass unit relationship                  2.921 262 323e-8      0.0
 
 */
 
-constexpr double PC_CGS_L         = 1.0e+02;                           // CGS length    per SI unit
-constexpr double PC_CGS_M         = 1.0e+03;                           // CGS mass      per SI unit
-constexpr double PC_CGS_T         = 1.0e+00;                           // CGS time      per SI unit
+constexpr double PC_CGS_L         = 1.0e+02;                           // CGS length    per SI unit         [cm/m]
+constexpr double PC_CGS_M         = 1.0e+03;                           // CGS mass      per SI unit         [g/kg]
+constexpr double PC_CGS_T         = 1.0e+00;                           // CGS time      per SI unit          [s/s]
 
-constexpr double PC_CGS_L2        = (PC_CGS_L*PC_CGS_L);               // CGS length^2  per SI unit
-constexpr double PC_CGS_L3        = (PC_CGS_L2*PC_CGS_L);              // CGS length^3  per SI unit
-constexpr double PC_CGS_M2        = (PC_CGS_M*PC_CGS_M);               // CGS mass^2    per SI unit
-constexpr double PC_CGS_M3        = (PC_CGS_M2*PC_CGS_M);              // CGS mass^3    per SI unit
-constexpr double PC_CGS_T2        = (PC_CGS_T*PC_CGS_T);               // CGS time^2    per SI unit
-constexpr double PC_CGS_T3        = (PC_CGS_T2*PC_CGS_T);              // CGS time^3    per SI unit
-constexpr double PC_CGS_V         = (PC_CGS_L/PC_CGS_T);               // CGS velocity  per SI unit
-constexpr double PC_CGS_F         = (PC_CGS_M*PC_CGS_L/PC_CGS_T2);     // CGS force     per SI unit
-constexpr double PC_CGS_E         = (PC_CGS_F*PC_CGS_L);               // CGS energy    per SI unit
+constexpr double PC_CGS_L2        = (PC_CGS_L*PC_CGS_L);               // CGS length^2  per SI unit     [cm^2/m^2]
+constexpr double PC_CGS_L3        = (PC_CGS_L2*PC_CGS_L);              // CGS length^3  per SI unit     [cm^3/m^3]
+constexpr double PC_CGS_M2        = (PC_CGS_M*PC_CGS_M);               // CGS mass^2    per SI unit     [g^2/kg^2]
+constexpr double PC_CGS_M3        = (PC_CGS_M2*PC_CGS_M);              // CGS mass^3    per SI unit     [g^3/kg^3]
+constexpr double PC_CGS_T2        = (PC_CGS_T*PC_CGS_T);               // CGS time^2    per SI unit      [s^2/s^2]
+constexpr double PC_CGS_T3        = (PC_CGS_T2*PC_CGS_T);              // CGS time^3    per SI unit      [s^3/s^3]
+constexpr double PC_CGS_V         = (PC_CGS_L/PC_CGS_T);               // CGS velocity  per SI unit [(cm/s)/(m/s)]
+constexpr double PC_CGS_F         = (PC_CGS_M*PC_CGS_L/PC_CGS_T2);     // CGS force     per SI unit  [(g cm/s^2)/(kg m/s^2)]
+constexpr double PC_CGS_E         = (PC_CGS_F*PC_CGS_L);               // CGS energy    per SI unit        [erg/J]
 constexpr double PC_CGS_Q         = 2.99792458e+09;                    // CGS charge    per SI unit - |c/(m/s)|*10
 constexpr double PC_CGS_FLUX      = (1.0/PC_CGS_L2/PC_CGS_T);          // CGS flux      per SI unit - (i.e. 1/cm^2/s)
 constexpr double PC_CGS_E_FLUX    = (PC_CGS_E/PC_CGS_L2/PC_CGS_T);     // CGS energy fl per SI unit - (i.e. erg/cm^2/s)
