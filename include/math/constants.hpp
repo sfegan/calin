@@ -428,9 +428,9 @@ constexpr double PC_SI_SUN_MASS      = 1.9891e+30;                     // solar 
 constexpr double PC_SI_SUN_RADIUS    = 6.96e+8;                        // solar radius                         [m]
 constexpr double PC_SI_SUN_LUMINOSITY= 3.9e+26;                        // solar luminosity                     [W]
 
-constexpr double PC_G4_L          = 1.0e+02;                           // G4 length     per SI unit
-constexpr double PC_G4_T          = 1.0e+09;                           // G4 time       per SI unit
-constexpr double PC_G4_V          = (PC_G4_L/PC_G4_T);                 // G4 velocity   per SI unit
+constexpr double PC_G4_L          = 1.0e+02;                           // G4 length     per SI unit         [cm/m]
+constexpr double PC_G4_T          = 1.0e+09;                           // G4 time       per SI unit         [ns/s]
+constexpr double PC_G4_V          = (PC_G4_L/PC_G4_T);                 // G4 velocity   per SI unit[(cm/ns)/(m/s)]
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Some useful numerical constants
@@ -508,8 +508,8 @@ constexpr double cgs_k_err          = PC_SI_K_ERR*PC_CGS_E;        // Boltzmann 
 constexpr double cgs_sigma          = PC_SI_SIGMA*PC_CGS_E/PC_CGS_L2; // Stefan-Boltzmann            [erg/cm^2/K^4]
 constexpr double cgs_sigma_err      = PC_SI_SIGMA_ERR*PC_CGS_E/PC_CGS_L2; // pi^2 k^4/60 hbar^3 c^2      [as above]
 
-constexpr double g4_c               = PC_SI_C*PC_G4_V;             // vacuum speed of light                  [cm/s]
-constexpr double g4_1_c             = 1.0/g4_c;                    // reciprocal of vacuum speed of light    [s/cm]
+constexpr double g4_c               = PC_SI_C*PC_G4_V;             // vacuum speed of light                 [cm/ns]
+constexpr double g4_1_c             = 1.0/g4_c;                    // reciprocal of vacuum speed of light   [ns/cm]
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Unit conversion constants
