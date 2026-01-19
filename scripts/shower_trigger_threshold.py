@@ -22,6 +22,9 @@ parser.add_argument('-n', type=int, default=1000,
                    help='Specify the number of showers to simulate')
 parser.add_argument('--reuse', type=int, default=10,
                    help='Specify the number of times to reuse each shower')
+parser.add_argument('--write_batch', type=int, default=100,
+                   help='Specify the number of events to write per batch to output file')
+
 parser.add_argument('-o', '--output', type=str, default=None,
                     help='Write trigger thresholds to this file')
 
@@ -268,7 +271,7 @@ def gen_event():
 
     generator.generate_showers(iact, 1, pt, e, x0, u)
 
-    return e,pt,u,x0
+    return e,pt,u,x0,costheta
 
 def find_threshold(iarray):
     # Clear previous waveforms, transfer the PEs, add NSB, convolve impulse response
@@ -312,7 +315,7 @@ def find_threshold(iarray):
 def one_event():
     event_results = []
     try:
-        e,pt,u,x0 = gen_event()
+        e,pt,u,x0,costheta = gen_event()
         for iarray in range(args.reuse):
             threshold = find_threshold(iarray)
             event_results.append(dict(
@@ -321,6 +324,7 @@ def one_event():
                 pt             = int(pt),
                 u0             = u.tolist(),
                 x0             = x0.tolist(),
+                costheta       = costheta,
                 b              = iact.scattered_distance(iarray),
                 offset         = iact.scattered_offset(iarray)[0:2].tolist(),
                 threshold      = threshold))
@@ -329,45 +333,47 @@ def one_event():
         raise
     return event_results
 
-def save_results(results, filename):
+def save_results(results, filehandle):
     output = dict(
         config = config,
         results = results)
-    with open(filename, 'wb') as f:
-        pickle.dump(output, f)
+    pickle.dump(output, filehandle)
 
 all_results = []
 max_workers = os.cpu_count() or 4
 batch_size = max_workers * 10
-with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
-    remaining = args.n
-    futures = set()
+with open(args.output, 'wb') as f:
+    with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
+        remaining = args.n
+        futures = set()
 
-    # Submit initial batch
-    first_batch = min(batch_size, remaining)
-    for _ in range(first_batch):
-        futures.add(executor.submit(one_event))
-    remaining -= first_batch
+        # Submit initial batch
+        first_batch = min(batch_size, remaining)
+        for _ in range(first_batch):
+            futures.add(executor.submit(one_event))
+        remaining -= first_batch
 
-    # Keep a bounded number of in-flight futures; as one completes, submit another
-    while futures:
-        done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-        for fut in done:
-            futures.remove(fut)
-            for r  in fut.result():
-                all_results.append(r)
+        # Keep a bounded number of in-flight futures; as one completes, submit another
+        while futures:
+            done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+            for fut in done:
+                futures.remove(fut)
+                for r  in fut.result():
+                    all_results.append(r)
 
-            if args.output and len(all_results)>0 and (len(all_results)%100)==0:
-                save_results(all_results, args.output)
-                print(f'Wrote {len(all_results)} results to {args.output}')
+                if args.output and len(all_results)>0 and (len(all_results)%args.write_batch)==0:
+                    save_results(all_results[len(all_results)-args.write_batch:], f)
+                    print(f'Wrote {len(all_results)} results to {args.output}')
 
-            if remaining > 0:
-                futures.add(executor.submit(one_event))
-                remaining -= 1
+                if remaining > 0:
+                    futures.add(executor.submit(one_event))
+                    remaining -= 1
 
-if args.output and (len(all_results)==0 or (len(all_results)%100)!=0):
-    save_results(all_results, args.output)
-    print(f'Wrote {len(all_results)} results to {args.output}')
+if args.output:
+    # Re-write the output file as one single pickle rather than multiple appends
+    with open(args.output, 'wb') as f:
+        save_results(all_results, f)
+        print(f'Wrote {len(all_results)} results to {args.output}')
 
 th = args.threshold_min
 while True:
