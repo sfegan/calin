@@ -463,10 +463,6 @@ populateMirrorsAndPixelsRandom(
 
       // Standard DC alignment to a fixed point in space (with scatter)
       alignment = (alignment_pt-position).normalized();
-
-      double align_disp =
-        param.reflector().facet_alignment_dispersion()/alignment_pt.norm();
-      calin::math::vector3d_util::scatter_direction(alignment, align_disp, rng);
     }
     else if(param.reflector().alignment_case() ==
             ix::simulation::vs_optics::HexDCReflectorParameters::kPsfAlign)
@@ -513,6 +509,12 @@ populateMirrorsAndPixelsRandom(
     else
     {
       throw std::runtime_error("Unknown alignment scheme");
+    }
+    
+    double align_disp =
+      param.reflector().facet_alignment_dispersion()/param.reflector().alignment_image_plane();
+    if(align_disp > 0) {
+      calin::math::vector3d_util::scatter_direction(alignment, align_disp, rng);
     }
 
     double focal_length = param.reflector().facet_focal_length();
