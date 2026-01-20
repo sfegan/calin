@@ -637,6 +637,7 @@ public:
     }
 
     double dcospolar = 1.0 - std::cos(radius / distance);
+    double fppos_2y = 2.0 * fp_pos_.y();
 
     unsigned ntraced = 0;
     unsigned iray = 0;
@@ -669,7 +670,7 @@ public:
         real_vt sinphi;
         rng_->sincos(sinphi, cosphi);
         x.x() = rho * cosphi;
-        x.y() = 10000000.0;   // 100 km away
+        x.y() = fppos_2y;   // Launch from twice the FP distance
         x.z() = rho * sinphi;
       }
 
@@ -677,22 +678,24 @@ public:
       ray.rotate(rot);
 
       TraceInfo info;
-      unsigned mask = vcl::to_bits(trace_reflector_frame(true, ray, info));
+      trace_reflector_frame(true, ray, info);
 
+      typename VCLReal::int_at status;
       typename VCLReal::real_at xfp;
       typename VCLReal::real_at yfp;
       typename VCLReal::real_at tfp;
+      info.status.store_a(status);
       info.fplane_x.store_a(xfp);
       info.fplane_z.store_a(yfp);
       info.fplane_t.store_a(tfp);
 
       for(unsigned i=0; i< VCLReal::num_real; i++) {
-        if((mask & (1<<i)) != 0) {
+        ntraced++;
+        if(status[i] >= STS_OUTSIDE_FOCAL_PLANE_APERTURE) {
           x_out[iray] = xfp[i];
           y_out[iray] = yfp[i];
           t_out[iray] = tfp[i];
           iray++;
-          ntraced++;
           if(iray >= nray)break;
         }
       }

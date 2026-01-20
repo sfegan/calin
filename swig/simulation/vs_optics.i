@@ -65,12 +65,12 @@
 
 %apply Eigen::Vector3d& INOUT { Eigen::Vector3d& v };
 
-%apply Eigen::VectorXd& OUTPUT { Eigen::VectorXd& xout, Eigen::VectorXd& yout, Eigen::VectorXd& tout };
-
 %include "simulation/vso_telescope.hpp"
 %template(VectorVSOTelescope) std::vector<calin::simulation::vs_optics::VSOTelescope*>;
 %include "simulation/vso_array.hpp"
 %include "simulation/vso_raytracer.hpp"
+
+%apply Eigen::VectorXd& OUTPUT { Eigen::VectorXd& x_out, Eigen::VectorXd& y_out, Eigen::VectorXd& t_out };
 
 namespace calin { namespace simulation { namespace vcl_raytracer {
 
