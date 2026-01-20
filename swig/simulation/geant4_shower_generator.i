@@ -32,6 +32,7 @@
 #include "simulation/air_cherenkov_tracker.hpp"
 #include "simulation/iact_array_tracker.hpp"
 #include "simulation/quadrature_iact_array_integration.hpp"
+#include "simulation/vcl_raytracer.hpp"
 #include "simulation/vso_quadrature_iact_array_integration.hpp"
 #include "simulation/geant4_shower_generator.hpp"
 #define SWIG_FILE_WITH_INIT
