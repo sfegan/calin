@@ -382,7 +382,7 @@ while True:
     if(ntrig < 10 or th > 10*config['threshold_min']):
         break
     if(ntrig < 0.9*len(all_results)):
-        bmax = percentile([r['b'] for r in filtered_results],pc)
-        thmax = percentile([arccos(r['costheta'])/pi*180.0 for r in filtered_results],pc)        
+        bmax = numpy.percentile([r['b'] for r in filtered_results],pc)
+        thmax = numpy.percentile([numpy.arccos(r['costheta'])/numpy.pi*180.0 for r in filtered_results],pc)        
         print(f'{th:6.1f} {th/20:6.2f} | {ntrig:6d} {ntrig/len(all_results):5.3f} | {ntrig/len(all_results)*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
     th = th + 10.0
