@@ -512,7 +512,7 @@ populateMirrorsAndPixelsRandom(
     }
     
     double align_disp =
-      param.reflector().facet_alignment_dispersion()/param.reflector().alignment_image_plane();
+      0.5*param.reflector().facet_alignment_dispersion()/param.reflector().alignment_image_plane();
     if(align_disp > 0) {
       calin::math::vector3d_util::scatter_direction(alignment, align_disp, rng);
     }
