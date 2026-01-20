@@ -1218,7 +1218,7 @@ public:
               const unsigned ipix = ipix0 + ihit;
               th &= th - 1;
               unsigned nneighbor_hit = 0;
-              // unsigned ipix_n1 = 0;
+              // unsigned ipix_n1 = -1;
               for(auto jpix : neighbors.col(ipix)) {
                 if(jpix>=0 && jpix<int(npix_)) {
                   const unsigned jmask = jpix/mask_t_size_bits;
@@ -1541,8 +1541,8 @@ public:
               const int ipix = ipix0 + ihit;
               th &= th - 1;
               unsigned nneighbor_hit = 0;
-              int ipix_n1;
-              int ipix_n2;
+              int ipix_n1 = -1;
+              int ipix_n2 = -1;
               for(auto jpix : neighbors.col(ipix)) {
                 if(jpix>=0 && jpix<int(npix_)) {
                   const unsigned jmask = jpix/mask_t_size_bits;
