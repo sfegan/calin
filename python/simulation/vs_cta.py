@@ -383,7 +383,7 @@ def mstn_generic_config(scope_x, scope_y, scope_z, array_lat, array_lon, array_a
     dc.set_facet_spot_size_probability(0.8)
     dc.set_facet_spot_size(0.5 * 1.4)
     dc.set_facet_spot_size_dispersion(0.5 * 0.16)
-    dc.set_facet_alignment_dispersion(0.12) # This value tuned to match PSF curve presented by DESY
+    dc.set_facet_alignment_dispersion(0.24) # This value tuned to match PSF curve presented by DESY
     #############################################################################################################################
     dc.set_facet_labeling_parity(True)
     dc.set_weathering_factor(1.0)
