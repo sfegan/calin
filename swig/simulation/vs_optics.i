@@ -45,6 +45,7 @@
 
 %import "math/ray.i"
 %import "math/rng.i"
+%import "util/vcl.i"
 
 %import "iact_data/instrument_layout.pb.i"
 %import "simulation/vs_optics.pb.i"
@@ -64,8 +65,42 @@
 
 %apply Eigen::Vector3d& INOUT { Eigen::Vector3d& v };
 
+%apply Eigen::VectorXd& OUTPUT { Eigen::VectorXd& xout, Eigen::VectorXd& yout, Eigen::VectorXd& tout };
+
 %include "simulation/vso_telescope.hpp"
 %template(VectorVSOTelescope) std::vector<calin::simulation::vs_optics::VSOTelescope*>;
 %include "simulation/vso_array.hpp"
 %include "simulation/vso_raytracer.hpp"
+
+namespace calin { namespace simulation { namespace vcl_raytracer {
+
+  template<typename VCLReal> class alignas(VCLReal::vec_bytes) VCLScopeRayTracer: public VCLReal
+  {
+  public:
+    using real_t = typename VCLReal::real_t;
+    using RNG = calin::math::rng::VCLRealRNG<VCLReal>;
+    VCLScopeRayTracer(const calin::simulation::vs_optics::VSOTelescope* scope,
+      real_t refractive_index = 1.0, RNG* rng = nullptr, bool adopt_rng = false);
+    ~VCLScopeRayTracer();
+    void point_telescope(const calin::simulation::vs_optics::VSOTelescope* scope);
+    unsigned psf(Eigen::VectorXd& x_out, Eigen::VectorXd& y_out, Eigen::VectorXd& t_out, unsigned nray,
+      double theta = 0, double phi = 0, double distance = std::numeric_limits<double>::infinity(), double radius = 0);
+  };
+
+} } } // namespace calin::simulation::vcl_raytracer
+
 %include "simulation/vcl_raytracer.hpp"
+
+%template (VCLScopeRayTracerDouble128) 
+  calin::simulation::vcl_raytracer::VCLScopeRayTracer<calin::util::vcl::VCL128DoubleReal>;
+%template (VCLScopeRayTracerDouble256) 
+  calin::simulation::vcl_raytracer::VCLScopeRayTracer<calin::util::vcl::VCL256DoubleReal>;
+%template (VCLScopeRayTracerDouble512) 
+  calin::simulation::vcl_raytracer::VCLScopeRayTracer<calin::util::vcl::VCL512DoubleReal>;
+
+%template (VCLScopeRayTracerFloat128) 
+  calin::simulation::vcl_raytracer::VCLScopeRayTracer<calin::util::vcl::VCL128FloatReal>;
+%template (VCLScopeRayTracerFloat256) 
+  calin::simulation::vcl_raytracer::VCLScopeRayTracer<calin::util::vcl::VCL256FloatReal>;
+%template (VCLScopeRayTracerFloat512) 
+  calin::simulation::vcl_raytracer::VCLScopeRayTracer<calin::util::vcl::VCL512FloatReal>;

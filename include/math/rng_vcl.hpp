@@ -1070,6 +1070,8 @@ public:
 
   real_vt exponential() { real_vt x; rng_->exponential_real(x); return x; }
 
+  void sincos(real_vt& s, real_vt& c) { rng_->sincos_real(s, c); }
+
   void normal_pair_bm(real_vt& x1, real_vt& x2) {
     rng_->normal_pair_real_bm(x1,x2); }
   real_vt normal() {
