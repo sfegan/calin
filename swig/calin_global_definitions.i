@@ -72,4 +72,7 @@
 
 %template (MapStringString)      std::map<std::string,std::string>;
 
+%template (VectorEigenVector3d) std::vector<Eigen::Vector3d>;
+%template (VectorEigenVector4d) std::vector<Eigen::Vector4d>;
+
 %import "calin_global_definitions.hpp"
