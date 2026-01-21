@@ -376,8 +376,10 @@ if args.output:
         print(f'Wrote {len(all_results)} results to {args.output}')
 
 th = args.threshold_min
+pc = 98
+filtered_results = all_results
 while True:
-    filtered_results = [r for r in all_results if r['threshold'] >= th]
+    filtered_results = [r for r in filtered_results if r['threshold'] >= th]
     ntrig = len(filtered_results)
     if(ntrig < 10 or th > 10*config['threshold_min']):
         break
