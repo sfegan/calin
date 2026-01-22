@@ -630,10 +630,10 @@ inline Eigen::Vector4d deproject_circle_on_sphere_from_2d(const Eigen::Vector3d&
 } 
 
 // Input circles are (x,y,radius) or circles and output is (x,y,z,radius) for containing circle
-Eigen::Vector3d containing_circle_2d(std::vector<Eigen::Vector3d>& circles);
+Eigen::Vector3d containing_circle_2d(const Eigen::MatrixXd& circles);
 
 // Input circles are (nx,ny,nz,cos_half_angle) on sphere and output is (nx,ny,nz,cos_half_angle) for containing circle
-Eigen::Vector4d containing_circle_sphere(std::vector<Eigen::Vector4d>& circles_on_sphere);
+Eigen::Vector4d containing_circle_sphere(const Eigen::MatrixXd& circles_on_sphere);
 
 
 } } } // namespace calin::math::geometry
