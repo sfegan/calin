@@ -377,6 +377,7 @@ if args.output:
 
 th = args.threshold_min
 pc = 98
+bsim = config['bmax']
 filtered_results = all_results
 while True:
     filtered_results = [r for r in filtered_results if r['threshold'] >= th]
