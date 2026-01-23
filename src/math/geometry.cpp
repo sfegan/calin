@@ -310,7 +310,7 @@ namespace {
     const Eigen::MatrixXd& input) {
 
     const int n = static_cast<int>(input.rows());
-    Eigen::VectorXd out(3);
+    Eigen::Vector3d out;
     out.setZero();
 
     if (n == 0) {
