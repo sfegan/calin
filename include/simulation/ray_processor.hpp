@@ -52,6 +52,18 @@ struct RayProcessorDetectorSphere
   double field_of_view_radius = M_PI; // Field of view of detector [radians]
 };
 
+} } } // namespace calin::simulation::ray_processor
+
+#ifdef SWIG
+%template(StdVectorRayProcessorDetectorSphere)
+  std::vector<calin::simulation::ray_processor::RayProcessorDetectorSphere>;
+#endif
+
+namespace calin { namespace simulation { namespace ray_processor {
+
+  double viewcone_for_detector_spheres(Eigen::Vector3d& obs_dir_out, 
+  const std::vector<RayProcessorDetectorSphere>& detector_spheres, double border=0.0);
+
 class RayProcessor
 {
 public:
