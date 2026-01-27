@@ -27,6 +27,8 @@ parser.add_argument('--write_batch', type=int, default=100,
 
 parser.add_argument('-o', '--output', type=str, default=None,
                     help='Write trigger thresholds to this file')
+parser.add_argument('--omit_untriggered', action='store_true',
+                    help='Reduce file size by omitting untriggered events')
 
 parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
                     help='Site to simulate (default: ctan)')
@@ -78,6 +80,7 @@ iact = None
 config = vars(args).copy()
 config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 config['_host'] = platform.node()
+config['_num_events'] = 0
 
 def init():
     numpy.random.seed()
@@ -333,12 +336,16 @@ def one_event():
         raise
     return event_results
 
-def save_results(results, filehandle):
+def save_results(results, num_events, filehandle):
+    config['_num_events'] = num_events
     output = dict(
         config = config,
         results = results)
     pickle.dump(output, filehandle)
 
+num_events = 0
+events_written = 0
+batch_start = 0
 all_results = []
 max_workers = os.cpu_count() or 4
 batch_size = max_workers * 10
@@ -359,21 +366,26 @@ with open(args.output, 'wb') as f:
             for fut in done:
                 futures.remove(fut)
                 for r  in fut.result():
+                    num_events += 1
+                    if args.omit_untriggered and r['threshold'] < 0:
+                        continue
                     all_results.append(r)
 
-                if args.output and len(all_results)>0 and (len(all_results)%args.write_batch)==0:
-                    save_results(all_results[len(all_results)-args.write_batch:], f)
-                    print(f'Wrote {len(all_results)} results to {args.output}')
+                if args.output and num_events>0 and (num_events-events_written)>=args.write_batch:
+                    save_results(all_results[batch_start:], num_events-events_written, f)
+                    print(f'Wrote {num_events} results to {args.output}')
+                    events_written = num_events
+                    batch_start = len(all_results)
 
                 if remaining > 0:
                     futures.add(executor.submit(one_event))
                     remaining -= 1
 
-if args.output:
-    # Re-write the output file as one single pickle rather than multiple appends
-    with open(args.output, 'wb') as f:
-        save_results(all_results, f)
-        print(f'Wrote {len(all_results)} results to {args.output}')
+if args.output and num_events>events_written:
+    save_results(all_results[batch_start:], num_events-events_written, f)
+    print(f'Wrote {num_events} results to {args.output}')
+    events_written = num_events
+    batch_start = len(all_results)
 
 th = args.threshold_min
 pc = 98
@@ -384,8 +396,8 @@ while True:
     ntrig = len(filtered_results)
     if(ntrig < 10 or th > 10*config['threshold_min']):
         break
-    if(ntrig < 0.9*len(all_results)):
+    if(ntrig < 0.9*num_events):
         bmax = numpy.percentile([r['b'] for r in filtered_results],pc)
         thmax = numpy.percentile([numpy.arccos(r['costheta'])/numpy.pi*180.0 for r in filtered_results],pc)        
-        print(f'{th:6.1f} {th/20:6.2f} | {ntrig:6d} {ntrig/len(all_results):5.3f} | {ntrig/len(all_results)*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
+        print(f'{th:6.1f} {th/20:6.2f} | {ntrig:6d} {ntrig/num_events:5.3f} | {ntrig/num_events*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
     th = th + 10.0
