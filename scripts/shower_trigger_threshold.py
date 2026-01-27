@@ -342,6 +342,7 @@ def save_results(results, num_events, filehandle):
         config = config,
         results = results)
     pickle.dump(output, filehandle)
+    filehandle. flush()
 
 num_events = 0
 events_written = 0
@@ -371,9 +372,9 @@ with open(args.output, 'wb') as f:
                         continue
                     all_results.append(r)
 
-                if args.output and num_events>0 and (num_events-events_written)>=args.write_batch:
+                if (num_events-events_written)>=args.write_batch:
                     save_results(all_results[batch_start:], num_events-events_written, f)
-                    print(f'Wrote {num_events} results to {args.output}')
+                    print(f'Wrote {len(all_results)}/{num_events} results to {args.output}')
                     events_written = num_events
                     batch_start = len(all_results)
 
@@ -381,11 +382,11 @@ with open(args.output, 'wb') as f:
                     futures.add(executor.submit(one_event))
                     remaining -= 1
 
-if args.output and num_events>events_written:
-    save_results(all_results[batch_start:], num_events-events_written, f)
-    print(f'Wrote {num_events} results to {args.output}')
-    events_written = num_events
-    batch_start = len(all_results)
+    if num_events>events_written:
+        save_results(all_results[batch_start:], num_events-events_written, f)
+        print(f'Wrote {len(all_results)}/{num_events} results to {args.output}')
+        events_written = num_events
+        batch_start = len(all_results)
 
 th = args.threshold_min
 pc = 98
