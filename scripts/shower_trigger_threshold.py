@@ -52,7 +52,8 @@ parser.add_argument('--theta', type=float, default=0.0,
 parser.add_argument('--phi', type=float, default=0.0,
                    help='Specify the fixed polar angle of the primary direction around the telescope pointing direction in degrees')
 parser.add_argument('--no_bfield', action='store_true', help='Disable the magnetic field (default: enabled)')
-
+parser.add_argument('--enable_viewcone_cut', action='store_true', 
+                    help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
 
 parser.add_argument('--nsb', type=float, default=0.30,
                    help='Specify the NSB rate in GHz')
@@ -75,6 +76,7 @@ args = parser.parse_args()
 
 tcoincidence = args.coincidence
 iact = None
+has_one_event = False
 
 # Prepare a JSON header describing the run
 config = vars(args).copy()
@@ -151,6 +153,8 @@ def init():
     # Set telescope pointing direction
     global pt_dir
     iact.point_all_telescopes_az_el_deg(args.az, args.el)
+    if args.enable_viewcone_cut:
+        iact.set_viewcone_from_telescope_fields_of_view()
     el = args.el * numpy.pi/180.0
     az = args.az * numpy.pi/180.0
     pt_dir  = numpy.asarray([numpy.cos(el)*numpy.sin(az), numpy.cos(el)*numpy.cos(az), numpy.sin(el)])
@@ -316,6 +320,7 @@ def find_threshold(iarray):
     return lower
 
 def one_event():
+    global has_one_event
     event_results = []
     try:
         e,pt,u,x0,costheta = gen_event()
@@ -334,6 +339,9 @@ def one_event():
     except Exception as ex:
         print(f'Error simulating event: {ex}')
         raise
+    if not has_one_event:
+        event_results[0]['_banner'] = iact.banner()
+        has_one_event = True
     return event_results
 
 def save_results(results, num_events, filehandle):
@@ -367,6 +375,9 @@ with open(args.output, 'wb') as f:
             for fut in done:
                 futures.remove(fut)
                 for r  in fut.result():
+                    if '_banner' in r:
+                        config['_banner'] = r['_banner']
+                        del r['_banner']
                     num_events += 1
                     if args.omit_untriggered and r['threshold'] < 0:
                         continue
