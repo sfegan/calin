@@ -78,11 +78,16 @@ tcoincidence = args.coincidence
 iact = None
 has_one_event = False
 
+begin_utc = datetime.datetime.now(datetime.timezone.utc)
+
 # Prepare a JSON header describing the run
 config = vars(args).copy()
-config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+config['_begin_utc'] = begin_utc.isoformat()
 config['_host'] = platform.node()
 config['_num_events'] = 0
+config['_num_tracks'] = 0
+config['_num_steps'] = 0
+config['_num_rays'] = 0
 
 def init():
     numpy.random.seed()
@@ -342,10 +347,16 @@ def one_event():
     if not has_one_event:
         event_results[0]['_banner'] = iact.banner()
         has_one_event = True
+    event_results[0]['_num_tracks'] = iact.num_tracks()
+    event_results[0]['_num_steps'] = iact.num_steps()
+    event_results[0]['_num_rays'] = iact.num_rays()
     return event_results
 
 def save_results(results, num_events, filehandle):
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
     config['_num_events'] = num_events
+    config['_end_utc'] = now_utc.isoformat()
+    config['_run_time'] = (now_utc - begin_utc).total_seconds()
     output = dict(
         config = config,
         results = results)
@@ -378,6 +389,13 @@ with open(args.output, 'wb') as f:
                     if '_banner' in r:
                         config['_banner'] = r['_banner']
                         del r['_banner']
+                    if '_num_tracks' in r:
+                        config['_num_tracks'] += r['_num_tracks']
+                        config['_num_steps'] += r['_num_steps']
+                        config['_num_rays'] += r['_num_rays']
+                        del r['_num_tracks']
+                        del r['_num_steps']
+                        del r['_num_rays']
                     num_events += 1
                     if args.omit_untriggered and r['threshold'] < 0:
                         continue
@@ -388,6 +406,9 @@ with open(args.output, 'wb') as f:
                     print(f'Wrote {len(all_results)}/{num_events} results to {args.output}')
                     events_written = num_events
                     batch_start = len(all_results)
+                    config['_num_tracks'] = 0
+                    config['_num_steps'] = 0
+                    config['_num_rays'] = 0
 
                 if remaining > 0:
                     futures.add(executor.submit(one_event))
