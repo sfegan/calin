@@ -984,7 +984,7 @@ set_viewcone_from_telescope_fields_of_view()
   double border_rad = std::acos(1/(this->atm_->n_minus_one(zobs_)+1));
   if(config_.refraction_mode() != calin::ix::simulation::vcl_iact::REFRACT_NO_RAYS) {
     border_rad += this->atm_->refraction_bending(
-      this->atm_->top_of_atmosphere(), std::acos(wmax_));
+      this->atm_->top_of_atmosphere(), std::acos(wmin_));
   }
   Eigen::Vector3d viewcone_dir;
   double viewcone_radius = calin::simulation::ray_processor::
