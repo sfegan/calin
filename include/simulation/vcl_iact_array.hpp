@@ -409,6 +409,8 @@ public:
   void point_all_telescopes_az_el_phi_deg(double az_deg, double el_deg, double phi_deg);
   void point_all_telescopes_az_el_deg(double az_deg, double el_deg);
 
+  void set_viewcone_from_telescope_fields_of_view();
+
   static calin::ix::simulation::vcl_iact::VCLIACTArrayConfiguration default_config();
 
   unsigned num_propagator_sets() const { return propagator_set_.size(); }
@@ -903,17 +905,19 @@ template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
 point_telescope_az_el_phi_deg(unsigned iscope,
   double az_deg, double el_deg, double phi_deg)
 {
+  using namespace calin::util::log;
   if(iscope >= detector_.size()) {
     throw std::out_of_range("Telescope ID out of range");
   }
-
+  if(this->viewcone_enabled_) {
+    LOG(WARNING) << "Disabling viewcone after telescope repointing.";
+    this->clear_viewcone();
+  }
   DetectorInfo* detector(detector_[iscope]);
   PropagatorInfo* ipropagator(detector->propagator_info);
   unsigned propagator_isphere = iscope-ipropagator->detector0;
-
   ipropagator->propagator->point_telescope_az_el_phi_deg(
     propagator_isphere, az_deg, el_deg, phi_deg);
-
   schedule_update_detector_efficiencies();
 }
 
@@ -927,6 +931,11 @@ template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
 point_all_telescopes_az_el_phi_deg(const Eigen::VectorXd& az_deg,
   const Eigen::VectorXd&  el_deg, const Eigen::VectorXd&  phi_deg)
 {
+  using namespace calin::util::log;
+  if(this->viewcone_enabled_) {
+    LOG(WARNING) << "Disabling viewcone after telescope repointing.";
+    this->clear_viewcone();
+  }
   for(auto* propagator : propagator_) {
     for(unsigned propagator_isphere=0; propagator_isphere<propagator->ndetector;
         ++propagator_isphere) {
@@ -962,6 +971,25 @@ point_all_telescopes_az_el_deg(double az_deg, double el_deg)
     Eigen::VectorXd::Constant(detector_.size(), az_deg),
     Eigen::VectorXd::Constant(detector_.size(), el_deg),
     Eigen::VectorXd::Constant(detector_.size(), 0.0));
+}
+
+template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
+set_viewcone_from_telescope_fields_of_view()
+{
+  std::vector<calin::simulation::ray_processor::RayProcessorDetectorSphere> detector_spheres;
+  for(auto* propagator : propagator_) {
+    auto spheres = propagator->propagator->detector_spheres();
+    detector_spheres.insert(detector_spheres.end(), spheres.begin(), spheres.end());
+  }
+  double border_rad = std::acos(1/(this->atm_->n_minus_one(zobs_)+1));
+  if(config_.refraction_mode() != calin::ix::simulation::vcl_iact::REFRACT_NO_RAYS) {
+    border_rad += this->atm_->refraction_bending(
+      this->atm_->top_of_atmosphere(), std::acos(wmax_));
+  }
+  Eigen::Vector3d viewcone_dir;
+  double viewcone_radius = calin::simulation::ray_processor::
+    viewcone_for_detector_spheres(viewcone_dir, detector_spheres, border_rad);
+  this->set_viewcone(viewcone_dir, viewcone_radius);
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
@@ -1704,6 +1732,14 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
     << " to " << double_to_string_with_commas(zobs_/1e5,3) << " km : "
     << double_to_string_with_commas(prop_delay_ct*0.03335641,2) <<  "ns ("
     << double_to_string_with_commas(prop_delay_ct,1) << " cm)\n";
+  if(this->is_viewcone_enabled()) {
+    stream << "Viewcone : "
+      << "Zn=" << double_to_string_with_commas(std::acos(-this->viewcone_n_[2])/M_PI*180,3) << " deg "
+      << "Az=" << double_to_string_with_commas(std::atan2(-this->viewcone_n_[0],-this->viewcone_n_[1])/M_PI*180,3) << " deg "
+      << "Theta=" << double_to_string_with_commas(std::acos(this->viewcone_wmax_)/M_PI*180,3) << " deg\n";
+  } else {
+    stream << "Viewcone : DISABLED\n";
+  }
   if(this->variable_bandwidth_spline_) {
     double bw_zobs = this->variable_bandwidth_spline_->value(zobs_);
     double bw_5 = this->variable_bandwidth_spline_->value(5e5);

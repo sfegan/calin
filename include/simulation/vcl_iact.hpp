@@ -90,6 +90,9 @@ public:
 
   void set_viewcone(const Eigen::Vector3d& obs_dir, double half_angle_rad);
   void clear_viewcone();
+  bool is_viewcone_enabled() const { return viewcone_enabled_; }
+  double get_viewcone_half_angle() const { return std::acos(viewcone_wmax_); }
+  Eigen::Vector3d get_viewcone_direction() const { return -viewcone_n_; }
 
 #ifndef SWIG
   virtual void propagate_rays(calin::math::ray::VCLRay<double_real> ray, double_bvt ray_mask,
