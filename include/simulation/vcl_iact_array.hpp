@@ -1734,8 +1734,8 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
     << double_to_string_with_commas(prop_delay_ct,1) << " cm)\n";
   if(this->is_viewcone_enabled()) {
     stream << "Viewcone : "
-      << "Zn=" << double_to_string_with_commas(std::acos(-this->viewcone_n_[2])/M_PI*180,3) << " deg "
-      << "Az=" << double_to_string_with_commas(std::atan2(-this->viewcone_n_[0],-this->viewcone_n_[1])/M_PI*180,3) << " deg "
+      << "Zn=" << double_to_string_with_commas(std::acos(-this->viewcone_n_[2])/M_PI*180,3) << " deg, "
+      << "Az=" << double_to_string_with_commas(std::atan2(-this->viewcone_n_[0],-this->viewcone_n_[1])/M_PI*180,3) << " deg, "
       << "Theta=" << double_to_string_with_commas(std::acos(this->viewcone_wmax_)/M_PI*180,3) << " deg\n";
   } else {
     stream << "Viewcone : DISABLED\n";
