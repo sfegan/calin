@@ -61,7 +61,7 @@ struct RayProcessorDetectorSphere
 
 namespace calin { namespace simulation { namespace ray_processor {
 
-  double viewcone_for_detector_spheres(Eigen::Vector3d& obs_dir_out, 
+double viewcone_for_detector_spheres(Eigen::Vector3d& obs_dir_out, 
   const std::vector<RayProcessorDetectorSphere>& detector_spheres, double border=0.0);
 
 class RayProcessor
