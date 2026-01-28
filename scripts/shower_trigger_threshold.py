@@ -25,7 +25,7 @@ parser.add_argument('--reuse', type=int, default=10,
 parser.add_argument('--write_batch', type=int, default=100,
                    help='Specify the number of events to write per batch to output file')
 
-parser.add_argument('-o', '--output', type=str, default=None,
+parser.add_argument('-o', '--output', type=str, default='tt.pickle',
                     help='Write trigger thresholds to this file')
 parser.add_argument('--omit_untriggered', action='store_true',
                     help='Reduce file size by omitting untriggered events')
@@ -51,9 +51,12 @@ parser.add_argument('--theta', type=float, default=0.0,
                    help='Specify the fixed offset between the primary direction and the telescope pointing direction in degrees')
 parser.add_argument('--phi', type=float, default=0.0,
                    help='Specify the fixed polar angle of the primary direction around the telescope pointing direction in degrees')
-parser.add_argument('--no_bfield', action='store_true', help='Disable the magnetic field (default: enabled)')
+parser.add_argument('--no_bfield', action='store_true', 
+                   help='Disable the magnetic field (default: enabled)')
+parser.add_argument('--no_refraction', action='store_true', 
+                   help='Disable refraction of rays in the atmosphere (default: enabled)')
 parser.add_argument('--enable_viewcone_cut', action='store_true', 
-                    help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
+                   help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
 
 parser.add_argument('--nsb', type=float, default=0.30,
                    help='Specify the NSB rate in GHz')
@@ -69,6 +72,8 @@ parser.add_argument('-c', '--coincidence', type=int, default=24,
 parser.add_argument('--threshold_min', type=float, default=40.0,
                     help='Minimum threshold for search (default: 40.0)')
 
+parser.add_argument('--nthread', type=int, default=0,
+                    help='Number of threads to use (default: 0 = number of CPUs available)')
 parser.add_argument('--avx', type=int, default=512, choices=[128,256,512],
                     help='Set the AVX vector size in bits (default: 512)')
 
@@ -132,7 +137,10 @@ def init():
     # Configure IACT array
     global iact
     cfg = iact_class.default_config()
-    cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
+    if args.no_refraction:
+        cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_NO_RAYS)
+    else:
+        cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
     iact = iact_class(atm, atm_abs, cfg)
 
     # Load detector and efficiency models and the SPE generator
@@ -364,59 +372,94 @@ def save_results(results, num_events, filehandle):
     filehandle. flush()
 
 num_events = 0
+num_rays = 0
+num_steps = 0
+num_tracks = 0
 events_written = 0
 batch_start = 0
 all_results = []
-max_workers = os.cpu_count() or 4
-batch_size = max_workers * 10
+
+def print_line():    
+    print(f'{args.output}: {len(all_results)} ;',
+            f'{num_events:,d} / {args.n*args.reuse:,d} =',
+            f'{num_events/(args.n*args.reuse)*100:.2f} % ; ',
+            f'{config["_run_time"]/3600:.2f} /',
+            f'{args.n*args.reuse/num_events*config["_run_time"]/3600:.2f} hr ;',
+            f'{num_rays} rays ;',
+            f'{num_rays/num_steps:.2f}',
+            f'{num_steps/num_tracks:.2f}')
+    
+def process_results(results):
+    global num_events
+    global events_written
+    global batch_start
+    global all_results
+    global config
+    global num_rays
+    global num_steps
+    global num_tracks
+
+    for r in results:
+        if '_banner' in r:
+            config['_banner'] = r['_banner']
+            del r['_banner']
+        if '_num_tracks' in r:
+            config['_num_tracks'] += r['_num_tracks']
+            config['_num_steps'] += r['_num_steps']
+            config['_num_rays'] += r['_num_rays']
+            num_tracks += r['_num_tracks']
+            num_steps += r['_num_steps']
+            num_rays += r['_num_rays']
+            del r['_num_tracks']
+            del r['_num_steps']
+            del r['_num_rays']
+        num_events += 1
+        if args.omit_untriggered and r['threshold'] < 0:
+            continue
+        all_results.append(r)
+
+    if (num_events-events_written)>=args.write_batch:
+        save_results(all_results[batch_start:], num_events-events_written, f)
+        print_line()
+        events_written = num_events
+        batch_start = len(all_results)
+        config['_num_tracks'] = 0
+        config['_num_steps'] = 0
+        config['_num_rays'] = 0
+
+max_workers = args.nthread or os.cpu_count() or 1
 with open(args.output, 'wb') as f:
-    with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
-        remaining = args.n
-        futures = set()
+    # Run the simulations in this thread
+    if max_workers == 1:
+        init()
+        for _ in range(args.n):
+            process_results(one_event())
+    else:
+        # Use a process pool for parallelism
+        batch_size = max_workers * 10
+        with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
+            remaining = args.n
+            futures = set()
 
-        # Submit initial batch
-        first_batch = min(batch_size, remaining)
-        for _ in range(first_batch):
-            futures.add(executor.submit(one_event))
-        remaining -= first_batch
+            # Submit initial batch
+            first_batch = min(batch_size, remaining)
+            for _ in range(first_batch):
+                futures.add(executor.submit(one_event))
+            remaining -= first_batch
 
-        # Keep a bounded number of in-flight futures; as one completes, submit another
-        while futures:
-            done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-            for fut in done:
-                futures.remove(fut)
-                for r  in fut.result():
-                    if '_banner' in r:
-                        config['_banner'] = r['_banner']
-                        del r['_banner']
-                    if '_num_tracks' in r:
-                        config['_num_tracks'] += r['_num_tracks']
-                        config['_num_steps'] += r['_num_steps']
-                        config['_num_rays'] += r['_num_rays']
-                        del r['_num_tracks']
-                        del r['_num_steps']
-                        del r['_num_rays']
-                    num_events += 1
-                    if args.omit_untriggered and r['threshold'] < 0:
-                        continue
-                    all_results.append(r)
-
-                if (num_events-events_written)>=args.write_batch:
-                    save_results(all_results[batch_start:], num_events-events_written, f)
-                    print(f'Wrote {len(all_results)}/{num_events} results to {args.output}')
-                    events_written = num_events
-                    batch_start = len(all_results)
-                    config['_num_tracks'] = 0
-                    config['_num_steps'] = 0
-                    config['_num_rays'] = 0
-
-                if remaining > 0:
-                    futures.add(executor.submit(one_event))
-                    remaining -= 1
+            # Keep a bounded number of in-flight futures; as one completes, submit another
+            while futures:
+                done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                for fut in done:
+                    futures.remove(fut)
+                    process_results(fut.result())
+                    if remaining > 0:
+                        futures.add(executor.submit(one_event))
+                        remaining -= 1
 
     if num_events>events_written:
         save_results(all_results[batch_start:], num_events-events_written, f)
-        print(f'Wrote {len(all_results)}/{num_events} results to {args.output}')
+        print_line()
         events_written = num_events
         batch_start = len(all_results)
 
