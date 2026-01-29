@@ -1,3 +1,5 @@
+# Example usage: python3.12 shower_trigger_threshold.py -o test.pickle -n 6000000 -b 6500 -e 0.0175 --nsb 0.0 -p proton --viewcone 13.0 --write_batch=100000 --omit_untriggered --reuse 200 --enable_viewcone_cut
+
 import os
 import argparse
 import concurrent
@@ -382,10 +384,10 @@ all_results = []
 def print_line():    
     print(f'{args.output}: {len(all_results)} ;',
             f'{num_events:,d} / {args.n*args.reuse:,d} =',
-            f'{num_events/(args.n*args.reuse)*100:.2f} % ; ',
+            f'{num_events/(args.n*args.reuse)*100:.2f} % ;',
             f'{config["_run_time"]/3600:.2f} /',
             f'{args.n*args.reuse/num_events*config["_run_time"]/3600:.2f} hr ;',
-            f'{num_rays} rays ;',
+            f'{num_rays:,d} rays ;',
             f'{num_rays/num_steps:.2f}',
             f'{num_steps/num_tracks:.2f}')
     
