@@ -60,6 +60,10 @@ parser.add_argument('--no_refraction', action='store_true',
 parser.add_argument('--enable_viewcone_cut', action='store_true', 
                    help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
 
+parser.add_argument('--multiple_scattering', type=str, 
+                    choices=['minimal','simple','normal','insane'],
+                    default='normal',
+                    help='Specify the multiple scattering model (default: normal)')
 parser.add_argument('--nsb', type=float, default=0.30,
                    help='Specify the NSB rate in GHz')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
@@ -185,10 +189,20 @@ def init():
     # Configure Geant4 shower generator
     cfg = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator.customized_config(
         1000, 0, atm.top_of_atmosphere(), calin.simulation.geant4_shower_generator.VerbosityLevel_SUPRESSED_STDOUT)
-    cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-    cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-    cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
-    # cfg.add_pre_init_commands('/process/em/verbose 1')
+    if args.multiple_scattering == 'minimal':
+        cfg.add_pre_init_commands('/process/msc/StepLimit Minimal')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad Minimal')
+    elif args.multiple_scattering == 'simple':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseSafety')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseSafety')
+    elif args.multiple_scattering == 'normal':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+    elif args.multiple_scattering == 'insane':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
+        cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.001')
 
     # Instantiate Geant4 shower generator
     global generator
@@ -387,6 +401,7 @@ def print_line():
             f'{num_events/(args.n*args.reuse)*100:.2f} % ;',
             f'{config["_run_time"]/3600:.2f} /',
             f'{args.n*args.reuse/num_events*config["_run_time"]/3600:.2f} hr ;',
+            f'{num_events/config["_run_time"]:,.2f} Hz ;',
             f'{num_rays:,d} rays ;',
             f'{num_rays/num_steps:.2f}',
             f'{num_steps/num_tracks:.2f}')
