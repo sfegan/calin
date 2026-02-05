@@ -375,6 +375,8 @@ containing_circle_2d(const Eigen::MatrixXd& circles)
 Eigen::Vector4d calin::math::geometry::
 containing_circle_sphere(const Eigen::MatrixXd& circles_on_sphere)
 {
+  // Thanks to Fergal Daly for telling me (in ~1999) that the stereographic 
+  // projection of a circle on a sphere is a circle in 2D. Yay !
   if(circles_on_sphere.cols() != 4) {
     throw std::runtime_error("circles_on_sphere must have 4 columns");
   }
