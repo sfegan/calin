@@ -164,6 +164,13 @@ message SimulatedEvent
   double weight                                            = 11
     [(CFO).desc = "Event weighting for thinning." ];
 
+  calin.ix.common_types.Vector3D viewcone_axis             = 12
+    [(CFO).desc = "Nominal viewcone axis for this event.",
+     (CFO).units = "1" ];
+
+  double viewcone_costheta                                 = 13
+    [(CFO).desc = "Costheta of event direction with respect to nominal viewcone axis." ];
+
   repeated DetectorArrayEvent array                        = 20
     [(CFO).desc = "Event as seen by each of the configured detector arrays." ];
 };
@@ -182,49 +189,58 @@ message AtmosphericLayer
     [(CFO).desc = "Thickness at top of layer.",
      (CFO).units = "g/cm2" ];
 
-  double density                                           = 4
+  double thickness_bottom                                  = 4
+    [(CFO).desc = "Thickness at bottom of layer.",
+     (CFO).units = "g/cm2" ];
+
+  double density                                           = 5
     [(CFO).desc = "Mean density of layer.",
      (CFO).units = "g/cm3" ];
 
-  double n_minus_one_top                                   = 5
+  double n_minus_one_top                                   = 6
     [(CFO).desc = "Refractive index minus 1 at top of layer.",
      (CFO).units = "1" ];
 
-  double yield_top                                         = 6
+  double n_minus_one_bottom                                = 7
+    [(CFO).desc = "Refractive index minus 1 at bottom of layer.",
+     (CFO).units = "1" ];
+
+  double yield_top                                         = 8
     [(CFO).desc = "Cherenkov yield at top of layer.",
      (CFO).units = "ph/cm" ];
 
-  calin.ix.common_types.Vector3D bfield_top                = 7
+  double yield_bottom                                      = 9
+    [(CFO).desc = "Cherenkov yield at bottom of layer.",
+     (CFO).units = "ph/cm" ];
+
+  calin.ix.common_types.Vector3D bfield_top                = 10
     [(CFO).desc = "Geomagnetic field vector at top of layer.",
      (CFO).units = "nT" ];
 
-  double absorption_1x0ev_top                              = 8
-    [(CFO).desc = "Absorption probability for 1.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  calin.ix.common_types.Vector3D bfield_bottom             = 11
+    [(CFO).desc = "Geomagnetic field vector at bottom of layer.",
+     (CFO).units = "nT" ];
 
-  double absorption_1x5ev_top                              = 9
-    [(CFO).desc = "Absorption probability for 1.5 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double absorption_1d0ev_top                              = 12
+    [(CFO).desc = "Absorption probability for 1.0 eV photon from top of layer." ];
 
-  double absorption_2x0ev_top                              = 10
-    [(CFO).desc = "Absorption probability for 2.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double absorption_1d5ev_top                              = 13
+    [(CFO).desc = "Absorption probability for 1.5 eV photon from top of layer." ];
 
-  double absorption_2x5ev_top                              = 11
-    [(CFO).desc = "Absorption probability for 2.5 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double absorption_2d0ev_top                              = 14
+    [(CFO).desc = "Absorption probability for 2.0 eV photon from top of layer." ];
 
-  double absorption_3x0ev_top                              = 12
-    [(CFO).desc = "Absorption probability for 3.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double absorption_2d5ev_top                              = 15
+    [(CFO).desc = "Absorption probability for 2.5 eV photon from top of layer." ];
 
-  double absorption_3x5ev_top                              = 13
-    [(CFO).desc = "Absorption probability for 3.5 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double absorption_3d0ev_top                              = 16
+    [(CFO).desc = "Absorption probability for 3.0 eV photon from top of layer." ];
 
-  double absorption_4x0ev_top                              = 14
-    [(CFO).desc = "Absorption probability for 4.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double absorption_3d5ev_top                              = 17
+    [(CFO).desc = "Absorption probability for 3.5 eV photon from top of layer." ];
+
+  double absorption_4d0ev_top                              = 18
+    [(CFO).desc = "Absorption probability for 4.0 eV photon from top of layer." ];
 };
 
 message DetectorGroupConfiguration
@@ -257,8 +273,10 @@ message DetectorArrayConfiguration
   string name                                              = 1
     [(CFO).desc = "Name of this detector set." ];
 
-  double scattered_distance                                = 2
-    [(CFO).desc = "Scattered detector distance for this set.",
+  repeated double scattering_radius_polynomial             = 40
+    [(CFO).desc = "Radius of the scattering region for the array center, "
+      "perpendicular to primary direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
      (CFO).units = "cm" ];
 
   repeated DetectorGroupConfiguration detector_group_config = 10
@@ -267,18 +285,57 @@ message DetectorArrayConfiguration
 
 message SimulationConfiguration
 {
-  string banner                                            = 1
+  ParticleType paricle_type                                = 1
+    [(CFO).desc = "Simplified particle type." ];
+
+  double energy_lo                                         = 2
+    [(CFO).desc = "Low energy bound for simulated events.",
+     (CFO).units = "TeV" ];
+
+  double energy_hi                                         = 3
+    [(CFO).desc = "High energy bound for simulated events.",
+     (CFO).units = "TeV" ];
+
+  repeated double energy_spectrum_polynomial               = 4
+    [(CFO).desc = "Energy spectrum shape index for simulated events as "
+      " a polynomial in x=log10(E/1TeV). dF/dE ~ 10^(P0*x + P1*x^2 + ...)." ];
+
+  double azimuth                                           = 5
+    [(CFO).desc = "Azimuth of nominal observation (viewcone) axis for the simulation.",
+     (CFO).units = "degrees" ];
+
+  double elevation                                         = 6
+    [(CFO).desc = "Elevation of the nominal observation (viewcone) axis for the simulation.",
+     (CFO).units = "degrees" ];     
+  
+  calin.ix.common_types.Vector3D viewcone_axis             = 7
+    [(CFO).desc = "Nominal viewcone axis for the simulation.",
+     (CFO).units = "1" ];
+
+  repeated double viewcone_halfangle_polynomial            = 8
+    [(CFO).desc = "Half-angle of the scattering viewcone for the event direction "
+      "with respect to the nominal direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
+     (CFO).units = "degrees" ];
+
+  repeated double scattering_radius_polynomial             = 9
+    [(CFO).desc = "Radius of the scattering region for the array center, "
+      "perpendicular to primary direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
+     (CFO).units = "cm" ];
+
+  string banner                                            = 10
     [(CFO).desc = "Banner or description for this simulation run." ];
 
-  repeated AtmosphericLayer atmospheric_layer              = 2
+  repeated AtmosphericLayer atmospheric_layer              = 11
     [(CFO).desc = "Atmospheric layers." ];
 
-  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 10
+  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 12
     [(CFO).desc = "Configuration for GEANT4 shower generation." ];
 
-  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 20
+  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 13
     [(CFO).desc = "Configuration for IACT array simulation." ];
 
-  DetectorArrayConfiguration detector_array_config             = 30
+  DetectorArrayConfiguration detector_array_config             = 14
     [(CFO).desc = "Configuration for detector arrays in this simulation." ];
 };
