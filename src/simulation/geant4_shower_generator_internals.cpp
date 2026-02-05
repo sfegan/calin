@@ -34,40 +34,6 @@
 using namespace calin::simulation::geant4_shower_generator;
 using namespace calin::util::log;
 
-void calin::simulation::geant4_shower_generator::
-g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec)
-{
-  evec[0] = g4vec[0];
-  evec[1] = g4vec[1];
-  evec[2] = g4vec[2];
-}
-
-void calin::simulation::geant4_shower_generator::
-g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec,
-                    double to_units)
-{
-  evec[0] = g4vec[0]/to_units;
-  evec[1] = g4vec[1]/to_units;
-  evec[2] = g4vec[2]/to_units;
-}
-
-void calin::simulation::geant4_shower_generator::
-eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec)
-{
-  g4vec[0] = evec[0];
-  g4vec[1] = evec[1];
-  g4vec[2] = evec[2];
-}
-
-void calin::simulation::geant4_shower_generator::
-eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec,
-               double from_units)
-{
-  g4vec[0] = evec[0]*from_units;
-  g4vec[1] = evec[1]*from_units;
-  g4vec[2] = evec[2]*from_units;
-}
-
 // ============================================================================
 //
 // EAS_SteppingAction - Stacking action - kill low energy particles
