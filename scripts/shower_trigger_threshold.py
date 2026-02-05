@@ -61,7 +61,7 @@ parser.add_argument('--enable_viewcone_cut', action='store_true',
                    help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
 
 parser.add_argument('--multiple_scattering', type=str, 
-                    choices=['minimal','simple','normal','insane'],
+                    choices=['minimal','simple','normal','better','insane'],
                     default='normal',
                     help='Specify the multiple scattering model (default: normal)')
 parser.add_argument('--nsb', type=float, default=0.30,
@@ -198,6 +198,11 @@ def init():
     elif args.multiple_scattering == 'normal':
         cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
         cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+    elif args.multiple_scattering == 'better':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/RangeFactor 0.01')
+        cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.01')
     elif args.multiple_scattering == 'insane':
         cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
         cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
