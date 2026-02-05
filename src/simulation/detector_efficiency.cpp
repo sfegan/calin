@@ -411,23 +411,32 @@ std::vector<double> AtmosphericAbsorption::levels_cm() const
 DetectionEfficiency::DetectionEfficiency(double const_eff):
   InterpLinear1D(const_eff)
 {
-  // nothing to see here
+  if(const_eff != 1.0) {
+    banner_ = "Initialized to constant: " + std::to_string(const_eff);
+  }
 }
 
 DetectionEfficiency::DetectionEfficiency(const std::string& filename):
   InterpLinear1D(1.0)
 {
   scaleEffFromFile(filename);
+  banner_ = "Initialized to file: " + filename 
+    + ", bandwidth: " + std::to_string(this->integrate()) + " eV";
 }
 
 void DetectionEfficiency::scaleEff(const InterpLinear1D& eff)
 {
   *static_cast<InterpLinear1D*>(this) *= eff;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by curve, bandwidth: " + std::to_string(this->integrate()) + " eV";
 }
 
 void DetectionEfficiency::scaleEffByConst(double c)
 {
   *static_cast<InterpLinear1D*>(this) *= c;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by constant: " + std::to_string(c) 
+    + ", bandwidth: " + std::to_string(this->integrate()) + " eV";
 }
 
 void DetectionEfficiency::
@@ -437,7 +446,10 @@ scaleEffFromFile(const std::string& filename)
   eff_fn.insert_from_2column_file_with_filter(filename,
     [](double& lambda_in_e_out, double& eff) {
       lambda_in_e_out = EV_NM / lambda_in_e_out; return true; });
-  scaleEff(eff_fn);
+  *static_cast<InterpLinear1D*>(this) *= eff_fn;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by file: " + filename 
+    + ", bandwidth: " + std::to_string(this->integrate()) + " eV";
 }
 
 void DetectionEfficiency::
@@ -462,7 +474,10 @@ scaleEffFromOldStyleFile(const std::string& filename,
     lambda += dlambda_nm;
     stream >> eff;
   }
-  scaleEff(eff_fn);
+  *static_cast<InterpLinear1D*>(this) *= eff_fn;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by file: " + filename 
+    + ", bandwidth: " + std::to_string(this->integrate()) + " eV";
   calin::provenance::chronicle::register_file_close(file_record);
 }
 
@@ -473,7 +488,9 @@ scaleEffFromOldStyleFile(const std::string& filename,
 AngularEfficiency::AngularEfficiency(double const_eff):
   InterpLinear1D(const_eff)
 {
-  // nothing to see here
+  if(const_eff != 1.0) {
+    banner_ = "Initialized to constant: " + std::to_string(const_eff);
+  }
 }
 
 AngularEfficiency::AngularEfficiency(const std::string& filename):
@@ -482,23 +499,31 @@ AngularEfficiency::AngularEfficiency(const std::string& filename):
   this->insert_from_2column_file_with_filter(filename,
     [](double& theta_in_w_out, double& eff) {
       theta_in_w_out = std::cos(theta_in_w_out/180.0*M_PI); return true; });
+  banner_ = "Initialized to file: " + filename;
 }
 
 void AngularEfficiency::scaleEff(const InterpLinear1D& eff)
 {
   *static_cast<InterpLinear1D*>(this) *= eff;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by curve";
 }
 
 void AngularEfficiency::scaleEffByConst(double c)
 {
   *static_cast<InterpLinear1D*>(this) *= c;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by constant: " + std::to_string(c) 
+    + ", bandwidth: " + std::to_string(this->integrate()) + " eV";
 }
 
 void AngularEfficiency::
 scaleEffFromFile(const std::string& filename)
 {
   AngularEfficiency eff(filename);
-  scaleEff(eff);
+  *static_cast<InterpLinear1D*>(this) *= eff;
+  if(not banner_.empty()) banner_ += "\n";
+  banner_ += "Scaled by file: " + filename;
 }
 
 // ----------------------------------------------------------------------------

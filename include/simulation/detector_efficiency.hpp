@@ -162,6 +162,9 @@ public:
     return static_cast<const calin::math::interpolation_1d::InterpLinear1D&>(*this) ==
       static_cast<const calin::math::interpolation_1d::InterpLinear1D&>(o);
   }
+  std::string banner() const { return banner_; }
+private:
+  std::string banner_;
 };
 
 class AngularEfficiency: public calin::math::interpolation_1d::InterpLinear1D
@@ -176,6 +179,9 @@ public:
     return static_cast<const calin::math::interpolation_1d::InterpLinear1D&>(*this) ==
       static_cast<const calin::math::interpolation_1d::InterpLinear1D&>(o);
   }
+  std::string banner() const { return banner_; }
+private:
+  std::string banner_;
 };
 
 #if 0
