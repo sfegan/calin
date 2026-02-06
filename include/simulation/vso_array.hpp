@@ -78,6 +78,9 @@ class VSOArray
   // ************************************************************************
   void generateFromArrayParameters(
       const ix::simulation::vs_optics::IsotropicDCArrayParameters& param,
+      math::rng::RNG* rng = nullptr);
+  void generateFromArrayParameters(
+      const ix::simulation::vs_optics::IsotropicDCArrayParameters& param,
       math::rng::RNG& rng);
 
   // ************************************************************************

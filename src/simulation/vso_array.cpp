@@ -113,6 +113,18 @@ pointTelescopesAzElPhi(const double az_rad, const double el_rad, const double ph
 // ****************************************************************************
 
 void VSOArray::
+generateFromArrayParameters(const ix::simulation::vs_optics::IsotropicDCArrayParameters& param,
+                            math::rng::RNG* rng)
+{
+  if(rng == nullptr) {
+    math::rng::RNG rng(__PRETTY_FUNCTION__, "RNG for VSOArray generation");
+    generateFromArrayParameters(param, rng);
+  } else {
+    generateFromArrayParameters(param, *rng);
+  }
+}
+
+void VSOArray::
 generateFromArrayParameters(const IsotropicDCArrayParameters& param,
                             math::rng::RNG& rng)
 {
