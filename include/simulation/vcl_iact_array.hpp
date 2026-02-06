@@ -352,7 +352,7 @@ public:
 
   virtual ~VCLIACTArray();
 
-  unsigned add_propagator_set(Eigen::VectorXd scattering_radius_polynomial, const std::string& name = "");
+  unsigned add_propagator_set(const Eigen::VectorXd& scattering_radius_polynomial, const std::string& name = "");
   unsigned add_propagator_set(double scattering_radius = 0.0, const std::string& name = "");
 
   DaviesCottonVCLFocalPlaneRayPropagator* add_davies_cotton_propagator(
@@ -661,14 +661,15 @@ template<typename VCLArchitecture> VCLIACTArray<VCLArchitecture>::
 }
 
 template<typename VCLArchitecture> unsigned VCLIACTArray<VCLArchitecture>::
-add_propagator_set(Eigen::VectorXd scattering_radius_polynomial, const std::string& name)
+add_propagator_set(const Eigen::VectorXd& scattering_radius_polynomial, const std::string& name)
 {
-  if(scattering_radius_polynomial.size() == 0) {
-    scattering_radius_polynomial.setZero(1);
+  Eigen::VectorXd scattering_radius_polynomial_copy = scattering_radius_polynomial;
+  if(scattering_radius_polynomial_copy.size() == 0) {
+    scattering_radius_polynomial_copy.setZero(1);
   }
   auto* propagator_set = new PropagatorSet;
   propagator_set->ipropagator_set = propagator_set_.size();
-  propagator_set->scattering_radius_polynomial = scattering_radius_polynomial;
+  propagator_set->scattering_radius_polynomial = scattering_radius_polynomial_copy;
   propagator_set->scattered_distance = 0.0;
   propagator_set->scattered_offset = Eigen::Vector3d::Zero();
   if(name == "") {
