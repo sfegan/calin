@@ -3,14 +3,14 @@
 import os
 import argparse
 import concurrent
-import pickle
 import datetime
-import platform
 import numpy
+import scipy.interpolate
 import calin.math.geometry
 import calin.ix.simulation.vcl_iact
 import calin.simulation.tracker
 import calin.simulation.vs_cta
+import calin.simulation.vs_optics
 import calin.simulation.ray_processor
 import calin.simulation.world_magnetic_model
 import calin.simulation.geant4_shower_generator
@@ -22,99 +22,18 @@ def comma_separated_floats(value):
     try:
         return [float(x) for x in value.split(",")]
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            "Must be a comma-separated list of floats (e.g. 1.0,2.3,4.2)"
-        )
+        raise argparse.ArgumentTypeError("Must be a comma-separated list of floats (e.g. 1.0,2.3,4.2)")
 
-# Set up command line argument parsing
-parser = argparse.ArgumentParser(description='Nectarcam single-telescope shower trigger threshold calculation')
-parser.add_argument('-n', type=int, default=0,
-                   help='Specify the number of file blocks to simulate, or zero to simulate indefinitely until killed')
-parser.add_argument('-block_size', type=int, default=1000,
-                   help='Specify the number of shower events per file block')
-parser.add_argument('--reuse', type=int, default=10,
-                   help='Specify the number of times to reuse each shower')
-
-parser.add_argument('-o', '--output', type=str, default='events_%s.h5',
-                    help='Output filename. May contain the string %s which will be replaced by a unique block identifier (default: events_%s.h5)')
-
-parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
-                    help='Site to simulate (default: ctan)')
-
-# Shower impact parameter parameters
-parser.add_argument('-b', '--bmax_polynomial', type=comma_separated_floats, default=[1000.0],
-                   help='Specify a polynomial defining maximum shower impact parameter in meters as a function of energy in TeV. If x=log10(E/1TeV) then b(x)=P0+P1*x+P2*x^2+... The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: 1000.0)')
-
-# Pointing and viewcone parameters
-parser.add_argument('--vc', '--viewcone_polynomial', type=comma_separated_floats, default=[0.0],
-                   help='Specify a polynomial defining viewcone half-angle in degrees as a function of energy in TeV. If x=log10(E/1TeV) then theta(x)=P0+P1*x+P2*x^2+... The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: 0.0)')
-parser.add_argument('--az', type=float, default=0.0,
-                   help='Specify the telescope azimuth angle in degrees')
-parser.add_argument('--el', type=float, default=70.0,
-                   help='Specify the telescope elevation angle in degrees')
-parser.add_argument('--theta', type=float, default=0.0,
-                   help='Specify the fixed offset between the primary direction and the telescope pointing direction in degrees')
-parser.add_argument('--phi', type=float, default=0.0,
-                   help='Specify the fixed polar angle of the primary direction around the telescope pointing direction in degrees')
-parser.add_argument('--enable_viewcone_cut', action='store_true', 
-                   help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
-
-# Particle type and energy
-parser.add_argument('-p', '--primary', type=str, default='gamma', 
-                    choices=['gamma','muon','electron','proton','helium','iron'],
-                    help='Specify the primary particle type')
-parser.add_argument('--emin', type=float, default=0.01,
-                   help='Specify the lower bound on the energy spectrum in TeV')
-parser.add_argument('--emax', type=float, default=100.0,
-                   help='Specify the upper bound on the energy spectrum in TeV')
-parser.add_argument('--spectral_shape', type=comma_separated_floats, default=[-2.7],
-                   help='Specify the spectral shape as a polynomial in log10(E/1TeV). If x=log10(E/1TeV) then dN/dE(x)=10^(P0*x+P1*x^2+...). The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: -2.7)')
-
-# Transit time spread
-parser.add_argument('--tts', type=float, default=0.75,
-                   help='Specify the transit time spread RMS in ns')
-
-# Low-level simulation options
-parser.add_argument('--no_bfield', action='store_true', 
-                   help='Disable the magnetic field (default: enabled)')
-parser.add_argument('--no_refraction', action='store_true', 
-                   help='Disable refraction of rays in the atmosphere (default: enabled)')
-parser.add_argument('--multiple_scattering', type=str, 
-                    choices=['minimal','simple','normal','better','insane'],
-                    default='normal',
-                    help='Specify the multiple scattering model (default: normal)')
-
-parser.add_argument('--nthread', type=int, default=0,
-                    help='Number of threads to use (default: 0 = number of CPUs available)')
-parser.add_argument('--avx', type=int, default=512, choices=[128,256,512],
-                    help='Set the AVX vector size in bits (default: 512)')
-
-args = parser.parse_args()
-
-iact = None
-has_one_event = False
-
-begin_utc = datetime.datetime.now(datetime.timezone.utc)
-
-def init():
+def init(args):
     numpy.random.seed()
 
     # Select simulation classes based on AVX size requested
     if args.avx == 128:
         iact_class = calin.simulation.vcl_iact.VCLIACTArray128
-        electronics_sim_class = calin.simulation.ray_processor.VCLWaveformPEProcessorFloat128 
     elif args.avx == 256:
         iact_class = calin.simulation.vcl_iact.VCLIACTArray256
-        electronics_sim_class = calin.simulation.ray_processor.VCLWaveformPEProcessorFloat256
     else:
         iact_class = calin.simulation.vcl_iact.VCLIACTArray512
-        electronics_sim_class = calin.simulation.ray_processor.VCLWaveformPEProcessorFloat512
-
-    # Load camera layout and reoder it by spiral channel index
-    global nchan
-    ncam = calin.iact_data.nectarcam_layout.nectarcam_layout()
-    scam = calin.iact_data.instrument_layout.reorder_camera_channels(ncam, ncam.pixel_spiral_channel_index())
-    nchan = scam.channel_size()
 
     # Load site-specific atmosphere, observation level and array layout
     global zobs
@@ -135,6 +54,15 @@ def init():
     mst.mutable_prescribed_array_layout().mutable_scope_positions(0).set_x(0)
     mst.mutable_prescribed_array_layout().mutable_scope_positions(0).set_y(0)
     nscope = mst.prescribed_array_layout().scope_positions_size()
+
+    # Instantiate array
+    global telescope_layout
+    global nchan
+    array = calin.simulation.vs_optics.VSOArray()
+    array.generateFromArrayParameters(mst)
+    scope = array.telescope(0)
+    telescope_layout = scope.convert_to_telescope_layout()
+    nchan = telescope_layout.camera().channel_size()
 
     # Configure IACT array
     global iact
@@ -158,8 +86,12 @@ def init():
     global all_prop
     all_pe_processor = []
     all_prop = []
+    if(len(args.bmax_polynomial) == 0):
+        bmax_polynomial = numpy.asarray([0.0])
+    else:
+        bmax_polynomial = numpy.asarray(args.bmax_polynomial) * 100.0
     for i in range(max(1, args.reuse)):
-        iact.add_propagator_set(args.bmax*100, f"Super array {i}")
+        iact.add_propagator_set(bmax_polynomial, f"Super array {i}")
         pe_processor = calin.simulation.ray_processor.SimpleListPEProcessor(nscope,nchan)
         prop = iact.add_davies_cotton_propagator(mst, pe_processor, det_eff, cone_eff, pe_gen, args.tts, 'MSTN')
         all_pe_processor.append(pe_processor)
@@ -167,12 +99,17 @@ def init():
 
     # Set telescope pointing direction
     global pt_dir
+    global viewcone_polynomial
     iact.point_all_telescopes_az_el_deg(args.az, args.el)
     if args.enable_viewcone_cut:
         iact.set_viewcone_from_telescope_fields_of_view()
     el = args.el * numpy.pi/180.0
     az = args.az * numpy.pi/180.0
     pt_dir  = numpy.asarray([numpy.cos(el)*numpy.sin(az), numpy.cos(el)*numpy.cos(az), numpy.sin(el)])
+    if(len(args.viewcone_polynomial)==0):
+        viewcone_polynomial = numpy.asarray([0.0])
+    else:
+        viewcone_polynomial = numpy.flipud(args.viewcone_polynomial) * numpy.pi/180.0
 
     # Magnetic field (if not disabled)
     global bfield
@@ -210,76 +147,32 @@ def init():
     generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, cfg, bfield);
     generator.set_minimum_energy_cut(20); # 20 MeV cut on KE (e-,p+,n,ions) or Etot
 
-    # Load impulse response
-    global isample0
-    global dtsample
-    global nsample
-    pulse = calin.simulation.vs_cta.mstn_impulse_response()
-    hg = pulse['hg']
-    dtsample = pulse['dt']
-    isample0 = len(hg)
-    nsample = 1 << (len(hg)-1).bit_length() + 1  # Next power of two greater than 2*len(hg)
-
-    # Instantiate electronics simulation
-    global electronics_sim
-    electronics_sim = electronics_sim_class(1,scam.channel_size(),nsample,dtsample,isample0)
-
-    # Register impulse response
-    electronics_sim.register_impulse_response(hg, 'DC')
-
-    # Register camera response
-    electronics_sim.add_camera_response(numpy.asarray([0]),True)
-
-    # Configure the neighbors matrix
-    electronics_sim.set_cr_neighbors(0, scam)
-
-    # Select trigger algorithm
-    global trigger_method
-    if args.trigger == 'multiplicity':
-        trigger_method = 'trigger_multiplicity_cr'
-        electronics_sim.set_cr_multiplicity(0, args.multiplicity)
-    elif args.trigger == 'm3':
-        trigger_method = 'trigger_multiplicity_cr'
-        electronics_sim.set_cr_multiplicity(0, 3)
-    elif args.trigger == 'm4':
-        trigger_method = 'trigger_multiplicity_cr'
-        electronics_sim.set_cr_multiplicity(0, 4)
-    elif args.trigger == '3nn':
-        trigger_method = 'trigger_3nn_cr'
-    elif args.trigger == '4nn':
-        trigger_method = 'trigger_4nn_cr'
+    # Spectrum RNG
+    global spectral_transform
+    if args.emax > args.emin:
+        if(len(args.spectral_polynomial)==0):
+            spectral_polynomial = numpy.asarray([1.0, 0.0])
+        else:
+            spectral_polynomial = numpy.flipud(args.spectral_polynomial)
+            spectral_polynomial[-1] += 1.0
+            spectral_polynomial = numpy.append(spectral_polynomial, [0.0])
+        xmin = numpy.log10(args.emin)
+        xmax = numpy.log10(args.emax)
+        x = numpy.linspace(xmin, xmax, 10000) 
+        y = 10**(numpy.polyval(spectral_polynomial, x))
+        p = numpy.append([0.0], numpy.cumsum(y[1:]+y[:-1])/2)
+        p /= p[-1]
+        spectral_transform = scipy.interpolate.interp1d(p, x, kind='linear', bounds_error=False, 
+                                                        fill_value=(xmin,xmax))
     else:
-        raise ValueError(f'Unknown trigger algorithm: {args.trigger}')
+        spectral_transform = lambda r: numpy.log10(args.emin)
 
-    # Instantiate PE generator
-    pe_gen_nsb = None
-    if args.no_after_pulsing:
-        pe_gen_nsb = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
-    else:
-        pe_gen_nsb = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
-    pe_gen_nsb.this.disown() # Let electronics_sim own it
+def gen_event(args):
+    x = spectrum_func(numpy.random.uniform()) # log10(E/1TeV)
+    e = 10**(x+6) # Convert TeV to MeV
 
-    # Define NSB
-    if args.nsb>0:
-        nsb = numpy.zeros(scam.channel_size()) + args.nsb
-        electronics_sim.set_cr_nsb_rate(0, nsb, pe_gen_nsb, True)
-
-    # Define noise spectrum
-    if(args.noise):
-        def noise(f):
-            fhi = 330.0
-            flo = 0.0
-            return (1+0.2*(f/275.0)**2)*(numpy.tanh((fhi-f)/20.0)+1)*0.9 + 0.6  # *(numpy.tanh((f-flo)/1.0)+1)/16
-        freq = electronics_sim.spectral_frequencies_ghz(False)
-        noise_spectrum = noise(freq*1000)
-        noise_spectrum[0] = 0
-        noise_spectrum *= numpy.sqrt(10.5**2/16/electronics_sim.noise_spectrum_var(noise_spectrum))
-        electronics_sim.set_cr_noise_spectrum(0, noise_spectrum)
-
-def gen_event():
-    e = args.energy * 1e6 # Convert TeV to MeV
-
-    costheta = 1.0 - (1.0 - numpy.cos(args.viewcone * numpy.pi/180))*numpy.random.uniform()
+    vc = numpy.polyval(viewcone_polynomial, x)
+    costheta = 1.0 - (1.0 - numpy.cos(vc))*numpy.random.uniform()
     theta = numpy.arccos(costheta)
     phi = numpy.random.uniform() * 2*numpy.pi
     u = numpy.asarray([numpy.sin(theta)*numpy.cos(phi), numpy.sin(theta)*numpy.sin(phi), numpy.cos(theta)])
@@ -310,45 +203,6 @@ def gen_event():
 
     return e,pt,u,x0,costheta
 
-def find_threshold(iarray):
-    # Clear previous waveforms, transfer the PEs, add NSB, convolve impulse response
-    electronics_sim.clear_waveforms()
-    electronics_sim.transfer_scope_pes_to_waveform(all_pe_processor[iarray], 0)
-    if args.nsb>0:
-        electronics_sim.add_nsb_noise_to_waveform_cr(0)
-    electronics_sim.convolve_impulse_response_fftw_codelet_cr(0)
-
-    # Now perform threshold search
-    trigger_fn = getattr(electronics_sim, trigger_method)
-    
-    # Start at threshold_min
-    threshold = args.threshold_min
-    electronics_sim.set_cr_threshold(0, numpy.zeros(nchan) + threshold, tcoincidence)
-    itrig = trigger_fn(0, isample0)
-    if itrig == -1:
-        return -1  # No trigger even at min threshold
-    
-    # Double until it fails, updating lower bound
-    lower = threshold
-    upper = threshold
-    while True:
-        upper *= 2
-        electronics_sim.set_cr_threshold(0, numpy.zeros(nchan) + upper, tcoincidence)
-        itrig = trigger_fn(0, isample0)
-        if itrig == -1:
-            break
-        lower = upper
-    while (upper - lower) / lower > 0.01:
-        mid = (lower + upper) / 2
-        electronics_sim.set_cr_threshold(0, numpy.zeros(nchan) + mid, tcoincidence)
-        itrig = trigger_fn(0, isample0)
-        if itrig == -1:
-            upper = mid
-        else:
-            lower = mid
-    
-    return lower
-
 def one_event():
     global has_one_event
     event_results = []
@@ -376,25 +230,6 @@ def one_event():
     event_results[0]['_num_steps'] = iact.num_steps()
     event_results[0]['_num_rays'] = iact.num_rays()
     return event_results
-
-def save_results(results, num_events, filehandle):
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    config['_num_events'] = num_events
-    config['_end_utc'] = now_utc.isoformat()
-    config['_run_time'] = (now_utc - begin_utc).total_seconds()
-    output = dict(
-        config = config,
-        results = results)
-    pickle.dump(output, filehandle)
-    filehandle. flush()
-
-num_events = 0
-num_rays = 0
-num_steps = 0
-num_tracks = 0
-events_written = 0
-batch_start = 0
-all_results = []
 
 def print_line():    
     print(f'{args.output}: {len(all_results)} ;',
@@ -445,8 +280,83 @@ def process_results(results):
         config['_num_steps'] = 0
         config['_num_rays'] = 0
 
-max_workers = args.nthread or os.cpu_count() or 1
-with open(args.output, 'wb') as f:
+def unique_filename(template, seq_num):
+    id = f'{numpy.random.bit_generator.randbits(128):032X}'
+    return template.format(id=id, seq=seq_num)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Nectarcam single-telescope shower simulation')
+    
+    parser.add_argument('-n', type=int, default=0,
+        help='Specify the number of file blocks to simulate, or zero to simulate indefinitely until killed')
+    parser.add_argument('-block_size', type=int, default=1000,
+        help='Specify the number of shower events per file block')
+    parser.add_argument('--reuse', type=int, default=10,
+        help='Specify the number of times to reuse each shower')
+
+    parser.add_argument('-o', '--output', type=str, default='events_{id}.h5',
+        help='Output filename. May contain the token "{id}", which will be replaced by a random identifier, or "{seq}" giving a sequential number (default: events_{id}.h5)')
+
+    parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
+        help='Site to simulate (default: ctan)')
+
+    # Shower impact parameter parameters
+    parser.add_argument('-b', '--bmax_polynomial', type=comma_separated_floats, default=[1000.0],
+        help='Specify a polynomial defining maximum shower impact parameter in meters as a function of energy in TeV. If x=log10(E/1TeV) then b(x)=P0+P1*x+P2*x^2+... The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: 1000.0)')
+
+    # Pointing and viewcone parameters
+    parser.add_argument('--viewcone_polynomial', type=comma_separated_floats, default=[0.0],
+        help='Specify a polynomial defining viewcone half-angle in degrees as a function of energy in TeV. If x=log10(E/1TeV) then theta(x)=P0+P1*x+P2*x^2+... The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: 0.0)')
+    parser.add_argument('--az', type=float, default=0.0,
+        help='Specify the telescope azimuth angle in degrees')
+    parser.add_argument('--el', type=float, default=70.0,
+        help='Specify the telescope elevation angle in degrees')
+    parser.add_argument('--theta', type=float, default=0.0,
+        help='Specify the fixed offset between the primary direction and the telescope pointing direction in degrees')
+    parser.add_argument('--phi', type=float, default=0.0,
+        help='Specify the fixed polar angle of the primary direction around the telescope pointing direction in degrees')
+    parser.add_argument('--enable_viewcone_cut', action='store_true', 
+        help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
+
+    # Particle type and energy
+    parser.add_argument('-p', '--primary', type=str, default='gamma', 
+        choices=['gamma','muon','electron','proton','helium','iron'],
+        help='Specify the primary particle type')
+    parser.add_argument('--emin', type=float, default=0.01,
+        help='Specify the lower bound on the energy spectrum in TeV')
+    parser.add_argument('--emax', type=float, default=100.0,
+        help='Specify the upper bound on the energy spectrum in TeV')
+    parser.add_argument('--spectral_polynomial', type=comma_separated_floats, default=[-2.7],
+        help='Specify the spectral shape as a polynomial in log10(E/1TeV). If x=log10(E/1TeV) then dN/dE(x)=10^(P0*x+P1*x^2+...). The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: -2.7)')
+
+    # Transit time spread
+    parser.add_argument('--tts', type=float, default=0.75,
+        help='Specify the transit time spread RMS in ns')
+
+    # Low-level simulation options
+    parser.add_argument('--no_bfield', action='store_true', 
+        help='Disable the magnetic field (default: enabled)')
+    parser.add_argument('--no_refraction', action='store_true', 
+        help='Disable refraction of rays in the atmosphere (default: enabled)')
+    parser.add_argument('--multiple_scattering', type=str, default='normal',
+        choices=['minimal','simple','normal','better','insane'],
+        help='Specify the multiple scattering model (default: normal)')
+
+    parser.add_argument('--nthread', type=int, default=0,
+        help='Number of threads to use (default: 0 = number of CPUs available)')
+    parser.add_argument('--avx', type=int, default=512, choices=[128,256,512],
+        help='Set the AVX vector size in bits (default: 512)')
+
+    args = parser.parse_args([])
+    
+    begin_utc = datetime.datetime.now(datetime.timezone.utc)
+    max_workers = args.nthread or os.cpu_count() or 1
+
+    num_events = 0
+    num_rays = 0
+    num_steps = 0
+    num_tracks = 0
+
     # Run the simulations in this thread
     if max_workers == 1:
         init()
