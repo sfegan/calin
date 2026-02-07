@@ -252,7 +252,7 @@ def init(args):
     sim_config.set_azimuth(args.az)
     sim_config.set_theta(args.theta)
     sim_config.set_phi(args.phi)
-    sim_config.set_viewcone_halfangle_polynomial(numpy.flipud(viewcone_polynomial) * 180.8/numpy.pi)
+    sim_config.set_viewcone_halfangle_polynomial(numpy.flipud(viewcone_polynomial) * 180.0/numpy.pi)
     sim_config.set_scattering_radius_polynomial(numpy.flipud(bmax_polynomial)*0.01)
     sim_config.set_banner(get_banner())
 
