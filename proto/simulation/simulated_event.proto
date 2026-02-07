@@ -60,7 +60,11 @@ message PixelEvent
     [(CFO).desc = "Photon detection times relative to detector reference time.",
      (CFO).units = "ns" ];
 
-  repeated float weight                                    = 3
+  repeated uint32 integer_time                             = 3
+    [(CFO).desc = "Photon detection times relative to detector reference time stored as integer.",
+     (CFO).units = "10ps", (CFO).int32_type = INT_16 ];
+
+  repeated float weight                                    = 4
     [(CFO).desc = "Photon weights",
      (CFO).units = "1" ];
 };

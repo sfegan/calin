@@ -305,17 +305,21 @@ Eigen::VectorXd SimpleListPEProcessor::pe_w_vec(unsigned iscope, unsigned ipix) 
   }
 }
 
-void SimpleListPEProcessor::save_to_simulated_event(calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event) const
+void SimpleListPEProcessor::save_to_simulated_event(
+  calin::ix::simulation::simulated_event::DetectorGroupEvent* detector_group_event,
+  bool store_pe_weights, bool store_times_as_integer) const
 {
   for(unsigned iscope=0; iscope<nscope_; iscope++) {
     if(npix_hit(iscope)) {
       auto* detector_event = detector_group_event->add_detector();
-      save_to_simulated_event(iscope, detector_event);
+      save_to_simulated_event(iscope, detector_event, store_pe_weights, store_times_as_integer);
     }
   }
 }
 
-void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope, calin::ix::simulation::simulated_event::DetectorEvent* detector_event) const
+void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope, 
+  calin::ix::simulation::simulated_event::DetectorEvent* detector_event,
+  bool store_pe_weights, bool store_times_as_integer) const
 {
   validate_iscope_ipix(iscope, 0);
   double ref_time = tmin(iscope);
@@ -329,8 +333,15 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope, calin::ix::
       auto* pixel_event = detector_event->add_pixel();
       pixel_event->set_pixel_id(ipix);
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
-        pixel_event->add_time(pd->t[ipe] - ref_time);
-        pixel_event->add_weight(pd->w[ipe]);
+        double trel = pd->t[ipe] - ref_time;
+        if(store_times_as_integer and trel<655.355) {
+          pixel_event->add_integer_time(std::round(trel * 1000));
+        } else {
+          pixel_event->add_time(trel);
+        }
+        if(store_pe_weights) {
+          pixel_event->add_weight(pd->w[ipe]);
+        }
       }
     }
   }
