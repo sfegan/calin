@@ -2,8 +2,11 @@
 
 import os
 import argparse
+import signal
 import concurrent
 import datetime
+import string
+from time import sleep
 import numpy
 import scipy.interpolate
 import calin.math.geometry
@@ -15,8 +18,10 @@ import calin.simulation.ray_processor
 import calin.simulation.world_magnetic_model
 import calin.simulation.geant4_shower_generator
 import calin.simulation.vcl_iact
+import calin.ix.simulation.simulated_event
 import calin.iact_data.instrument_layout
 import calin.iact_data.nectarcam_layout
+import calin.provenance.anthology
 
 def comma_separated_floats(value):
     try:
@@ -24,8 +29,23 @@ def comma_separated_floats(value):
     except ValueError:
         raise argparse.ArgumentTypeError("Must be a comma-separated list of floats (e.g. 1.0,2.3,4.2)")
 
+def handle_sigint_quietly(signum, frame):
+    global stop_requested
+    stop_requested = True
+
 def init(args):
+    global saved_args
+    saved_args = args
+
     numpy.random.seed()
+
+    global instance_id
+    global instance_event_id
+    instance_id = numpy.random.bit_generator.randbits(64)
+    instance_event_id = 0
+
+    global block_size
+    block_size = args.block_size
 
     # Select simulation classes based on AVX size requested
     if args.avx == 128:
@@ -84,32 +104,38 @@ def init(args):
     # Add telescope arrays
     global all_pe_processor
     global all_prop
+    global bmax_polynomial
     all_pe_processor = []
     all_prop = []
     if(len(args.bmax_polynomial) == 0):
         bmax_polynomial = numpy.asarray([0.0])
     else:
-        bmax_polynomial = numpy.asarray(args.bmax_polynomial) * 100.0
-    for i in range(max(1, args.reuse)):
-        iact.add_propagator_set(bmax_polynomial, f"Super array {i}")
+        bmax_polynomial = numpy.flipud(args.bmax_polynomial) * 100.0
+    for i in range(numpy.max([1,  args.reuse])):
+        iact.add_propagator_set(numpy.flipud(bmax_polynomial), f"Super array {i}")
         pe_processor = calin.simulation.ray_processor.SimpleListPEProcessor(nscope,nchan)
-        prop = iact.add_davies_cotton_propagator(mst, pe_processor, det_eff, cone_eff, pe_gen, args.tts, 'MSTN')
+        prop = iact.add_davies_cotton_propagator(mst, pe_processor, det_eff, cone_eff, pe_gen, args.tts, 'MST/NC')
         all_pe_processor.append(pe_processor)
         all_prop.append(prop)
 
-    # Set telescope pointing direction
+    # Set telescope pointing direction and viewcone parameters
     global pt_dir
+    global vc_dir
     global viewcone_polynomial
     iact.point_all_telescopes_az_el_deg(args.az, args.el)
-    if args.enable_viewcone_cut:
-        iact.set_viewcone_from_telescope_fields_of_view()
     el = args.el * numpy.pi/180.0
     az = args.az * numpy.pi/180.0
     pt_dir  = numpy.asarray([numpy.cos(el)*numpy.sin(az), numpy.cos(el)*numpy.cos(az), numpy.sin(el)])
+    theta = args.theta * numpy.pi/180
+    phi = args.phi * numpy.pi/180
+    vc_dir= numpy.asarray([numpy.sin(theta)*numpy.cos(phi), numpy.sin(theta)*numpy.sin(phi), numpy.cos(theta)])
+    calin.math.geometry.rotate_in_place_z_to_u_Rzy(vc_dir, -pt_dir)
     if(len(args.viewcone_polynomial)==0):
         viewcone_polynomial = numpy.asarray([0.0])
     else:
         viewcone_polynomial = numpy.flipud(args.viewcone_polynomial) * numpy.pi/180.0
+    if args.enable_viewcone_cut:
+        iact.set_viewcone_from_telescope_fields_of_view()
 
     # Magnetic field (if not disabled)
     global bfield
@@ -147,7 +173,24 @@ def init(args):
     generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, cfg, bfield);
     generator.set_minimum_energy_cut(20); # 20 MeV cut on KE (e-,p+,n,ions) or Etot
 
-    # Spectrum RNG
+    # Particle type
+    global particle_type
+    if args.primary == 'gamma':
+        particle_type = calin.simulation.tracker.ParticleType_GAMMA
+    elif args.primary == 'muon':
+        particle_type = calin.simulation.tracker.ParticleType_MUON
+    elif args.primary == 'electron':
+        particle_type = calin.simulation.tracker.ParticleType_ELECTRON
+    elif args.primary == 'proton':
+        particle_type = calin.simulation.tracker.ParticleType_PROTON
+    elif args.primary == 'helium':
+        particle_type = calin.simulation.tracker.ParticleType_HELIUM
+    elif args.primary == 'iron':
+        particle_type = calin.simulation.tracker.ParticleType_IRON
+    else:
+        raise ValueError(f'Unknown primary particle type: {args.primary}')
+
+    # Spectrum RNG transformation - convert uniform deviate to log10(energy)
     global spectral_transform
     if args.emax > args.emin:
         if(len(args.spectral_polynomial)==0):
@@ -160,136 +203,228 @@ def init(args):
         xmax = numpy.log10(args.emax)
         x = numpy.linspace(xmin, xmax, 10000) 
         y = 10**(numpy.polyval(spectral_polynomial, x))
+        if len(bmax_polynomial) > 1:
+            # If the impact parameter is not constant then must account for area
+            y *= numpy.polyval(bmax_polynomial, x)**2
+        if len(viewcone_polynomial) > 1:
+            # If the viewcone is not constant then must account for solid angle
+            y *= 1 - numpy.cos(numpy.polyval(viewcone_polynomial, x))
         p = numpy.append([0.0], numpy.cumsum(y[1:]+y[:-1])/2)
         p /= p[-1]
+        if(0 < args.spectral_constant <= 1.0):
+            p = p * (1-args.spectral_constant) + numpy.linspace(0.0,1.0,len(p))*args.spectral_constant
         spectral_transform = scipy.interpolate.interp1d(p, x, kind='linear', bounds_error=False, 
-                                                        fill_value=(xmin,xmax))
+                                                        fill_value=(xmin,xmax))            
     else:
-        spectral_transform = lambda r: numpy.log10(args.emin)
+        x = numpy.log10(args.emin)
+        spectral_transform = lambda r: x
+
+    # Simulation configuration
+    global sim_config
+    sim_config = calin.ix.simulation.simulated_event.SimulationConfiguration()
+    if args.primary == 'gamma':
+        sim_config.set_particle_type(calin.ix.simulation.simulated_event.GAMMA)
+    elif args.primary == 'muon':
+        sim_config.set_particle_type(calin.ix.simulation.simulated_event.MUON)
+    elif args.primary == 'electron':
+        sim_config.set_particle_type(calin.ix.simulation.simulated_event.ELECTRON)
+    elif args.primary == 'proton':
+        sim_config.set_particle_type(calin.ix.simulation.simulated_event.PROTON)
+    elif args.primary == 'helium':
+        sim_config.set_particle_type(calin.ix.simulation.simulated_event.HELIUM)
+    elif args.primary == 'iron':
+        sim_config.set_particle_type(calin.ix.simulation.simulated_event.IRON)
+    sim_config.set_energy_lo(args.emin)
+    if(args.emax > args.emin):
+        sim_config.set_energy_hi(args.emax)
+        sim_config.set_energy_spectrum_polynomial(args.spectral_polynomial)
+    else:
+        sim_config.set_energy_hi(args.emin)
+    sim_config.set_elevation(args.el)
+    sim_config.set_azimuth(args.az)
+    sim_config.set_theta(args.theta)
+    sim_config.set_phi(args.phi)
+    sim_config.set_viewcone_halfangle_polynomial(numpy.flipud(viewcone_polynomial) * 180.8/numpy.pi)
+    sim_config.set_scattering_radius_polynomial(numpy.flipud(bmax_polynomial)*0.01)
+    sim_config.set_banner(get_banner())
+
+    # The worker proccesses catch SIGINT quietly and stop working after they finish their curret event
+    signal.signal(signal.SIGINT, handle_sigint_quietly)
 
 def gen_event(args):
-    x = spectrum_func(numpy.random.uniform()) # log10(E/1TeV)
+    x = spectral_transform(numpy.random.uniform()) # x=log10(E/1TeV)
     e = 10**(x+6) # Convert TeV to MeV
 
-    vc = numpy.polyval(viewcone_polynomial, x)
-    costheta = 1.0 - (1.0 - numpy.cos(vc))*numpy.random.uniform()
+    vc_halfangle = numpy.polyval(viewcone_polynomial, x)
+    costheta = 1.0 - (1.0 - numpy.cos(vc_halfangle))*numpy.random.uniform()
     theta = numpy.arccos(costheta)
     phi = numpy.random.uniform() * 2*numpy.pi
     u = numpy.asarray([numpy.sin(theta)*numpy.cos(phi), numpy.sin(theta)*numpy.sin(phi), numpy.cos(theta)])
-
-    theta = args.theta * numpy.pi/180
-    phi = args.phi * numpy.pi/180
-    v = numpy.asarray([numpy.sin(theta)*numpy.cos(phi), numpy.sin(theta)*numpy.sin(phi), numpy.cos(theta)])
-    calin.math.geometry.rotate_in_place_z_to_u_Rzy(u, v)
-    calin.math.geometry.rotate_in_place_z_to_u_Rzy(u, -pt_dir)
+    calin.math.geometry.rotate_in_place_z_to_u_Rzy(u, vc_dir)
 
     x0 = numpy.asarray([0,0,atm.zobs(0)]) + u/u[2]*(atm.top_of_atmosphere() - atm.zobs(0))
-    if args.primary == 'gamma':
-        pt = calin.simulation.tracker.ParticleType_GAMMA
-    elif args.primary == 'muon':
-        pt = calin.simulation.tracker.ParticleType_MUON
-    elif args.primary == 'electron':
-        pt = calin.simulation.tracker.ParticleType_ELECTRON
-    elif args.primary == 'proton':
-        pt = calin.simulation.tracker.ParticleType_PROTON
-    elif args.primary == 'helium':
-        pt = calin.simulation.tracker.ParticleType_HELIUM
-    elif args.primary == 'iron':
-        pt = calin.simulation.tracker.ParticleType_IRON
+
+    generator.generate_showers(iact, 1, particle_type, e, x0, u)
+
+    sim_event = calin.ix.simulation.simulated_event.SimulatedEvent()
+    iact.save_to_simulated_event(sim_event)
+
+    sim_event.mutable_viewcone_axis().set_x(vc_dir[0])
+    sim_event.mutable_viewcone_axis().set_y(vc_dir[1])
+    sim_event.mutable_viewcone_axis().set_z(vc_dir[2])
+    sim_event.set_viewcone_costheta(costheta)
+
+    return sim_event
+
+def format_energy(etev):
+    if(etev < 0.1):
+        return f'{etev*1000:,.2f} GeV'    
+    elif(etev < 1.0):
+        return f'{etev*1000:,.1f} GeV'    
+    elif(etev<10):
+        return f'{etev:,.2f} TeV'
     else:
-        raise ValueError(f'Unknown primary particle type: {args.primary}')
+        return f'{etev:,.1f} TeV'
 
-    generator.generate_showers(iact, 1, pt, e, x0, u)
+def get_banner():
+    banner = "Command line arguments :\n"
+    args_dict = vars(saved_args)
+    for arg in args_dict:
+        banner += f'- {arg}: {args_dict[arg]}\n'
+    banner += '\nIACT configuration :\n'
+    banner += iact.banner() + '\n'
+    banner += '\nPrimary viewcone configuration :'
+    if len(viewcone_polynomial)==0 or (len(viewcone_polynomial)==1 and viewcone_polynomial[0]==0):
+        banner += " DISABLED\n"
+    elif len(viewcone_polynomial)==1:
+        banner += f' FIXED - {viewcone_polynomial/numpy.pi*180.0:.1f} degrees\n'
+    else:
+        banner += " VARIABLE\n"
+        banner += "  10GeV, 100GeV, 1TeV, 10TeV, 100TeV :"
+        for x in [-2,-1,0,1,2]:
+            banner += f' {numpy.polyval(viewcone_polynomial,x)/numpy.pi*180.0:.1f}'
+        banner += " degrees\n"
 
-    return e,pt,u,x0,costheta
+    banner += '\nShower energy :'
+    if saved_args.emin >= saved_args.emax:
+        banner += f' MONOCHROMATIC {format_energy(saved_args.emin)}'
+    else:
+        banner += 'SPECTRUM'
+        x0 = spectral_transform(0)
+        p0 = 0
+        for p1 in 1-0.5**numpy.arange(1,8):
+            x1 = spectral_transform(p1)
+            banner += f'  {format_energy(10**x0)} to {format_energy(10**x1)} : {(p1-p0)*100:.3f} %\n'
+            x0 = x1
+            p0 = p1
+    p1 = 1.0
+    x1 = spectral_transform(p1)
+    banner += f'  {format_energy(10**x0)} to {format_energy(10**x1)} : {(p1-p0)*100:.3f} %'
 
-def one_event():
-    global has_one_event
-    event_results = []
-    try:
-        e,pt,u,x0,costheta = gen_event()
-        for iarray in range(args.reuse):
-            threshold = find_threshold(iarray)
-            event_results.append(dict(
-                iarray         = iarray,
-                e              = e,
-                pt             = int(pt),
-                u0             = u.tolist(),
-                x0             = x0.tolist(),
-                costheta       = costheta,
-                b              = iact.scattered_distance(iarray),
-                offset         = iact.scattered_offset(iarray)[0:2].tolist(),
-                threshold      = threshold))
-    except Exception as ex:
-        print(f'Error simulating event: {ex}')
-        raise
-    if not has_one_event:
-        event_results[0]['_banner'] = iact.banner()
-        has_one_event = True
-    event_results[0]['_num_tracks'] = iact.num_tracks()
-    event_results[0]['_num_steps'] = iact.num_steps()
-    event_results[0]['_num_rays'] = iact.num_rays()
-    return event_results
+    return banner
 
-def print_line():    
-    print(f'{args.output}: {len(all_results)} ;',
-            f'{num_events:,d} / {args.n*args.reuse:,d} =',
-            f'{num_events/(args.n*args.reuse)*100:.2f} % ;',
-            f'{config["_run_time"]/3600:.2f} /',
-            f'{args.n*args.reuse/num_events*config["_run_time"]/3600:.2f} hr ;',
-            f'{num_events/config["_run_time"]:,.2f} Hz ;',
-            f'{num_rays:,d} rays ;',
-            f'{num_rays/num_steps:.2f}',
-            f'{num_steps/num_tracks:.2f}')
+def gen_batch(filename):
+    global instance_event_id
+    if stop_requested:
+        return None
+    # Write simulation configuration
+    h5 = type(sim_config).NewHDFStreamWriter(filename, 'config', truncate=True)
+    h5.write(sim_config)
+    del h5
+    h5 = calin.ix.simulation.simulated_event.SimulatedEvent.NewHDFStreamWriter(filename, 'events', truncate=False)
+    num_events = 0
+    num_tracks = 0
+    num_steps = 0
+    num_rays = 0
+    for i in range(block_size):
+        if stop_requested:
+            break
+        sim_event = gen_event(args)
+        sim_event.set_instance_id(instance_id)
+        sim_event.set_event_id(instance_event_id)
+        instance_event_id += 1
+        num_events += 1
+        h5.write(sim_event)
+        num_tracks += iact.num_tracks()
+        num_steps += iact.num_steps()
+        num_rays += iact.num_rays()
+    del h5
+    # Write provenance anthology
+    provenance_antology = calin.provenance.anthology.get_current_anthology()    
+    h5 = type(provenance_antology).NewHDFStreamWriter(filename, 'provenance', truncate=False)
+    h5.write(provenance_antology)
+    del h5
+    num_bytes = os.path.getsize(filename)
+    return filename, num_events, num_tracks, num_steps, num_rays, num_bytes
+
+def format_duration(seconds: int) -> str:
+    seconds = int(seconds)
+    minutes = seconds // 60
+    hours = minutes // 60
+    days = hours // 24
+    if seconds < 3600:
+        return f"{minutes}m{seconds % 60:02d}"
+    elif seconds < 86400:
+        return f"{hours}h{minutes % 60:02d}"
+    else:
+        return f"{days}d{hours % 24:02d}h{minutes % 60:02d}"
+
+def print_line(filename):    
+    runtime = (datetime.datetime.now(datetime.timezone.utc) - begin_utc).total_seconds()
+    line = f'{filename}: {num_events:,d}'
+    fraction = num_events/(args.n*args.block_size) if args.n > 0 else 0.0
+    if args.n > 0:
+        line += f' / {args.n*args.block_size:,d} = {fraction*100.0:.2f} %'
+    line += f'; {format_duration(runtime)}'
+    if args.n > 0:
+        totaltime = runtime/fraction
+        line += f' / {format_duration(totaltime)}'
+    line += f' ; {num_rays:,d} rays ; {num_rays/num_steps:.2f} {num_steps/num_tracks:.2f}';
+    line += f' ; {num_bytes*1e-9:,.3f}'
+    if args.n > 0:
+        totalsize = num_bytes/fraction
+        line += f' / {totalsize*1e-9:,.3f}'
+    line += ' GB'
+    if stop_requested:
+        line += ' (STOPPING)'
+    print(line)
     
 def process_results(results):
+    if results is None:
+        return
+    
+    global num_batch
     global num_events
-    global events_written
-    global batch_start
-    global all_results
-    global config
-    global num_rays
-    global num_steps
     global num_tracks
+    global num_steps
+    global num_rays
+    global num_bytes
 
-    for r in results:
-        if '_banner' in r:
-            config['_banner'] = r['_banner']
-            del r['_banner']
-        if '_num_tracks' in r:
-            config['_num_tracks'] += r['_num_tracks']
-            config['_num_steps'] += r['_num_steps']
-            config['_num_rays'] += r['_num_rays']
-            num_tracks += r['_num_tracks']
-            num_steps += r['_num_steps']
-            num_rays += r['_num_rays']
-            del r['_num_tracks']
-            del r['_num_steps']
-            del r['_num_rays']
-        num_events += 1
-        if args.omit_untriggered and r['threshold'] < 0:
-            continue
-        all_results.append(r)
-
-    if (num_events-events_written)>=args.write_batch:
-        save_results(all_results[batch_start:], num_events-events_written, f)
-        print_line()
-        events_written = num_events
-        batch_start = len(all_results)
-        config['_num_tracks'] = 0
-        config['_num_steps'] = 0
-        config['_num_rays'] = 0
+    filename, nevents, ntracks, nsteps, nrays, nbytes = results
+    num_batch  += 1
+    num_events += nevents
+    num_tracks += ntracks
+    num_steps  += nsteps
+    num_rays   += nrays
+    num_bytes  += nbytes
+    print_line(filename)
 
 def unique_filename(template, seq_num):
     id = f'{numpy.random.bit_generator.randbits(128):032X}'
     return template.format(id=id, seq=seq_num)
+
+def handle_sigint(signum, frame):
+    global stop_requested
+    if not stop_requested:
+        print("\nStop requested - terminating current run")
+    stop_requested = True
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Nectarcam single-telescope shower simulation')
     
     parser.add_argument('-n', type=int, default=0,
         help='Specify the number of file blocks to simulate, or zero to simulate indefinitely until killed')
-    parser.add_argument('-block_size', type=int, default=1000,
+    parser.add_argument('--block_size', type=int, default=1000,
         help='Specify the number of shower events per file block')
     parser.add_argument('--reuse', type=int, default=10,
         help='Specify the number of times to reuse each shower')
@@ -328,6 +463,8 @@ if __name__ == '__main__':
         help='Specify the upper bound on the energy spectrum in TeV')
     parser.add_argument('--spectral_polynomial', type=comma_separated_floats, default=[-2.7],
         help='Specify the spectral shape as a polynomial in log10(E/1TeV). If x=log10(E/1TeV) then dN/dE(x)=10^(P0*x+P1*x^2+...). The polynomial should be specified as a comma-separated list of coefficients, e.g. P0,P1,P2... (default: -2.7)')
+    parser.add_argument('--spectral_constant', type=float, default=0.0,
+        help='Fraction of simulated events to produce using flat spectrum in dN/dlog(E).')
 
     # Transit time spread
     parser.add_argument('--tts', type=float, default=0.75,
@@ -347,61 +484,78 @@ if __name__ == '__main__':
     parser.add_argument('--avx', type=int, default=512, choices=[128,256,512],
         help='Set the AVX vector size in bits (default: 512)')
 
-    args = parser.parse_args([])
-    
-    begin_utc = datetime.datetime.now(datetime.timezone.utc)
+    global args
+    args = parser.parse_args()
+
     max_workers = args.nthread or os.cpu_count() or 1
 
+    global begin_utc
+    global num_queued
+    global num_batch
+    global num_events
+    global num_tracks
+    global num_steps
+    global num_rays
+    global num_bytes
+    global stop_requested
+
+    begin_utc = datetime.datetime.now(datetime.timezone.utc)
+    num_queued = 0
+    num_batch = 0
     num_events = 0
     num_rays = 0
     num_steps = 0
     num_tracks = 0
+    num_bytes = 0
+    stop_requested = False
 
     # Run the simulations in this thread
     if max_workers == 1:
-        init()
-        for _ in range(args.n):
-            process_results(one_event())
+        init(args)
+        print(get_banner())
+        signal.signal(signal.SIGINT, handle_sigint)
+        while (args.n==0 or num_batch<args.n) and not stop_requested:
+            results = gen_batch(unique_filename(args.output, num_batch))
+            process_results(results)
     else:
         # Use a process pool for parallelism
-        batch_size = max_workers * 10
-        with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
-            remaining = args.n
+        batch_size = max_workers * 4
+        with concurrent.futures.ProcessPoolExecutor(initializer=init, initargs=(args,), max_workers=max_workers) as executor:
             futures = set()
 
+            # This crazyness is here to launch all workers and wait for them to print
+            # there initialization text before we print the banner for the simulation
+            for i in range(max_workers):
+                futures.add(executor.submit(get_banner))
+            while futures:
+                done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                for fut in done:
+                    futures.remove(fut)
+                    banner = fut.result()
+            if banner is not None:
+                print(banner)
+            
+            signal.signal(signal.SIGINT, handle_sigint)
+
+            remaining = args.n
+
             # Submit initial batch
-            first_batch = min(batch_size, remaining)
-            for _ in range(first_batch):
-                futures.add(executor.submit(one_event))
-            remaining -= first_batch
+            first_batch = min(batch_size, remaining or batch_size)
+            for i in range(first_batch):
+                futures.add(executor.submit(gen_batch, unique_filename(args.output, num_queued)))
+                num_queued += 1
+            if remaining:
+                remaining -= first_batch
 
             # Keep a bounded number of in-flight futures; as one completes, submit another
             while futures:
                 done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
                 for fut in done:
                     futures.remove(fut)
+                    num_queued -= 1
                     process_results(fut.result())
-                    if remaining > 0:
-                        futures.add(executor.submit(one_event))
-                        remaining -= 1
-
-    if num_events>events_written:
-        save_results(all_results[batch_start:], num_events-events_written, f)
-        print_line()
-        events_written = num_events
-        batch_start = len(all_results)
-
-th = args.threshold_min
-pc = 98
-bsim = config['bmax']
-filtered_results = all_results
-while True:
-    filtered_results = [r for r in filtered_results if r['threshold'] >= th]
-    ntrig = len(filtered_results)
-    if(ntrig < 10 or th > 10*config['threshold_min']):
-        break
-    if(ntrig < 0.9*num_events):
-        bmax = numpy.percentile([r['b'] for r in filtered_results],pc)
-        thmax = numpy.percentile([numpy.arccos(r['costheta'])/numpy.pi*180.0 for r in filtered_results],pc)        
-        print(f'{th:6.1f} {th/20:6.2f} | {ntrig:6d} {ntrig/num_events:5.3f} | {ntrig/num_events*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
-    th = th + 10.0
+                    if (args.n == 0 or remaining > 0) and not stop_requested:
+                        futures.add(executor.submit(gen_batch, unique_filename(args.output, num_batch+num_queued)))
+                        num_queued += 1
+                        if(remaining):
+                            remaining -= 1
