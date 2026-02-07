@@ -6,7 +6,7 @@ import signal
 import concurrent
 import datetime
 import string
-from time import sleep
+import time
 import numpy
 import scipy.interpolate
 import calin.math.geometry
@@ -97,9 +97,17 @@ def init(args):
     global det_eff
     global cone_eff
     global pe_gen
+    global store_pe_weights
     det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=True)
     cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=True)
-    pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+    pe_gen = None
+    store_pe_weights = False
+    if args.enable_pe_spectrum:
+        pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+        store_pe_weights = True
+
+    global store_times_as_integer
+    store_times_as_integer = args.store_times_as_integer
 
     # Add telescope arrays
     global all_pe_processor
@@ -134,7 +142,7 @@ def init(args):
         viewcone_polynomial = numpy.asarray([0.0])
     else:
         viewcone_polynomial = numpy.flipud(args.viewcone_polynomial) * numpy.pi/180.0
-    if args.enable_viewcone_cut:
+    if not args.no_viewcone_cut:
         iact.set_viewcone_from_telescope_fields_of_view()
 
     # Magnetic field (if not disabled)
@@ -267,7 +275,7 @@ def gen_event(args):
     generator.generate_showers(iact, 1, particle_type, e, x0, u)
 
     sim_event = calin.ix.simulation.simulated_event.SimulatedEvent()
-    iact.save_to_simulated_event(sim_event)
+    iact.save_to_simulated_event(sim_event, store_pe_weights, store_times_as_integer)
 
     sim_event.mutable_viewcone_axis().set_x(vc_dir[0])
     sim_event.mutable_viewcone_axis().set_y(vc_dir[1])
@@ -275,53 +283,6 @@ def gen_event(args):
     sim_event.set_viewcone_costheta(costheta)
 
     return sim_event
-
-def format_energy(etev):
-    if(etev < 0.1):
-        return f'{etev*1000:,.2f} GeV'    
-    elif(etev < 1.0):
-        return f'{etev*1000:,.1f} GeV'    
-    elif(etev<10):
-        return f'{etev:,.2f} TeV'
-    else:
-        return f'{etev:,.1f} TeV'
-
-def get_banner():
-    banner = "Command line arguments :\n"
-    args_dict = vars(saved_args)
-    for arg in args_dict:
-        banner += f'- {arg}: {args_dict[arg]}\n'
-    banner += '\nIACT configuration :\n'
-    banner += iact.banner() + '\n'
-    banner += '\nPrimary viewcone configuration :'
-    if len(viewcone_polynomial)==0 or (len(viewcone_polynomial)==1 and viewcone_polynomial[0]==0):
-        banner += " DISABLED\n"
-    elif len(viewcone_polynomial)==1:
-        banner += f' FIXED - {viewcone_polynomial/numpy.pi*180.0:.1f} degrees\n'
-    else:
-        banner += " VARIABLE\n"
-        banner += "  10GeV, 100GeV, 1TeV, 10TeV, 100TeV :"
-        for x in [-2,-1,0,1,2]:
-            banner += f' {numpy.polyval(viewcone_polynomial,x)/numpy.pi*180.0:.1f}'
-        banner += " degrees\n"
-
-    banner += '\nShower energy :'
-    if saved_args.emin >= saved_args.emax:
-        banner += f' MONOCHROMATIC {format_energy(saved_args.emin)}'
-    else:
-        banner += 'SPECTRUM'
-        x0 = spectral_transform(0)
-        p0 = 0
-        for p1 in 1-0.5**numpy.arange(1,8):
-            x1 = spectral_transform(p1)
-            banner += f'  {format_energy(10**x0)} to {format_energy(10**x1)} : {(p1-p0)*100:.3f} %\n'
-            x0 = x1
-            p0 = p1
-    p1 = 1.0
-    x1 = spectral_transform(p1)
-    banner += f'  {format_energy(10**x0)} to {format_energy(10**x1)} : {(p1-p0)*100:.3f} %'
-
-    return banner
 
 def gen_batch(filename):
     global instance_event_id
@@ -336,6 +297,7 @@ def gen_batch(filename):
     num_tracks = 0
     num_steps = 0
     num_rays = 0
+    
     for i in range(block_size):
         if stop_requested:
             break
@@ -356,6 +318,57 @@ def gen_batch(filename):
     del h5
     num_bytes = os.path.getsize(filename)
     return filename, num_events, num_tracks, num_steps, num_rays, num_bytes
+
+def format_energy(etev):
+    if(etev < 0.1):
+        return f'{etev*1000:,.2f} GeV'    
+    elif(etev < 1.0):
+        return f'{etev*1000:,.1f} GeV'    
+    elif(etev<10):
+        return f'{etev:,.3f} TeV'
+    elif(etev<100):
+        return f'{etev:,.2f} TeV'
+    else:
+        return f'{etev:,.1f} TeV'
+
+def get_banner(sleep_time = 0):
+    banner = "Command line arguments :\n"
+    args_dict = vars(saved_args)
+    for arg in args_dict:
+        banner += f'- {arg}: {args_dict[arg]}\n'
+    banner += '\nIACT configuration :\n'
+    banner += iact.banner() + '\n'
+    banner += '\nPrimary viewcone :'
+    if len(viewcone_polynomial)==0 or (len(viewcone_polynomial)==1 and viewcone_polynomial[0]==0):
+        banner += " DISABLED\n"
+    elif len(viewcone_polynomial)==1:
+        banner += f' FIXED - {viewcone_polynomial/numpy.pi*180.0:.1f} degrees\n'
+    else:
+        banner += " VARIABLE\n"
+        banner += "  10GeV, 100GeV, 1TeV, 10TeV, 100TeV :"
+        for i,x in enumerate([-2,-1,0,1,2]):
+            banner += f'{", " if i>0 else " "}{numpy.polyval(viewcone_polynomial,x)/numpy.pi*180.0:.1f}'
+        banner += " degrees\n"
+
+    banner += '\nShower energy :'
+    if saved_args.emin >= saved_args.emax:
+        banner += f' MONOCHROMATIC at {format_energy(saved_args.emin)}'
+    else:
+        banner += ' SPECTRUM\n'
+        x0 = spectral_transform(0)
+        p0 = 0
+        for p1 in 1-0.5**numpy.arange(1,10):
+            x1 = spectral_transform(p1)
+            banner += f'  {format_energy(10**x0)} to {format_energy(10**x1)} : {(p1-p0)*100:.4f} %\n'
+            x0 = x1
+            p0 = p1
+    p1 = 1.0
+    x1 = spectral_transform(p1)
+    banner += f'  {format_energy(10**x0)} to {format_energy(10**x1)} : {(p1-p0)*100:.4f} %'
+
+    if sleep_time>0:
+        time.sleep(sleep_time)
+    return banner
 
 def format_duration(seconds: int) -> str:
     seconds = int(seconds)
@@ -431,6 +444,9 @@ if __name__ == '__main__':
 
     parser.add_argument('-o', '--output', type=str, default='events_{id}.h5',
         help='Output filename. May contain the token "{id}", which will be replaced by a random identifier, or "{seq}" giving a sequential number (default: events_{id}.h5)')
+    parser.add_argument('--store_times_as_integer', action='store_true',
+        help='Store times as 16-bit integers in output file, where possible, with 1-ps resulution (default: disabled)')
+
 
     parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
         help='Site to simulate (default: ctan)')
@@ -450,8 +466,8 @@ if __name__ == '__main__':
         help='Specify the fixed offset between the primary direction and the telescope pointing direction in degrees')
     parser.add_argument('--phi', type=float, default=0.0,
         help='Specify the fixed polar angle of the primary direction around the telescope pointing direction in degrees')
-    parser.add_argument('--enable_viewcone_cut', action='store_true', 
-        help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
+    parser.add_argument('--no_viewcone_cut', action='store_true', 
+        help='Do not generate photons on tracks that are outside the detector pointing viewcone (default: enabled)')
 
     # Particle type and energy
     parser.add_argument('-p', '--primary', type=str, default='gamma', 
@@ -466,9 +482,11 @@ if __name__ == '__main__':
     parser.add_argument('--spectral_constant', type=float, default=0.0,
         help='Fraction of simulated events to produce using flat spectrum in dN/dlog(E).')
 
-    # Transit time spread
-    parser.add_argument('--tts', type=float, default=0.75,
-        help='Specify the transit time spread RMS in ns')
+    # PE spectrum and transit time spread
+    parser.add_argument('--tts', type=float, default=0.00,
+        help='Specify the transit time spread RMS in ns.')
+    parser.add_argument('--enable_pe_spectrum', action='store_true',
+        help='Enable PE charge spectrum and store PE charges in output file (default: disabled)')
 
     # Low-level simulation options
     parser.add_argument('--no_bfield', action='store_true', 
@@ -520,13 +538,14 @@ if __name__ == '__main__':
     else:
         # Use a process pool for parallelism
         batch_size = max_workers * 4
+        print(f'Launching {max_workers} workers in process pool')
         with concurrent.futures.ProcessPoolExecutor(initializer=init, initargs=(args,), max_workers=max_workers) as executor:
             futures = set()
 
             # This crazyness is here to launch all workers and wait for them to print
             # there initialization text before we print the banner for the simulation
             for i in range(max_workers):
-                futures.add(executor.submit(get_banner))
+                futures.add(executor.submit(get_banner,5)) # Sleep 5 seconds to allow all threads to start
             while futures:
                 done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
                 for fut in done:
