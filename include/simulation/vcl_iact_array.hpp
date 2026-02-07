@@ -1190,8 +1190,6 @@ visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
     update_detector_efficiencies_is_pending_ = false;
   }
 
-  calin::math::rng::VCLToScalarRNGCore scalar_core(this->rng_->core());
-  calin::math::rng::RNG scalar_rng(&scalar_core);
   Eigen::Vector3d e1(1.0, 0.0, 0.0);
   Eigen::Vector3d e2(0.0, 1.0, 0.0);
   calin::math::geometry::rotate_in_place_z_to_u_Rzy(e1, event.u0);
@@ -1213,9 +1211,12 @@ visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
       calin::math::least_squares::polyval(
         propagator_set->scattering_radius_polynomial, log10_energy_tev);
     if(scattering_radius > 0.0) {
-      double b = scattering_radius*std::sqrt(scalar_rng.uniform());
+      double_vt uniform_deviate_vt = this->rng_->uniform_double();
+      double_at uniform_deviate_at;
+      uniform_deviate_vt.store_a(uniform_deviate_at);
+      double b = scattering_radius*std::sqrt(uniform_deviate_at[0]);
       propagator_set->scattered_distance = b;
-      double theta = scalar_rng.uniform()*M_PI*2.0;
+      double theta = uniform_deviate_at[1]*M_PI*2.0;
       double bx = b*std::cos(theta);
       double by = b*std::sin(theta);
       Eigen::Vector3d bvec = bx*e1 + by*e2;
@@ -1725,7 +1726,7 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
       banner = "- Fixed Scattering radius : " + double_to_string_with_commas(ipropagator_set->scattering_radius_polynomial[0]*1e-5,3) + " km";
     } else {
       banner = "- Variable Scattering radius :\n";
-      banner += " 10GeV, 100GeV, 1TeV, 10TeV, 100TeV : "; 
+      banner += "  10GeV, 100GeV, 1TeV, 10TeV, 100TeV : "; 
       banner += double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, -2.0)*0.01,0);
       banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, -1.0)*0.01,0);
       banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 0.0)*0.01,0);
