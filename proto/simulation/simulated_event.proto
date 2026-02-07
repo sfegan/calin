@@ -125,10 +125,10 @@ enum ParticleType {
 
 message SimulatedEvent 
 {
-  int64 instance_id                                        = 1
+  uint64 instance_id                                       = 1
     [(CFO).desc = "Identifier for simulation instance." ];
 
-  int64 event_id                                           = 2
+  uint64 event_id                                          = 2
     [(CFO).desc = "Identifier for event unique to simulation instance." ];
 
   ParticleType type                                        = 3
@@ -285,7 +285,7 @@ message DetectorArrayConfiguration
 
 message SimulationConfiguration
 {
-  ParticleType paricle_type                                = 1
+  ParticleType particle_type                               = 1
     [(CFO).desc = "Simplified particle type." ];
 
   double energy_lo                                         = 2
@@ -300,42 +300,53 @@ message SimulationConfiguration
     [(CFO).desc = "Energy spectrum shape index for simulated events as "
       " a polynomial in x=log10(E/1TeV). dF/dE ~ 10^(P0*x + P1*x^2 + ...)." ];
 
-  double azimuth                                           = 5
-    [(CFO).desc = "Azimuth of nominal observation (viewcone) axis for the simulation.",
+  double elevation                                         = 5
+    [(CFO).desc = "Elevation of the nominal observation axis for the simulation.",
+     (CFO).units = "degrees" ];     
+
+  double azimuth                                           = 6
+    [(CFO).desc = "Azimuth of nominal observation axis for the simulation.",
      (CFO).units = "degrees" ];
 
-  double elevation                                         = 6
-    [(CFO).desc = "Elevation of the nominal observation (viewcone) axis for the simulation.",
+  double theta                                             = 7
+    [(CFO).desc = "Radial offset distance of nominal primary axis with respect to the observation direction.",
+     (CFO).units = "degrees" ];
+
+  double phi                                               = 8
+    [(CFO).desc = "Polar angle of of nominal source primary axis with respect to the observation direction.",
      (CFO).units = "degrees" ];     
-  
-  calin.ix.common_types.Vector3D viewcone_axis             = 7
-    [(CFO).desc = "Nominal viewcone axis for the simulation.",
+
+  calin.ix.common_types.Vector3D primary_axis              = 9
+    [(CFO).desc = "Nominal source primary direction vector.",
      (CFO).units = "1" ];
 
-  repeated double viewcone_halfangle_polynomial            = 8
-    [(CFO).desc = "Half-angle of the scattering viewcone for the event direction "
+  repeated double viewcone_halfangle_polynomial            = 10
+    [(CFO).desc = "Half-angle of the scattering viewcone for the primary direction "
       "with respect to the nominal direction, defined as a polynomial of "
       "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
      (CFO).units = "degrees" ];
 
-  repeated double scattering_radius_polynomial             = 9
+  repeated double scattering_radius_polynomial             = 11
     [(CFO).desc = "Radius of the scattering region for the array center, "
       "perpendicular to primary direction, defined as a polynomial of "
       "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
-     (CFO).units = "cm" ];
+     (CFO).units = "m" ];
 
-  string banner                                            = 10
+  string banner                                            = 20
     [(CFO).desc = "Banner or description for this simulation run." ];
 
-  repeated AtmosphericLayer atmospheric_layer              = 11
+  repeated AtmosphericLayer atmospheric_layer              = 21
     [(CFO).desc = "Atmospheric layers." ];
 
-  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 12
+  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 22
     [(CFO).desc = "Configuration for GEANT4 shower generation." ];
 
-  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 13
+  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 23
     [(CFO).desc = "Configuration for IACT array simulation." ];
 
-  DetectorArrayConfiguration detector_array_config             = 14
+  DetectorArrayConfiguration detector_array_config         = 24
     [(CFO).desc = "Configuration for detector arrays in this simulation." ];
+
+  map<string, string> command_line_args                    = 100
+    [(CFO).desc = "Extra configuration parameters as key-value pairs." ];
 };
