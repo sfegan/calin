@@ -1713,6 +1713,44 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
       stream << message.first << " (x" << message.second << ")\n";
     }
   }
+
+  message_counts.clear();
+  for(const auto* ipropagator_set : propagator_set_) {
+    std::string banner;
+    bool banner_found = false;
+    if(ipropagator_set->scattering_radius_polynomial.size() == 0 or 
+      (ipropagator_set->scattering_radius_polynomial.size() == 1 and ipropagator_set->scattering_radius_polynomial[0] == 0.0)) {
+        banner = "- Scattering radius : DISABLED";
+    } else if(ipropagator_set->scattering_radius_polynomial.size() == 1) {
+      banner = "- Fixed Scattering radius : " + double_to_string_with_commas(ipropagator_set->scattering_radius_polynomial[0]*1e-5,3) + " km";
+    } else {
+      banner = "- Variable Scattering radius :\n";
+      banner += " 10GeV, 100GeV, 1TeV, 10TeV, 100TeV : "; 
+      banner += double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, -2.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, -1.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 0.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 1.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 2.0)*0.01,0) + " m";
+    }
+    for(auto& message : message_counts) {
+      if(message.first == banner) {
+        message.second++;
+        banner_found = true;
+        break;
+      }
+    }
+    if(not banner_found) {
+      message_counts.emplace_back(banner, 1);
+    }
+  } 
+  for(const auto& message : message_counts) {
+    if(message.second == 1) {
+      stream << message.first << '\n';
+    } else if(message.second > 1) {
+      stream << message.first << " (x" << message.second << ")\n";
+    }
+  }
+
   stream
     << "Detector zenith range : " << double_to_string_with_commas(std::acos(wmax_)/M_PI*180.0,1)
     << " to " << double_to_string_with_commas(std::acos(wmin_)/M_PI*180.0,1) << " degrees.\n"
