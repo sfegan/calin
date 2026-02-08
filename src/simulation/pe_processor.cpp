@@ -321,11 +321,15 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope,
   calin::ix::simulation::simulated_event::DetectorEvent* detector_event,
   bool store_pe_weights, bool store_times_as_integer) const
 {
+  constexpr double time_resolution = 0.01; // 10 ps
+  constexpr double inv_time_resolution = 1.0/time_resolution;
+  constexpr double max_integer_time = 65535.5 * time_resolution;
   validate_iscope_ipix(iscope, 0);
   double ref_time = tmin(iscope);
   detector_event->set_detector_id(iscope);
   detector_event->set_reference_time(ref_time);
   detector_event->set_time_max(tmax(iscope) - ref_time);
+  detector_event->set_integer_time_resolution(time_resolution);
   detector_event->clear_pixel();
   for(unsigned ipix=0; ipix<npix_; ++ipix) {
     auto pd = scopes_[iscope].pixel_data[ipix];
@@ -334,8 +338,8 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope,
       pixel_event->set_pixel_id(ipix);
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
         double trel = pd->t[ipe] - ref_time;
-        if(store_times_as_integer and trel<655.355) {
-          pixel_event->add_integer_time(std::round(trel * 1000));
+        if(store_times_as_integer and trel<max_integer_time) {
+          pixel_event->add_integer_time(std::round(trel * inv_time_resolution));
         } else {
           pixel_event->add_time(trel);
         }

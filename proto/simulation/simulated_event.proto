@@ -26,6 +26,7 @@ import "calin.proto";
 import "common_types.proto";
 import "simulation/vcl_iact.proto";
 import "simulation/geant4_shower_generator.proto";
+import "simulation/vs_optics.proto";
 
 package calin.ix.simulation.simulated_event;
 
@@ -62,7 +63,7 @@ message PixelEvent
 
   repeated uint32 integer_time                             = 3
     [(CFO).desc = "Photon detection times relative to detector reference time stored as integer.",
-     (CFO).units = "10ps", (CFO).int32_type = INT_16 ];
+     (CFO).units = "as defined by PARENT::integer_time_resolution", (CFO).int32_type = INT_16 ];
 
   repeated float weight                                    = 4
     [(CFO).desc = "Photon weights",
@@ -82,7 +83,11 @@ message DetectorEvent
     [(CFO).desc = "Maximum photon detection time for this event relative to reference time.",
      (CFO).units = "ns" ];
 
-  repeated PixelEvent pixel                                = 4
+  double integer_time_resolution                           = 4
+    [(CFO).desc = "Resolution of integer time bins, if used.",
+     (CFO).units = "ns" ];
+
+  repeated PixelEvent pixel                                = 10
     [(CFO).desc = "Events for each pixel in this detector." ];
 };
 
@@ -222,27 +227,17 @@ message AtmosphericLevel
 
 message DetectorGroupConfiguration
 {
-  string name                                              = 1
-    [(CFO).desc = "Name of this detector group." ];
+  string type_name                                         = 1
+    [(CFO).desc = "Name of detector types in this group." ];
 
   uint32 ndetector                                         = 2
     [(CFO).desc = "Number of detectors in this group" ];
 
-  uint32 detector0                                         = 3
-    [(CFO).desc = "Index of first detector in this group." ];
-  
   string propagator_banner                                 = 10
     [(CFO).desc = "Banner or description for the propagator." ];
 
-  string bandwidth_manager_banner                          = 11
-    [(CFO).desc = "Banner or description for the bandwidth manager." ];
-
-  string pe_processor_banner                               = 12
-    [(CFO).desc = "Banner or description for the PE processor." ];
-
-  double pe_time_spread                                    = 13
-    [(CFO).desc = "Time resolution for pe detector.",
-     (CFO).units = "ns" ];
+  calin.ix.simulation.vs_optics.VSOArrayData dc_array_config = 20
+    [(CFO).desc = "Configuration of DC array, if appropriate." ];
 };
 
 message DetectorArrayConfiguration
@@ -259,6 +254,52 @@ message DetectorArrayConfiguration
   repeated DetectorGroupConfiguration detector_group_config = 10
     [(CFO).desc = "Configuration for the detector groups in this set."];
 };  
+
+message DetectorTypeConfiguration
+{
+  string type_name                                         = 1
+    [(CFO).desc = "Name of detector type." ];
+
+  string detector_efficiency_banner                        = 10
+    [(CFO).desc = "Banner from detector efficiency curve." ];
+
+  repeated double detector_efficiency_energy               = 11
+    [(CFO).desc = "Detector efficiency curve energies (X-axis).",
+     (CFO).units = "eV" ];
+
+  repeated double detector_efficiency_efficiency           = 12
+    [(CFO).desc = "Detector efficiency curve efficiencies (Y-axis).",
+     (CFO).units = "1" ];
+
+  string angular_response_banner                          = 20
+    [(CFO).desc = "Banner from angular response curve." ];
+
+  repeated double angular_response_costheta               = 21
+    [(CFO).desc = "Detector angular response cos_angles (X-axis).",
+     (CFO).units = "eV" ];
+
+  repeated double angular_response_efficiency             = 22
+    [(CFO).desc = "Detector angular response efficiencies (Y-axis).",
+     (CFO).units = "1" ];
+
+  string pe_spectrum_banner                               = 30
+    [(CFO).desc = "Banner from PE charge spectrum generator." ];
+
+  repeated double pe_spectrum_banner_q                    = 31
+    [(CFO).desc = "PE charge spectrum charge (X-axis).",
+     (CFO).units = "arbitrary-q-units" ];
+
+  repeated double pe_spectrum_banner_dp_dq                = 32
+    [(CFO).desc = "PE charge spectrum charge (Y-axis).",
+     (CFO).units = "1/arbitrary-q-units" ];
+
+  double pe_time_spread                                   = 33
+    [(CFO).desc = "PE timespread, if enabled.",
+     (CFO).units = "ns" ];
+
+  calin.ix.simulation.vs_optics.IsotropicDCArrayParameters dc_array_parameters = 40
+    [(CFO).desc = "DC array construction parameters, if appropriate." ];
+};
 
 message SimulationConfiguration
 {
@@ -321,8 +362,11 @@ message SimulationConfiguration
   calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 23
     [(CFO).desc = "Configuration for IACT array simulation." ];
 
-  DetectorArrayConfiguration detector_array_config         = 24
+  repeated DetectorArrayConfiguration detector_array_config = 24
     [(CFO).desc = "Configuration for detector arrays in this simulation." ];
+
+  map<string, DetectorTypeConfiguration> detector_type_config = 25
+    [(CFO).desc = "Configuration for detector types that would be common to multiple detectie array sets, keyed by some unique string that should match."];
 
   map<string, string> command_line_args                    = 100
     [(CFO).desc = "Extra configuration parameters as key-value pairs." ];
