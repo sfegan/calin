@@ -86,12 +86,12 @@ def init(args):
 
     # Configure IACT array
     global iact
-    cfg = iact_class.default_config()
+    iact_cfg = iact_class.default_config()
     if args.no_refraction:
-        cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_NO_RAYS)
+        iact_cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_NO_RAYS)
     else:
-        cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
-    iact = iact_class(atm, atm_abs, cfg)
+        iact_cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
+    iact = iact_class(atm, atm_abs, iact_cfg)
 
     # Load detector and efficiency models and the SPE generator
     global det_eff
@@ -154,32 +154,31 @@ def init(args):
         bfield = wmm.field_vs_elevation(mst.array_origin().latitude(), mst.array_origin().longitude())
 
     # Configure Geant4 shower generator
-    cfg = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator.customized_config(
+    geant4_cfg = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator.customized_config(
         1000, 0, atm.top_of_atmosphere(), calin.simulation.geant4_shower_generator.VerbosityLevel_SUPRESSED_STDOUT)
     if args.multiple_scattering == 'minimal':
-        cfg.add_pre_init_commands('/process/msc/StepLimit Minimal')
-        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad Minimal')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit Minimal')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad Minimal')
     elif args.multiple_scattering == 'simple':
-        cfg.add_pre_init_commands('/process/msc/StepLimit UseSafety')
-        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseSafety')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseSafety')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseSafety')
     elif args.multiple_scattering == 'normal':
-        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
     elif args.multiple_scattering == 'better':
-        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-        cfg.add_pre_init_commands('/process/msc/RangeFactor 0.01')
-        cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.01')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactor 0.01')
+        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.01')
     elif args.multiple_scattering == 'insane':
-        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-        cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
-        cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.001')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
+        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.001')
 
     # Instantiate Geant4 shower generator
     global generator
-    generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, cfg, bfield);
-    generator.set_minimum_energy_cut(20); # 20 MeV cut on KE (e-,p+,n,ions) or Etot
+    generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, geant4_cfg, bfield);
 
     # Particle type
     global particle_type
@@ -252,12 +251,39 @@ def init(args):
     sim_config.set_azimuth(args.az)
     sim_config.set_theta(args.theta)
     sim_config.set_phi(args.phi)
+    sim_config.mutable_primary_axis().set_x(vc_dir[0])
+    sim_config.mutable_primary_axis().set_y(vc_dir[1])
+    sim_config.mutable_primary_axis().set_z(vc_dir[2])
     sim_config.set_viewcone_halfangle_polynomial(numpy.flipud(viewcone_polynomial) * 180.0/numpy.pi)
     sim_config.set_scattering_radius_polynomial(numpy.flipud(bmax_polynomial)*0.01)
     sim_config.set_banner(get_banner())
-
-    # The worker proccesses catch SIGINT quietly and stop working after they finish their curret event
-    signal.signal(signal.SIGINT, handle_sigint_quietly)
+    atm_abs_zmin = numpy.min(atm_abs.levels_cm())
+    atm_abs_zmax = numpy.max(atm_abs.levels_cm())
+    for level in atm.get_levels():
+        proto_level = sim_config.add_atmospheric_level()
+        proto_level.set_altitude(level.z)
+        proto_level.set_thickness(level.t)
+        proto_level.set_density(level.rho)
+        proto_level.set_n_minus_one(level.nmo)
+        if bfield is not None:
+            b = bfield.field_nT(level.z)
+            proto_level.mutable_bfield().set_x(b[0])
+            proto_level.mutable_bfield().set_y(b[1])
+            proto_level.mutable_bfield().set_z(b[2])
+        if(atm_abs_zmin < level.z < atm_abs_zmax):
+            proto_level.set_absorption_1d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
+            proto_level.set_absorption_2d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
+            proto_level.set_absorption_2d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
+            proto_level.set_absorption_3d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
+            proto_level.set_absorption_3d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
+            proto_level.set_absorption_4d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
+    sim_config.mutable_geant4_shower_generator_config().CopyFrom(geant4_cfg)
+    sim_config.mutable_iact_array_config().CopyFrom(iact_cfg)
+    # DetectorArrayConfiguration detector_array_config         = 24
+    args_dict = vars(args)
+    for arg in args_dict:
+        val = str(args_dict[arg])
+        sim_config.set_command_line_args(arg, val)
 
 def gen_event(args):
     x = spectral_transform(numpy.random.uniform()) # x=log10(E/1TeV)
