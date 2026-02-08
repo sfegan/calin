@@ -414,6 +414,19 @@ public:
   static calin::ix::simulation::vcl_iact::VCLIACTArrayConfiguration default_config();
 
   unsigned num_propagator_sets() const { return propagator_set_.size(); }
+  const std::string& propagator_set_name(unsigned ipropagator_set) const {
+    return propagator_set_.at(ipropagator_set)->name; }
+  unsigned propagator_set_size(unsigned ipropagator_set) const {
+    return propagator_set_.at(ipropagator_set)->propagators.size(); }
+  const std::string& propagator_set_element_name(unsigned ipropagator_set, unsigned ipropagator_element) const {
+    return propagator_set_.at(ipropagator_set)->propagators.at(ipropagator_element)->name; }
+  FocalPlaneRayPropagator* propagator_set_element(
+      unsigned ipropagator_set, unsigned ipropagator_element) const {
+    return propagator_set_.at(ipropagator_set)->propagators.at(ipropagator_element)->propagator; }
+  DaviesCottonVCLFocalPlaneRayPropagator* propagator_set_dc_element(
+      unsigned ipropagator_set, unsigned ipropagator_element) const {
+    return dynamic_cast<DaviesCottonVCLFocalPlaneRayPropagator*>(
+      propagator_set_.at(ipropagator_set)->propagators.at(ipropagator_element)->propagator); }
   double scattered_distance(unsigned ipropagator_set) const {
     return propagator_set_.at(ipropagator_set)->scattered_distance; }
   Eigen::Vector3d scattered_offset(unsigned ipropagator_set) const {
