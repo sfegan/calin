@@ -179,72 +179,45 @@ message SimulatedEvent
     [(CFO).desc = "Event as seen by each of the configured detector arrays." ];
 };
 
-message AtmosphericLayer
+message AtmosphericLevel
 {
-  double altitude_top                                      = 1
-    [(CFO).desc = "Altitude at top of layer.",
+  double altitude                                          = 1
+    [(CFO).desc = "Altitude of level.",
      (CFO).units = "cm" ];
 
-  double altitude_bottom                                   = 2
-    [(CFO).desc = "Altitude at bottom of layer.",
-     (CFO).units = "cm" ];
-
-  double thickness_top                                     = 3
-    [(CFO).desc = "Thickness at top of layer.",
+  double thickness                                         = 2
+    [(CFO).desc = "Thickness from infinity to level.",
      (CFO).units = "g/cm2" ];
 
-  double thickness_bottom                                  = 4
-    [(CFO).desc = "Thickness at bottom of layer.",
-     (CFO).units = "g/cm2" ];
-
-  double density                                           = 5
-    [(CFO).desc = "Mean density of layer.",
+  double density                                           = 3
+    [(CFO).desc = "Density at level.",
      (CFO).units = "g/cm3" ];
 
-  double n_minus_one_top                                   = 6
-    [(CFO).desc = "Refractive index minus 1 at top of layer.",
+  double n_minus_one                                       = 4
+    [(CFO).desc = "Refractive index minus 1 at level.",
      (CFO).units = "1" ];
 
-  double n_minus_one_bottom                                = 7
-    [(CFO).desc = "Refractive index minus 1 at bottom of layer.",
-     (CFO).units = "1" ];
-
-  double yield_top                                         = 8
-    [(CFO).desc = "Cherenkov yield at top of layer.",
-     (CFO).units = "ph/cm" ];
-
-  double yield_bottom                                      = 9
-    [(CFO).desc = "Cherenkov yield at bottom of layer.",
-     (CFO).units = "ph/cm" ];
-
-  calin.ix.common_types.Vector3D bfield_top                = 10
-    [(CFO).desc = "Geomagnetic field vector at top of layer.",
+  calin.ix.common_types.Vector3D bfield                    = 10
+    [(CFO).desc = "Geomagnetic field vector at level.",
      (CFO).units = "nT" ];
 
-  calin.ix.common_types.Vector3D bfield_bottom             = 11
-    [(CFO).desc = "Geomagnetic field vector at bottom of layer.",
-     (CFO).units = "nT" ];
+  double optical_depth_1d5ev                               = 20
+    [(CFO).desc = "Optical depth for 1.5 eV photon from level." ];
 
-  double absorption_1d0ev_top                              = 12
-    [(CFO).desc = "Absorption probability for 1.0 eV photon from top of layer." ];
+  double optical_depth_2d0ev                               = 21
+    [(CFO).desc = "Optical depth for 2.0 eV photon from level." ];
 
-  double absorption_1d5ev_top                              = 13
-    [(CFO).desc = "Absorption probability for 1.5 eV photon from top of layer." ];
+  double optical_depth_2d5ev                               = 22
+    [(CFO).desc = "Optical depth for 2.5 eV photon from level." ];
 
-  double absorption_2d0ev_top                              = 14
-    [(CFO).desc = "Absorption probability for 2.0 eV photon from top of layer." ];
+  double optical_depth_3d0ev                               = 23
+    [(CFO).desc = "Optical depth for 3.0 eV photon from level." ];
 
-  double absorption_2d5ev_top                              = 15
-    [(CFO).desc = "Absorption probability for 2.5 eV photon from top of layer." ];
+  double optical_depth_3d5ev                               = 24
+    [(CFO).desc = "Optical depth for 3.5 eV photon from level." ];
 
-  double absorption_3d0ev_top                              = 16
-    [(CFO).desc = "Absorption probability for 3.0 eV photon from top of layer." ];
-
-  double absorption_3d5ev_top                              = 17
-    [(CFO).desc = "Absorption probability for 3.5 eV photon from top of layer." ];
-
-  double absorption_4d0ev_top                              = 18
-    [(CFO).desc = "Absorption probability for 4.0 eV photon from top of layer." ];
+  double optical_depth_4d0ev                               = 25
+    [(CFO).desc = "Optical depth for 4.0 eV photon from level." ];
 };
 
 message DetectorGroupConfiguration
@@ -339,10 +312,10 @@ message SimulationConfiguration
   string banner                                            = 20
     [(CFO).desc = "Banner or description for this simulation run." ];
 
-  repeated AtmosphericLayer atmospheric_layer              = 21
-    [(CFO).desc = "Atmospheric layers." ];
+  repeated AtmosphericLevel atmospheric_level              = 21
+    [(CFO).desc = "Atmospheric levels." ];
 
-  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 22
+  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration geant4_shower_generator_config = 22
     [(CFO).desc = "Configuration for GEANT4 shower generation." ];
 
   calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 23
