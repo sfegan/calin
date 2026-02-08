@@ -302,8 +302,9 @@ class SplinePEAmplitudeGenerator: public PEAmplitudeGenerator
 public:
   SplinePEAmplitudeGenerator(const Eigen::VectorXd& q, const Eigen::VectorXd& dp_dq,
     SplineMode spline_mode, calin::math::rng::RNG* rng = nullptr, bool adopt_rng = false);
-  SplinePEAmplitudeGenerator(const calin::math::spline_interpolation::CubicSpline& spline,
-    SplineMode spline_mode, calin::math::rng::RNG* rng = nullptr, bool adopt_rng = false);
+  SplinePEAmplitudeGenerator(const calin::math::spline_interpolation::CubicSpline& spline, SplineMode spline_mode, 
+    const Eigen::VectorXd& q = Eigen::VectorXd(), const Eigen::VectorXd& dp_dq = Eigen::VectorXd(),
+    calin::math::rng::RNG* rng = nullptr, bool adopt_rng = false);
   virtual ~SplinePEAmplitudeGenerator();
   double generate_amplitude() final;
   double mean_amplitude() final;
@@ -354,6 +355,9 @@ public:
     bool regularize_spline = true, bool extend_linear_rhs = true,
     unsigned regularize_ninterval = 0,
     double norm = 1.0-std::numeric_limits<double>::epsilon());
+
+  const Eigen::VectorXd raw_q() const { return q_; }
+  const Eigen::VectorXd raw_dp_dq() const { return dp_dq_; }
 protected:
   calin::math::rng::RNG* get_rng() {
     if(rng_ == nullptr) {
@@ -371,6 +375,8 @@ protected:
   double pdf_res_;
   double pdf_P20_;
   double pdf_peak_;
+  Eigen::VectorXd q_;
+  Eigen::VectorXd dp_dq_;
 };
 
 } } } // namespace calin::simulation::detector_efficiency

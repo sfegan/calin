@@ -562,7 +562,8 @@ SplinePEAmplitudeGenerator::SplinePEAmplitudeGenerator(
   PEAmplitudeGenerator(),
   spline_(make_spline(q, dp_dq, spline_mode)), spline_mode_(spline_mode),
   rng_(rng==nullptr ? new calin::math::rng::RNG(__PRETTY_FUNCTION__, "Amplitude generation") : rng),
-  adopt_rng_(rng==nullptr ? true : adopt_rng)
+  adopt_rng_(rng==nullptr ? true : adopt_rng),
+  q_(q), dp_dq_(dp_dq)
 {
   // nothing to see here
 }
@@ -630,12 +631,15 @@ SplinePEAmplitudeGenerator::make_spline(const Eigen::VectorXd& q,
 }
 
 SplinePEAmplitudeGenerator::SplinePEAmplitudeGenerator(
-    const calin::math::spline_interpolation::CubicSpline& spline,
-    SplineMode spline_mode, calin::math::rng::RNG* rng, bool adopt_rng):
+    const calin::math::spline_interpolation::CubicSpline& spline, SplineMode spline_mode, 
+    const Eigen::VectorXd& q, const Eigen::VectorXd& dp_dq,
+    calin::math::rng::RNG* rng, bool adopt_rng):
   PEAmplitudeGenerator(),
   spline_(new calin::math::spline_interpolation::CubicSpline(spline)),
   spline_mode_(spline_mode),
-  rng_(rng), adopt_rng_(rng==nullptr ? true : adopt_rng)
+  rng_(rng==nullptr ? new calin::math::rng::RNG(__PRETTY_FUNCTION__, "PE amplitude generation") : rng),
+  adopt_rng_(rng==nullptr ? true : adopt_rng),
+  q_(q), dp_dq_(dp_dq)
 {
   calc_pdf_moments();
 }
