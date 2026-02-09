@@ -456,10 +456,10 @@ def print_line(filename):
         line += f' / {format_duration(totaltime)}'
     line += f' ({num_events/runtime:,.1f} Hz)'
     line += f' ; {num_rays:,d} rays ; {num_rays/num_steps:.2f} {num_steps/num_tracks:.2f}';
-    line += f' ; {num_bytes*1e-9:,.3f}'
+    line += f' ; {num_bytes*1e-9:,.1f}'
     if args.n > 0:
         totalsize = num_bytes/fraction
-        line += f' / {totalsize*1e-9:,.3f}'
+        line += f' / {totalsize*1e-9:,.1f}'
     line += ' GB'
     if stop_requested:
         line += ' (STOPPING)'
