@@ -466,12 +466,12 @@ def print_line(filename):
     print(line)
     if num_batch % 50 == 0 and num_batch != args.n and not stop_requested:
         if args.emin < args.emax:
-            spectline = f'Spectrum: {format_energy(args.emin)}-{format_energy(args.emax)} {",".join([str(x) for x in args.spectral_polynomial or [0.0]])}'
+            spectline = f'Spectrum: {format_energy(args.emin)} - {format_energy(args.emax)}, Index: {",".join([str(x) for x in args.spectral_polynomial or [0.0]])}'
         else:
             spectline = f'Monochromatic: {format_energy(args.emin)}'
 
         if len(numpy.flipud(args.bmax_polynomial))>1 and args.emin < args.emax:
-            bmaxline = f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emin)):,.1f}-' \
+            bmaxline = f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emin)):,.1f} - ' \
                 + f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emax)):,.1f} m'
         elif len(args.bmax_polynomial)>0:
             bmaxline = f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emin)):,.1f} m'
@@ -479,7 +479,7 @@ def print_line(filename):
             bmaxline = '0.0 m'
 
         if len(numpy.flipud(args.viewcone_polynomial))>1 and args.emin < args.emax:
-            vcline = f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emin)):,.1f}-' \
+            vcline = f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emin)):,.1f} - ' \
                 + f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emax)):,.1f} deg'
         elif len(args.viewcone_polynomial)>0:
             vcline = f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emin)):,.1f} deg'
