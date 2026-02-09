@@ -488,7 +488,7 @@ def print_line(filename):
 
         filesline = f'{num_batch}:,d'
         if args.n > 0:
-            filesline += ' / {args.n;,d}'
+            filesline += f' / {args.n;,d}'
 
         print(f'\n===== Particle: {args.primary} ; Site: {args.site} ; El: {args.el:.1f}, Az: {args.az:.1f} ; {spectline} ; Bmax: {bmaxline} ; Viewcone: {vcline} ; Files: {filesline} =====\n')
     
