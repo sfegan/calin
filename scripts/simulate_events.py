@@ -449,8 +449,8 @@ def print_line(filename):
     line = f'{filename}: {num_events:,d}'
     fraction = num_events/(args.n*args.block_size) if args.n > 0 else 0.0
     if args.n > 0:
-        line += f' / {args.n*args.block_size:,d} = {fraction*100.0:.2f} %'
-    line += f'; {format_duration(runtime)}'
+        line += f' / {args.n*args.block_size:,d} = {fraction*100.0:.2f}%'
+    line += f' ; {format_duration(runtime)}'
     if args.n > 0:
         totaltime = runtime/fraction
         line += f' / {format_duration(totaltime)}'
