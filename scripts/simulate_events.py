@@ -5,7 +5,6 @@ import argparse
 import signal
 import concurrent
 import datetime
-import string
 import time
 import numpy
 import scipy.interpolate
@@ -119,10 +118,11 @@ def init(args):
         bmax_polynomial = numpy.asarray([0.0])
     else:
         bmax_polynomial = numpy.flipud(args.bmax_polynomial) * 100.0
+    detector_type_name = 'MST/NC'
     for i in range(numpy.max([1,  args.reuse])):
         iact.add_propagator_set(numpy.flipud(bmax_polynomial), f"Super array {i}")
         pe_processor = calin.simulation.ray_processor.SimpleListPEProcessor(nscope,nchan)
-        prop = iact.add_davies_cotton_propagator(mst, pe_processor, det_eff, cone_eff, pe_gen, args.tts, 'MST/NC')
+        prop = iact.add_davies_cotton_propagator(mst, pe_processor, det_eff, cone_eff, pe_gen, args.tts, detector_type_name)
         all_pe_processor.append(pe_processor)
         all_prop.append(prop)
 
@@ -271,19 +271,54 @@ def init(args):
             proto_level.mutable_bfield().set_y(b[1])
             proto_level.mutable_bfield().set_z(b[2])
         if(atm_abs_zmin < level.z < atm_abs_zmax):
-            proto_level.set_absorption_1d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
-            proto_level.set_absorption_2d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
-            proto_level.set_absorption_2d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
-            proto_level.set_absorption_3d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
-            proto_level.set_absorption_3d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
-            proto_level.set_absorption_4d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
+            proto_level.set_optical_depth_1d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
+            proto_level.set_optical_depth_2d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
+            proto_level.set_optical_depth_2d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
+            proto_level.set_optical_depth_3d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
+            proto_level.set_optical_depth_3d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
+            proto_level.set_optical_depth_4d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
     sim_config.mutable_geant4_shower_generator_config().CopyFrom(geant4_cfg)
     sim_config.mutable_iact_array_config().CopyFrom(iact_cfg)
-    # DetectorArrayConfiguration detector_array_config         = 24
+    for ipropagatorset in range(iact.num_propagator_sets()):
+        array_config = sim_config.add_detector_array_config()
+        array_config.set_name(iact.propagator_set_name(ipropagatorset))
+        array_config.set_scattering_radius_polynomial(iact.scattering_radius_polynomial(ipropagatorset))
+        for ipropagator in range(iact.propagator_set_size(ipropagatorset)):
+            propagator = iact.propagator_set_dc_element(ipropagatorset,ipropagator)
+            dc_array = None
+            if propagator:
+                dc_array = propagator.array()
+            else:
+                propagator = iact.propagator_set_element(ipropagatorset,ipropagator)
+            detector_spheres = propagator.detector_spheres()
+            group_config = array_config.add_detector_group_config()
+            group_config.set_type_name(iact.propagator_set_element_name(ipropagatorset,ipropagator))
+            group_config.set_ndetector(len(detector_spheres))
+            group_config.set_propagator_banner(propagator.banner())
+            if(dc_array):
+                dc_array.dump_as_proto(group_config.mutable_dc_array_config())
+        
+    detector_type_config = sim_config.mutable_detector_type_config(detector_type_name)
+    detector_type_config.set_type_name(detector_type_name)
+    detector_type_config.set_detector_efficiency_banner(det_eff.banner())
+    detector_type_config.set_detector_efficiency_energy(numpy.asarray(det_eff.all_xi()))
+    detector_type_config.set_detector_efficiency_efficiency(numpy.asarray(det_eff.all_yi()))
+    detector_type_config.set_angular_response_banner(cone_eff.banner())
+    detector_type_config.set_angular_response_costheta(numpy.asarray(det_eff.all_xi()))
+    detector_type_config.set_angular_response_efficiency(numpy.asarray(det_eff.all_yi()))
+    if pe_gen:
+        detector_type_config.set_pe_spectrum_banner(pe_gen.banner())
+        detector_type_config.set_pe_spectrum_banner_q(pe_gen.raw_q())
+        detector_type_config.set_pe_spectrum_banner_dp_dq(pe_gen.raw_dp_dq())
+    detector_type_config.set_pe_time_spread(args.tts)
+    detector_type_config.mutable_dc_array_parameters().CopyFrom(mst)
+
     args_dict = vars(args)
     for arg in args_dict:
         val = str(args_dict[arg])
         sim_config.set_command_line_args(arg, val)
+
+    signal.signal(signal.SIGINT, handle_sigint_quietly)
 
 def gen_event(args):
     x = spectral_transform(numpy.random.uniform()) # x=log10(E/1TeV)
@@ -296,9 +331,10 @@ def gen_event(args):
     u = numpy.asarray([numpy.sin(theta)*numpy.cos(phi), numpy.sin(theta)*numpy.sin(phi), numpy.cos(theta)])
     calin.math.geometry.rotate_in_place_z_to_u_Rzy(u, vc_dir)
 
-    x0 = numpy.asarray([0,0,atm.zobs(0)]) + u/u[2]*(atm.top_of_atmosphere() - atm.zobs(0))
+    ct0 = 1.0/u[2]*(atm.top_of_atmosphere() - atm.zobs(0))
+    x0 = numpy.asarray([0,0,atm.zobs(0)]) + ct0*u
 
-    generator.generate_showers(iact, 1, particle_type, e, x0, u)
+    generator.generate_showers(iact, 1, particle_type, e, x0, u, ct0)
 
     sim_event = calin.ix.simulation.simulated_event.SimulatedEvent()
     iact.save_to_simulated_event(sim_event, store_pe_weights, store_times_as_integer)
@@ -418,6 +454,7 @@ def print_line(filename):
     if args.n > 0:
         totaltime = runtime/fraction
         line += f' / {format_duration(totaltime)}'
+    line += f' ({num_events/runtime:,.1f} Hz)'
     line += f' ; {num_rays:,d} rays ; {num_rays/num_steps:.2f} {num_steps/num_tracks:.2f}';
     line += f' ; {num_bytes*1e-9:,.3f}'
     if args.n > 0:
@@ -427,6 +464,29 @@ def print_line(filename):
     if stop_requested:
         line += ' (STOPPING)'
     print(line)
+    if num_batch % 50 == 0 and num_batch != args.n and not stop_requested:
+        if args.emin < args.emax:
+            spectline = f'Spectrum: {format_energy(args.emin)}-{format_energy(args.emax)} {",".join([str(x) for x in args.spectral_polynomial or [0.0]])}'
+        else:
+            spectline = f'Monochromatic: {format_energy(args.emin)}'
+
+        if len(numpy.flipud(args.bmax_polynomial))>1 and args.emin < args.emax:
+            bmaxline = f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emin)):,.1f}-' \
+                + f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emax)):,.1f} m'
+        elif len(args.bmax_polynomial)>0:
+            bmaxline = f'{numpy.polyval(numpy.flipud(args.bmax_polynomial), numpy.log10(args.emin)):,.1f} m'
+        else:
+            bmaxline = '0.0 m'
+
+        if len(numpy.flipud(args.viewcone_polynomial))>1 and args.emin < args.emax:
+            vcline = f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emin)):,.1f}-' \
+                + f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emax)):,.1f} deg'
+        elif len(args.viewcone_polynomial)>0:
+            vcline = f'{numpy.polyval(numpy.flipud(args.viewcone_polynomial), numpy.log10(args.emin)):,.1f} deg'
+        else:
+            vcline = '0.0 deg'
+
+        print(f'\n===== Particle: {args.primary} ; Site: {args.site} ; El: {args.el:.1f}, Az: {args.az:.1f} ; {spectline} ; Bmax: {bmaxline} ; Viewcone: {vcline} =====\n')
     
 def process_results(results):
     if results is None:
@@ -557,13 +617,14 @@ if __name__ == '__main__':
     if max_workers == 1:
         init(args)
         print(get_banner())
+        print()
         signal.signal(signal.SIGINT, handle_sigint)
         while (args.n==0 or num_batch<args.n) and not stop_requested:
             results = gen_batch(unique_filename(args.output, num_batch))
             process_results(results)
     else:
         # Use a process pool for parallelism
-        batch_size = max_workers * 4
+        batch_size = 4 * max_workers
         print(f'Launching {max_workers} workers in process pool')
         with concurrent.futures.ProcessPoolExecutor(initializer=init, initargs=(args,), max_workers=max_workers) as executor:
             futures = set()
@@ -579,6 +640,7 @@ if __name__ == '__main__':
                     banner = fut.result()
             if banner is not None:
                 print(banner)
+                print()
             
             signal.signal(signal.SIGINT, handle_sigint)
 
