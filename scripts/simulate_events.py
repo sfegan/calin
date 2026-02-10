@@ -464,6 +464,7 @@ def print_line(filename):
     if stop_requested:
         line += ' (STOPPING)'
     print(line)
+    
     if num_batch % 50 == 0 and num_batch != args.n and not stop_requested:
         if args.emin < args.emax:
             spectline = f'Spectrum: {format_energy(args.emin)} - {format_energy(args.emax)}, Index: {",".join([str(x) for x in args.spectral_polynomial or [0.0]])}'
