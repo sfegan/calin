@@ -338,7 +338,10 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope,
       pixel_event->set_pixel_id(ipix);
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
         double trel = pd->t[ipe] - ref_time;
-        if(store_times_as_integer and trel<max_integer_time) {
+        if(store_times_as_integer and not store_pe_weights and trel<max_integer_time) {
+          // Only store times as integers if (1) requested to, (2) we're not storing
+          // weights (to avoid desynchronisation of weights and times arrays), and (3)
+          // the time is within range of uint16 given the resolution
           pixel_event->add_integer_time(std::round(trel * inv_time_resolution));
         } else {
           pixel_event->add_time(trel);
