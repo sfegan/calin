@@ -338,16 +338,13 @@ void SimpleListPEProcessor::save_to_simulated_event(unsigned iscope,
       pixel_event->set_pixel_id(ipix);
       for(unsigned ipe=0; ipe<pd->npe; ++ipe) {
         double trel = pd->t[ipe] - ref_time;
-        if(store_times_as_integer and not store_pe_weights and trel<max_integer_time) {
-          // Only store times as integers if (1) requested to, (2) we're not storing
-          // weights (to avoid desynchronisation of weights and times arrays), and (3)
-          // the time is within range of uint16 given the resolution
+        if(store_pe_weights) {
+          pixel_event->add_time(trel);
+          pixel_event->add_weight(pd->w[ipe]);
+        } else if (store_times_as_integer and trel<max_integer_time) {
           pixel_event->add_integer_time(std::round(trel * inv_time_resolution));
         } else {
           pixel_event->add_time(trel);
-        }
-        if(store_pe_weights) {
-          pixel_event->add_weight(pd->w[ipe]);
         }
       }
     }
@@ -364,10 +361,18 @@ void SimpleListPEProcessor::load_from_simulated_event(const calin::ix::simulatio
     for(int jpixel=0; jpixel<detector_event.pixel_size(); ++jpixel) {
       const auto& pixel_event = detector_event.pixel(jpixel);
       int ipix = pixel_event.pixel_id();
-      for(int kpe=0; kpe<pixel_event.time_size(); ++kpe) {
+      for(int kpe=0; kpe<pixel_event.weight_size(); ++kpe) {
         double t = pixel_event.time(kpe) + ref_time;
         double w = pixel_event.weight(kpe);
         this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, w);
+      }
+      for(int kpe=pixel_event.weight_size(); kpe<pixel_event.time_size(); ++kpe) {
+        double t = pixel_event.time(kpe) + ref_time;
+        this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, 1.0);
+      }
+      for(int kpe=0; kpe<pixel_event.integer_time_size(); ++kpe) {
+        double t = pixel_event.integer_time(kpe)*detector_event.integer_time_resolution() + ref_time;
+        this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, 1.0);
       }
     }
   }
