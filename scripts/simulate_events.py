@@ -175,6 +175,8 @@ def init(args):
         geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
         geant4_cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
         geant4_cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.001')
+    if args.primary == 'iron':
+        cfg.set_enable_ions(True)
 
     # Instantiate Geant4 shower generator
     global generator
