@@ -1754,11 +1754,11 @@ public:
     cr.nsb_freq_per_pixel_ghz    = nsb_freq_per_pixel_ghz;
     
     if(pegen!=nullptr) {
-      if(cr.pegen!=nullptr and cr.adopt_pegen) {
-       delete cr.pegen;
+      if(cr.nsb_pegen!=nullptr and cr.adopt_nsb_pegen) {
+       delete cr.nsb_pegen;
       }
-      cr.pegen                   = pegen;
-      cr.adopt_pegen             = adopt_pegen;
+      cr.nsb_pegen                   = pegen;
+      cr.adopt_nsb_pegen             = adopt_pegen;
     }
 
     cr.recalc_pedestal(this);
@@ -1859,11 +1859,11 @@ public:
     return cr.nsb_freq_per_pixel_ghz;
   }
 
-  calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* get_cr_pegen(unsigned camera_response_id)
+  calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* get_cr_nsb_pegen(unsigned camera_response_id)
   {
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
-    return cr.pegen;
+    return cr.nsb_pegen;
   }
 
   Eigen::VectorXi get_cr_impulse_response_id(unsigned camera_response_id)
@@ -1934,7 +1934,7 @@ public:
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
 
-    add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.pegen, t0_samples);
+    add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.nsb_pegen, t0_samples);
   }
 
   void convolve_impulse_response_fftw_codelet_cr(unsigned camera_response_id)
@@ -2203,7 +2203,7 @@ private:
     CameraResponse() = default;
     CameraResponse(CameraResponse&& o): 
       nsb_freq_per_pixel_ghz(o.nsb_freq_per_pixel_ghz),
-      pegen(o.pegen), 
+      nsb_pegen(o.nsb_pegen), 
       add_ac_coupling_offset(o.add_ac_coupling_offset),
       impulse_response_id(o.impulse_response_id),
       pedestal(std::move(o.pedestal)),
@@ -2212,17 +2212,17 @@ private:
       threshold(std::move(o.threshold)),
       neighbors(o.neighbors),
       coincidence_window(o.coincidence_window),
-      adopt_pegen(o.adopt_pegen)
+      adopt_nsb_pegen(o.adopt_nsb_pegen)
     {
-      o.pegen = nullptr;
+      o.nsb_pegen = nullptr;
     }
     CameraResponse& operator=(CameraResponse&& o) {
       if(this != &o) {
         nsb_freq_per_pixel_ghz = o.nsb_freq_per_pixel_ghz;
-        if(adopt_pegen) {
-          delete pegen;
+        if(adopt_nsb_pegen) {
+          delete nsb_pegen;
         }
-        pegen = o.pegen;
+        nsb_pegen = o.nsb_pegen;
         add_ac_coupling_offset = o.add_ac_coupling_offset;
         impulse_response_id = o.impulse_response_id;
         pedestal = std::move(o.pedestal);
@@ -2231,14 +2231,14 @@ private:
         threshold = std::move(o.threshold);
         neighbors = o.neighbors;
         coincidence_window = o.coincidence_window;
-        adopt_pegen = o.adopt_pegen;
-        o.pegen = nullptr;
+        adopt_nsb_pegen = o.adopt_nsb_pegen;
+        o.nsb_pegen = nullptr;
       }
       return *this;
     }
     ~CameraResponse() {
-      if(adopt_pegen) {
-        delete pegen;
+      if(adopt_nsb_pegen) {
+        delete nsb_pegen;
       }
     }
     void recalc_pedestal(VCLWaveformPEProcessor* base) {
@@ -2246,9 +2246,9 @@ private:
       if(add_ac_coupling_offset) {
         vecX_t offset;
         if(impulse_response_id.size() == 1) {
-          offset = base->ac_coupling_offset(impulse_response_id[0], nsb_freq_per_pixel_ghz, pegen, relative_gain);
+          offset = base->ac_coupling_offset(impulse_response_id[0], nsb_freq_per_pixel_ghz, nsb_pegen, relative_gain);
         } else {
-          offset = base->ac_coupling_offset(impulse_response_id, nsb_freq_per_pixel_ghz, pegen, relative_gain);
+          offset = base->ac_coupling_offset(impulse_response_id, nsb_freq_per_pixel_ghz, nsb_pegen, relative_gain);
         }
         if(pedestal.size() == 0) {
           pedestal = -offset;
@@ -2258,7 +2258,7 @@ private:
       }
     }
     Eigen::VectorXd nsb_freq_per_pixel_ghz;
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr;
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* nsb_pegen = nullptr;
     bool add_ac_coupling_offset = true;
     Eigen::VectorXi impulse_response_id;
     vecX_t demand_pedestal;
@@ -2269,7 +2269,7 @@ private:
     Eigen::MatrixXi neighbors;
     unsigned multiplicity = 3;
     unsigned coincidence_window = 0;
-    bool adopt_pegen = false;
+    bool adopt_nsb_pegen = false;
   };
 
   unsigned nsample_;
