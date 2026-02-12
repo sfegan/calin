@@ -224,7 +224,7 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
 
   G4ParticleTable* particle_table = G4ParticleTable::GetParticleTable();
   auto pdg_type = particle_type_to_pdg_type(type);
-  if(std::abs(pdg_type) >= 1000000000 and config_.enable_ions() == false) {
+  if(std::abs(pdg_type) > 1000020040 and config_.enable_ions() == false) {
     throw std::invalid_argument(
       "Cannot simulate ion primaries unless \"enable_ions\" option is selected");
   }
