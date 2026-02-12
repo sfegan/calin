@@ -127,6 +127,85 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
   //
+  //    db       .d88b.   .d8b.  d8888b. 
+  //    88      .8P  Y8. d8' `8b 88  `8D 
+  //    88      88    88 88ooo88 88   88 
+  //    88      88    88 88~~~88 88   88 
+  //    88booo. `8b  d8' 88   88 88  .8D 
+  //    Y88888P  `Y88P'  YP   YP Y8888D' 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
+  void load_from_simulated_event_with_pmt_noise(
+    const calin::ix::simulation::simulated_event::DetectorGroupEvent& detector_group_event,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
+    double time_spread = 0)
+  {
+    this->start_processing();
+
+    constexpr unsigned num_double = VCLArchitecture::num_double;
+    typename VCLArchitecture::double_at pe_dt;
+    typename VCLArchitecture::double_at pe_w;
+    std::fill(pe_w, pe_w+num_double, 1.0);
+    std::fill(pe_dt, pe_dt+num_double, 0.0);
+    unsigned idev = 0;
+
+    for(int idetector=0; idetector<detector_group_event.detector_size(); ++idetector) {
+      const auto& detector_event = detector_group_event.detector(idetector);
+      unsigned iscope = detector_event.detector_id();
+      double ref_time = detector_event.reference_time();
+      for(int jpixel=0; jpixel<detector_event.pixel_size(); ++jpixel) {
+        const auto& pixel_event = detector_event.pixel(jpixel);
+        int ipix = pixel_event.pixel_id();
+        for(int kpe=0; kpe<pixel_event.weight_size(); ++kpe) {
+          if(idev == 0) {
+            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            if(time_spread > 0) {
+              (rng_->normal_double() * time_spread).store_a(pe_dt);
+            } else if (time_spread < 0) {
+              rng_->uniform_double_zc(time_spread).store_a(pe_dt);
+            }
+          }
+          double t = pixel_event.time(kpe) + ref_time + pe_dt[idev];
+          double w = pixel_event.weight(kpe) * pe_w[idev];
+          this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, w);
+          idev = (idev+1) % num_double;
+        }
+        for(int kpe=pixel_event.weight_size(); kpe<pixel_event.time_size(); ++kpe) {
+          if(idev == 0) {
+            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            if(time_spread > 0) {
+              (rng_->normal_double() * time_spread).store_a(pe_dt);
+            } else if (time_spread < 0) {
+              rng_->uniform_double_zc(time_spread).store_a(pe_dt);
+            }
+          }
+          double t = pixel_event.time(kpe) + ref_time + pe_dt[idev];
+          this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, pe_w[idev]);
+          idev = (idev+1) % num_double;
+        }
+        for(int kpe=0; kpe<pixel_event.integer_time_size(); ++kpe) {
+          if(idev == 0) {
+            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            if(time_spread > 0) {
+              (rng_->normal_double() * time_spread).store_a(pe_dt);
+            } else if (time_spread < 0) {
+              rng_->uniform_double_zc(time_spread).store_a(pe_dt);
+            }
+          }
+          double t = pixel_event.integer_time(kpe)*detector_event.integer_time_resolution() + ref_time + pe_dt[idev];
+          this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, pe_w[idev]);
+          idev = (idev+1) % num_double;
+        }
+      }
+    }
+    this->finish_processing();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
   //    d8888b. d88888b .d8888. 
   //    88  `8D 88'     88'  YP 
   //    88oodD' 88ooooo `8bo.   
@@ -1755,7 +1834,7 @@ public:
     
     if(pegen!=nullptr) {
       if(cr.nsb_pegen!=nullptr and cr.adopt_nsb_pegen) {
-       delete cr.nsb_pegen;
+        delete cr.nsb_pegen;
       }
       cr.nsb_pegen                   = pegen;
       cr.adopt_nsb_pegen             = adopt_pegen;
