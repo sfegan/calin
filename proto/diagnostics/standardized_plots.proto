@@ -45,7 +45,7 @@ message TextAnnotation {
     [(CFO).desc = "Location of annotation, following matplotlib converion for legend."];
 };
 
-message CameraChannelOrModuleData {
+message CameraChannelOrModuleDataPlot {
   repeated double value                                    = 1 
     [(CFO).desc = "Value to be displayed in channel or module."];
   repeated bool value_is_present                           = 2
