@@ -47,7 +47,7 @@ message TextAnnotation {
 
 message CameraChannelOrModuleDataPlot {
   repeated double value                                    = 1 
-    [(CFO).desc = "Value to be displayed in channel or module."];
+    [(CFO).desc = "Values to be displayed in channel or module."];
   repeated bool value_is_present                           = 2
     [(CFO).desc = "Mask defining valid channels or modules; true if value is valid for a given channel or module."];
   string value_units                                       = 3
@@ -60,23 +60,28 @@ message CameraChannelOrModuleDataPlot {
     [(CFO).desc = "Lower limit on value in colorbar."];
   double value_lim_upper                                   = 7
     [(CFO).desc = "Upper limit on value in colorbar."];
-  string title                                             = 8
+  map<string, double> additional_data                      = 8
+    [(CFO).desc = "Additional data to be displayed on the plot."];
+  string additional_data_schema                            = 9
+    [(CFO).desc = "Schema-type of additional data."];
+  string vaue_print_format                                 = 10
+    [(CFO).desc = "Format for printing the values, e.g. \"%.2f DC\". This is used for the stats and top12/bottom12 value display, if selected."];
+  string title                                             = 11
     [(CFO).desc = "Title for plot."];
-  bool display_stats                                       = 9
+  bool display_stats                                       = 12
     [(CFO).desc = "Display stats: median, scale, min, max."];
-  string stats_format                                      = 10
-    [(CFO).desc = "Format for top12/bottom12 values, or blank to suppress them (only indexes shown)."];
-  bool display_top12                                       = 11
+  bool display_top12                                       = 13
     [(CFO).desc = "Display top and bottom 12 channel/module numbers."];
-  bool display_top12_value                                 = 12
+  bool display_top12_value                                 = 14
     [(CFO).desc = "Display top and bottom 12 values (only if \"display_top12\" is also selected)."];
-  repeated TextAnnotation text_annotations                 = 13
+  repeated TextAnnotation text_annotations                 = 15
     [(CFO).desc = "Additional text annotations to display, if any."];
-  CameraProjection projection                              = 14
+  CameraProjection projection                              = 16
     [(CFO).desc = "Projection for data (engineering or sky)."];
-  string camera_instance                                   = 15
-    [(CFO).desc = "Camera instance such as \"NectarCam/QM\" or \"NectarCam/1\"."];
-  int64 camera_epoch                                       = 16
-    [(CFO).desc = "Epoch of data for camera types that may evolve over time."];
+  string camera_instance                                   = 17
+    [(CFO).desc = "Camera instance such as \"NectarCam/QM\" or \"NectarCam/2\"."];
+  int64 camera_epoch                                       = 18
+    [(CFO).desc = "Epoch of data for camera type, since they may evolve over time."];
+  string filename                                          = 19
+    [(CFO).desc = "Nominal filename for the plot in calin."];
 };
-
