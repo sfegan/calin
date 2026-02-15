@@ -63,7 +63,7 @@ message CameraChannelOrModuleDataPlot {
   map<string, double> additional_data                      = 8
     [(CFO).desc = "Additional data to be displayed on the plot."];
   string additional_data_schema                            = 9
-    [(CFO).desc = "Schema-type of additional data."];
+    [(CFO).desc = "Schema of additional data, can be used to apply specific algorithm to display the data."];
   string vaue_print_format                                 = 10
     [(CFO).desc = "Format for printing the values, e.g. \"%.2f DC\". This is used for the stats and top12/bottom12 value display, if selected."];
   string title                                             = 11
