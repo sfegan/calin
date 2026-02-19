@@ -46,24 +46,24 @@ message TextAnnotation {
 };
 
 message CameraChannelOrModuleDataPlot {
-  repeated double value                                    = 1 
+  string schema                                            = 1
+    [(CFO).desc = "Schema of data, can be used to taylor display the data."];
+  repeated double value                                    = 2 
     [(CFO).desc = "Values to be displayed in channel or module."];
-  repeated bool value_is_present                           = 2
+  repeated bool value_is_present                           = 3
     [(CFO).desc = "Mask defining valid channels or modules; true if value is valid for a given channel or module."];
-  string value_units                                       = 3
+  string value_units                                       = 4
     [(CFO).desc = "Value units."];
-  string value_axis_label                                  = 4
+  string value_axis_label                                  = 5
     [(CFO).desc = "Value axis label, description of what is being shown."];
-  ChannelOrModuleValues value_data_type                    = 5
+  ChannelOrModuleValues value_data_type                    = 6
     [(CFO).desc = "Whether values correspond to channel-by-channel or module-by-module data."];
-  double value_lim_lower                                   = 6
+  double value_lim_lower                                   = 7
     [(CFO).desc = "Lower limit on value in colorbar."];
-  double value_lim_upper                                   = 7
+  double value_lim_upper                                   = 8
     [(CFO).desc = "Upper limit on value in colorbar."];
-  map<string, double> additional_data                      = 8
+  map<string, double> additional_data                      = 9
     [(CFO).desc = "Additional data to be displayed on the plot."];
-  string additional_data_schema                            = 9
-    [(CFO).desc = "Schema of additional data, can be used to apply specific algorithm to display the data."];
   string vaue_print_format                                 = 10
     [(CFO).desc = "Format for printing the values, e.g. \"%.2f DC\". This is used for the stats and top12/bottom12 value display, if selected."];
   string title                                             = 11
