@@ -190,7 +190,8 @@ def scan_file(file):
                 electronics_sim.add_nsb_noise_to_waveform_cr(0)
             electronics_sim.convolve_impulse_response_fftw_codelet_cr(0)
 
-            if trigger_fn(0, isample0) > 0:
+            itrig = trigger_fn(0, isample0)
+            if itrig >= 0:
                 npe = sorted([x.integer_time_size() for x in detector.pixel()])
                 results.append([ievent, iarray,
                                 sim_event.energy(), 
@@ -198,7 +199,8 @@ def scan_file(file):
                                 sim_event.viewcone_costheta(), 
                                 array.scattered_offset().x(),array.scattered_offset().y(), 
                                 array.scattered_distance(), 
-                                npe[-3], npe[-2], npe[-1]])
+                                npe[-3], npe[-2], npe[-1], 
+                                detector.pixel_size(), sum(npe), itrig])
     return file, nprocessed, results
 
 def save_results(file, nevent, results, filehandle):
