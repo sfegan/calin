@@ -1,5 +1,23 @@
 # Example usage: python3.12 shower_trigger_threshold.py -o test.pickle -n 6000000 -b 6500 -e 0.0175 --nsb 0.0 -p proton --viewcone 13.0 --write_batch=100000 --omit_untriggered --reuse 200 --enable_viewcone_cut
 
+# calin/scripts/shower_trigger_threshold.py -- Stephen Fegan - 2026-01-15
+#
+# Simulate mono-energetic events with GEANT4 and calculate trigger threshold.
+# Write results to a pickle file.
+#
+# Copyright 2026, Stephen Fegan <sfegan@llr.in2p3.fr>
+# Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
+#
+# This file is part of "calin"
+#
+# "calin" is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License version 2 or later, as published by
+# the Free Software Foundation.
+#
+# "calin" is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
 import os
 import argparse
 import concurrent
