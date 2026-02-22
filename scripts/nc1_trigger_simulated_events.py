@@ -193,14 +193,15 @@ def scan_file(file):
             itrig = trigger_fn(0, isample0)
             if itrig >= 0:
                 npe = sorted([x.integer_time_size() for x in detector.pixel()])
-                results.append([ievent, iarray,
-                                sim_event.energy(), 
-                                sim_event.u0().x(), sim_event.u0().y(), sim_event.u0().z(), 
-                                sim_event.viewcone_costheta(), 
-                                array.scattered_offset().x(),array.scattered_offset().y(), 
-                                array.scattered_distance(), 
-                                npe[-3], npe[-2], npe[-1], 
-                                detector.pixel_size(), sum(npe), itrig])
+                results.append([ievent, iarray,                                  # 0, 1
+                                sim_event.energy(),                              # 2
+                                sim_event.u0().x(), sim_event.u0().y(), sim_event.u0().z(), # 3, 4, 5
+                                sim_event.viewcone_costheta(),                   # 6
+                                array.scattered_offset().x(),array.scattered_offset().y(), # 7, 8
+                                array.scattered_distance(),                      # 9
+                                npe[-3], npe[-2], npe[-1],                       # 10, 11, 12
+                                detector.pixel_size(), sum(npe), itrig,          # 13, 14, 15
+                                detector.reference_time(), detector.time_max()]) # 16, 17
     return file, nprocessed, results
 
 def save_results(file, nevent, results, filehandle):
