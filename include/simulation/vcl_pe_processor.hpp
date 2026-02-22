@@ -232,9 +232,39 @@ public:
         + std::to_string(channel_time_offset_ns.size()) + " != " + std::to_string(npix_));
     }
 
-    double t0 = pe_list.tmin(iscope) - time_advance_;
+    // Find the PE time to use as a reference for binning. Use the minimum PE time if
+    // the time range is small (<8ns), othewise use the time of the 8ns bin in which
+    // most PEs arrive. Later a full trigger simulation will calculate a better time.
+
+    t0_ = pe_list.tmin(iscope);
+    constexpr double max_jitter = 8.0;
+    constexpr double inv_jitter = 1.0 / max_jitter;
+    if(pe_list.tmax(iscope) - t0_ > max_jitter) {
+      unsigned nbin = std::min(unsigned((pe_list.tmax(iscope) - t0_)*inv_jitter) + 1u, 128u);
+      double* bins = static_cast<double*>(alloca(nbin*sizeof(double)));
+      std::fill_n(bins, nbin, 0);
+      for(unsigned ipix=0; ipix<npix_; ++ipix) {
+        const double* t_ptr = nullptr;
+        const double* w_ptr = nullptr;
+        unsigned npe = pe_list.pe_ptrs(iscope, ipix, t_ptr, w_ptr);
+        for(unsigned ipe=0; ipe<npe; ++ipe) {
+          int itime = int(floor((t_ptr[ipe] - t0_)*inv_jitter));
+          if(itime >= 0 and itime < int(nbin)) {
+            bins[itime] += w_ptr[ipe];
+          }
+        }
+      }
+      auto itmax = std::max_element(bins, bins+nbin)-bins;
+      auto it0 = itmax;
+      while(it0 > 0 and bins[it0-1] > std::min(100.0,0.5*bins[itmax])) {
+        --it0;
+      }
+      t0_ += it0*max_jitter;
+    }
+    t0_ -= time_advance_;
+
     for(unsigned ipix=0; ipix<npix_; ++ipix) {
-      double t0ipix = t0;
+      double t0ipix = t0_;
       if(channel_time_offset_ns.size()) {
         t0ipix -= channel_time_offset_ns[ipix];
       }
@@ -332,6 +362,10 @@ public:
     ::free(a_vec);
     return pes_per_channel_in_window;
   }
+
+  double t0() const {
+    return t0_;
+  } 
 
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -2356,6 +2390,7 @@ private:
   double time_resolution_ns_;
   double sampling_freq_ghz_;
   double time_advance_;
+  double t0_ = 0;
   matX_t pe_waveform_;  // shape (nsample_, npix_): access as (it, ipix)
   matX_t v_waveform_;   // shape (nsample_, npix_): access as (it, ipix)
   bool v_waveform_is_packed_ = false;
