@@ -88,6 +88,12 @@ public:
     return config;
   }
 
+  void set_viewcone(const Eigen::Vector3d& obs_dir, double half_angle_rad);
+  void clear_viewcone();
+  bool is_viewcone_enabled() const { return viewcone_enabled_; }
+  double get_viewcone_half_angle() const { return std::acos(viewcone_wmax_); }
+  Eigen::Vector3d get_viewcone_direction() const { return -viewcone_n_; }
+
 #ifndef SWIG
   virtual void propagate_rays(calin::math::ray::VCLRay<double_real> ray, double_bvt ray_mask,
     double_vt bandwidth, double_vt weight);
@@ -129,6 +135,10 @@ protected:
   uint64_t num_tracks_ = 0;
   uint64_t num_steps_ = 0;
   uint64_t num_rays_ = 0;
+
+  bool viewcone_enabled_ = false;
+  Eigen::Vector3d viewcone_n_;
+  double viewcone_wmax_;
 
   double min_cherenkov_energy_ = 1.5;
   double fixed_bandwidth_ = 3.0;
@@ -239,11 +249,21 @@ visit_track(const calin::simulation::tracker::Track& track, bool& kill_track)
   kill_track = z0_at_or_below_ground;
 
   // it's store policy: no charge, no track, no photons
-  if(track.q == 0 or dx <= 0 or z0_at_or_below_ground)return;
+  if(track.q == 0 or dx <= 0 or z0_at_or_below_ground) {
+    return;
+  }
 
+  // tracks outside viewcone are discarded (if enabled)
+  if(viewcone_enabled_ and track.dx_hat.dot(viewcone_n_) < viewcone_wmax_) {
+    return;
+  }
+
+  // clip track at ground level if necessary
   if(z1_below_ground) {
     dx = (zobs - track.x0.z())/track.dx_hat.z();
-    if(dx <= 0)return;
+    if(dx <= 0) {
+      return;
+    }
   }
 
   using calin::math::special::SQR;
@@ -328,6 +348,20 @@ leave_event()
 
     generate_mc_rays(/* drain_tracks = */ true);
   }
+}
+
+template<typename VCLArchitecture> void VCLIACTTrackVisitor<VCLArchitecture>::
+set_viewcone(const Eigen::Vector3d& obs_dir, double half_angle_rad)
+{
+  viewcone_enabled_ = true;
+  viewcone_n_ = -obs_dir.normalized();
+  viewcone_wmax_ = std::cos(half_angle_rad);
+}
+
+template<typename VCLArchitecture> void VCLIACTTrackVisitor<VCLArchitecture>::
+clear_viewcone()
+{
+  viewcone_enabled_ = false;
 }
 
 template<typename VCLArchitecture> void VCLIACTTrackVisitor<VCLArchitecture>::

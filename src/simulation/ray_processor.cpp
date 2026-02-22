@@ -23,8 +23,25 @@
 #include <util/log.hpp>
 #include <simulation/ray_processor.hpp>
 
-using namespace calin::util::log;
+using namespace calin::util::log; 
 using namespace calin::simulation::ray_processor;
+
+double calin::simulation::ray_processor::viewcone_for_detector_spheres(Eigen::Vector3d& obs_dir, 
+  const std::vector<RayProcessorDetectorSphere>& detector_spheres, double border)
+{
+  Eigen::MatrixXd circles_on_sphere(detector_spheres.size(), 4);
+  for(size_t i=0; i<detector_spheres.size(); ++i) {
+    const auto& sphere = detector_spheres[i];
+    circles_on_sphere.row(i) 
+      << sphere.obs_dir.normalized().transpose(),
+         std::cos(sphere.field_of_view_radius);
+  }
+  Eigen::Vector4d enclosing_circle = 
+    calin::math::geometry::containing_circle_sphere(circles_on_sphere);
+  obs_dir = enclosing_circle.head<3>();
+  double viewcone_radius = std::acos(enclosing_circle[3]) + border;
+  return viewcone_radius;
+}
 
 RayProcessor::~RayProcessor()
 {

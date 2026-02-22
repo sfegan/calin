@@ -122,15 +122,30 @@ private:
 Eigen::VectorXd polyfit(const Eigen::VectorXd& x, const Eigen::VectorXd& y, unsigned order);
 
 #ifndef SWIG
-double polyval(const double* p, unsigned np, double x);
+inline double polyval(const double* p, unsigned np, double x)
+{
+  double y = p[--np];
+  while(np) {
+    y = y*x + p[--np];
+  }
+  return y;
+}
 
 inline double polyval(const std::vector<double>& p, double x)
 {
   return polyval(p.data(), p.size(), x);
 }
 
-void polyval_and_derivative(double& y, double& dy_dx,
-  const double* p, unsigned np, double x);
+inline void polyval_and_derivative(double& y, double& dy_dx,
+  const double* p, unsigned np, double x)
+{
+  y = p[--np];
+  dy_dx = 0.0;
+  while(np) {
+    dy_dx = dy_dx*x + double(np)*p[np];
+    y = y*x + p[--np];
+  }
+}
 
 inline void polyval_and_derivative(double& y, double& dy_dx,
   const std::vector<double>& p, double x)

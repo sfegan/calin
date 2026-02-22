@@ -186,7 +186,8 @@ TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Normal_BM)
   typename TypeParam::double_vt sum = 0;
   uint64_t seed = RNG::uint64_from_random_device();
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
-  for(unsigned i=0;i<1000000000;i++)
+  const unsigned N = unsigned(UINT64_C(64000000000)/TypeParam::vec_bits);
+  for(unsigned i=0;i<N;i++)
     sum += core.normal_double_bm();
   EXPECT_TRUE(horizontal_and(sum != 0.0));
 }
@@ -196,7 +197,8 @@ TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Normal_Ziggurat)
   typename TypeParam::double_vt sum = 0;
   uint64_t seed = RNG::uint64_from_random_device();
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
-  for(unsigned i=0;i<1000000000;i++)
+  const unsigned N = unsigned(UINT64_C(64000000000)/TypeParam::vec_bits);
+  for(unsigned i=0;i<N;i++)
     sum += core.normal_double_ziggurat();
   EXPECT_TRUE(horizontal_and(sum != 0.0));
 }
@@ -206,7 +208,8 @@ TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Exponential_Log)
   typename TypeParam::double_vt sum = 0;
   uint64_t seed = RNG::uint64_from_random_device();
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
-  for(unsigned i=0;i<1000000000;i++)
+  const unsigned N = unsigned(UINT64_C(64000000000)/TypeParam::vec_bits);
+  for(unsigned i=0;i<N;i++)
     sum += core.exponential_double_transformation();
   EXPECT_TRUE(horizontal_and(sum >= 0.0));
 }
@@ -216,7 +219,8 @@ TYPED_TEST(VCLSpeedTestRNG, Vec_1G_Exponential_Ziggurat)
   typename TypeParam::double_vt sum = 0;
   uint64_t seed = RNG::uint64_from_random_device();
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
-  for(unsigned i=0;i<1000000000;i++)
+  const unsigned N = unsigned(UINT64_C(64000000000)/TypeParam::vec_bits);
+  for(unsigned i=0;i<N;i++)
     sum += core.exponential_double_ziggurat();
   EXPECT_TRUE(horizontal_and(sum >= 0.0));
 }

@@ -1,3 +1,23 @@
+# Example usage: python3.12 shower_trigger_threshold.py -o test.pickle -n 6000000 -b 6500 -e 0.0175 --nsb 0.0 -p proton --viewcone 13.0 --write_batch=100000 --omit_untriggered --reuse 200 --enable_viewcone_cut
+
+# calin/scripts/shower_trigger_threshold.py -- Stephen Fegan - 2026-01-15
+#
+# Simulate mono-energetic events with GEANT4 and calculate trigger threshold.
+# Write results to a pickle file.
+#
+# Copyright 2026, Stephen Fegan <sfegan@llr.in2p3.fr>
+# Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
+#
+# This file is part of "calin"
+#
+# "calin" is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License version 2 or later, as published by
+# the Free Software Foundation.
+#
+# "calin" is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
 import os
 import argparse
 import concurrent
@@ -22,8 +42,13 @@ parser.add_argument('-n', type=int, default=1000,
                    help='Specify the number of showers to simulate')
 parser.add_argument('--reuse', type=int, default=10,
                    help='Specify the number of times to reuse each shower')
-parser.add_argument('-o', '--output', type=str, default=None,
+parser.add_argument('--write_batch', type=int, default=100,
+                   help='Specify the number of events to write per batch to output file')
+
+parser.add_argument('-o', '--output', type=str, default='tt.pickle',
                     help='Write trigger thresholds to this file')
+parser.add_argument('--omit_untriggered', action='store_true',
+                    help='Reduce file size by omitting untriggered events')
 
 parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
                     help='Site to simulate (default: ctan)')
@@ -46,9 +71,17 @@ parser.add_argument('--theta', type=float, default=0.0,
                    help='Specify the fixed offset between the primary direction and the telescope pointing direction in degrees')
 parser.add_argument('--phi', type=float, default=0.0,
                    help='Specify the fixed polar angle of the primary direction around the telescope pointing direction in degrees')
-parser.add_argument('--no_bfield', action='store_true', help='Disable the magnetic field (default: enabled)')
+parser.add_argument('--no_bfield', action='store_true', 
+                   help='Disable the magnetic field (default: enabled)')
+parser.add_argument('--no_refraction', action='store_true', 
+                   help='Disable refraction of rays in the atmosphere (default: enabled)')
+parser.add_argument('--enable_viewcone_cut', action='store_true', 
+                   help='Do not generate photons on tracks that are outside the viewcone (default: disabled)')
 
-
+parser.add_argument('--multiple_scattering', type=str, 
+                    choices=['minimal','simple','normal','better','insane'],
+                    default='normal',
+                    help='Specify the multiple scattering model (default: normal)')
 parser.add_argument('--nsb', type=float, default=0.30,
                    help='Specify the NSB rate in GHz')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
@@ -63,6 +96,8 @@ parser.add_argument('-c', '--coincidence', type=int, default=24,
 parser.add_argument('--threshold_min', type=float, default=40.0,
                     help='Minimum threshold for search (default: 40.0)')
 
+parser.add_argument('--nthread', type=int, default=0,
+                    help='Number of threads to use (default: 0 = number of CPUs available)')
 parser.add_argument('--avx', type=int, default=512, choices=[128,256,512],
                     help='Set the AVX vector size in bits (default: 512)')
 
@@ -70,11 +105,18 @@ args = parser.parse_args()
 
 tcoincidence = args.coincidence
 iact = None
+has_one_event = False
+
+begin_utc = datetime.datetime.now(datetime.timezone.utc)
 
 # Prepare a JSON header describing the run
 config = vars(args).copy()
-config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+config['_begin_utc'] = begin_utc.isoformat()
 config['_host'] = platform.node()
+config['_num_events'] = 0
+config['_num_tracks'] = 0
+config['_num_steps'] = 0
+config['_num_rays'] = 0
 
 def init():
     numpy.random.seed()
@@ -119,7 +161,10 @@ def init():
     # Configure IACT array
     global iact
     cfg = iact_class.default_config()
-    cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
+    if args.no_refraction:
+        cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_NO_RAYS)
+    else:
+        cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
     iact = iact_class(atm, atm_abs, cfg)
 
     # Load detector and efficiency models and the SPE generator
@@ -145,6 +190,8 @@ def init():
     # Set telescope pointing direction
     global pt_dir
     iact.point_all_telescopes_az_el_deg(args.az, args.el)
+    if args.enable_viewcone_cut:
+        iact.set_viewcone_from_telescope_fields_of_view()
     el = args.el * numpy.pi/180.0
     az = args.az * numpy.pi/180.0
     pt_dir  = numpy.asarray([numpy.cos(el)*numpy.sin(az), numpy.cos(el)*numpy.cos(az), numpy.sin(el)])
@@ -160,15 +207,32 @@ def init():
     # Configure Geant4 shower generator
     cfg = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator.customized_config(
         1000, 0, atm.top_of_atmosphere(), calin.simulation.geant4_shower_generator.VerbosityLevel_SUPRESSED_STDOUT)
-    cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-    cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-    cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
-    # cfg.add_pre_init_commands('/process/em/verbose 1')
+    if args.multiple_scattering == 'minimal':
+        cfg.add_pre_init_commands('/process/msc/StepLimit Minimal')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad Minimal')
+    elif args.multiple_scattering == 'simple':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseSafety')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseSafety')
+    elif args.multiple_scattering == 'normal':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+    elif args.multiple_scattering == 'better':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/RangeFactor 0.01')
+        cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.01')
+    elif args.multiple_scattering == 'insane':
+        cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
+        cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
+        cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.001')
+    if args.primary == 'iron':
+        cfg.set_enable_ions(True)
 
     # Instantiate Geant4 shower generator
     global generator
     generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, cfg, bfield);
-    generator.set_minimum_energy_cut(20);
+    generator.set_minimum_energy_cut(20); # 20 MeV cut on KE (e-,p+,n,ions) or Etot
 
     # Load impulse response
     global isample0
@@ -268,7 +332,7 @@ def gen_event():
 
     generator.generate_showers(iact, 1, pt, e, x0, u)
 
-    return e,pt,u,x0
+    return e,pt,u,x0,costheta
 
 def find_threshold(iarray):
     # Clear previous waveforms, transfer the PEs, add NSB, convolve impulse response
@@ -310,9 +374,10 @@ def find_threshold(iarray):
     return lower
 
 def one_event():
+    global has_one_event
     event_results = []
     try:
-        e,pt,u,x0 = gen_event()
+        e,pt,u,x0,costheta = gen_event()
         for iarray in range(args.reuse):
             threshold = find_threshold(iarray)
             event_results.append(dict(
@@ -321,61 +386,136 @@ def one_event():
                 pt             = int(pt),
                 u0             = u.tolist(),
                 x0             = x0.tolist(),
+                costheta       = costheta,
                 b              = iact.scattered_distance(iarray),
                 offset         = iact.scattered_offset(iarray)[0:2].tolist(),
                 threshold      = threshold))
     except Exception as ex:
         print(f'Error simulating event: {ex}')
         raise
+    if not has_one_event:
+        event_results[0]['_banner'] = iact.banner()
+        has_one_event = True
+    event_results[0]['_num_tracks'] = iact.num_tracks()
+    event_results[0]['_num_steps'] = iact.num_steps()
+    event_results[0]['_num_rays'] = iact.num_rays()
     return event_results
 
-def save_results(results, filename):
+def save_results(results, num_events, filehandle):
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    config['_num_events'] = num_events
+    config['_end_utc'] = now_utc.isoformat()
+    config['_run_time'] = (now_utc - begin_utc).total_seconds()
     output = dict(
         config = config,
         results = results)
-    with open(filename, 'wb') as f:
-        pickle.dump(output, f)
+    pickle.dump(output, filehandle)
+    filehandle. flush()
 
+num_events = 0
+num_rays = 0
+num_steps = 0
+num_tracks = 0
+events_written = 0
+batch_start = 0
 all_results = []
-max_workers = os.cpu_count() or 4
-batch_size = max_workers * 10
-with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
-    remaining = args.n
-    futures = set()
 
-    # Submit initial batch
-    first_batch = min(batch_size, remaining)
-    for _ in range(first_batch):
-        futures.add(executor.submit(one_event))
-    remaining -= first_batch
+def print_line():    
+    print(f'{args.output}: {len(all_results)} ;',
+            f'{num_events:,d} / {args.n*args.reuse:,d} =',
+            f'{num_events/(args.n*args.reuse)*100:.2f} % ;',
+            f'{config["_run_time"]/3600:.2f} /',
+            f'{args.n*args.reuse/num_events*config["_run_time"]/3600:.2f} hr ;',
+            f'{num_events/config["_run_time"]:,.2f} Hz ;',
+            f'{num_rays:,d} rays ;',
+            f'{num_rays/num_steps:.2f}',
+            f'{num_steps/num_tracks:.2f}')
+    
+def process_results(results):
+    global num_events
+    global events_written
+    global batch_start
+    global all_results
+    global config
+    global num_rays
+    global num_steps
+    global num_tracks
 
-    # Keep a bounded number of in-flight futures; as one completes, submit another
-    while futures:
-        done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
-        for fut in done:
-            futures.remove(fut)
-            for r  in fut.result():
-                all_results.append(r)
+    for r in results:
+        if '_banner' in r:
+            config['_banner'] = r['_banner']
+            del r['_banner']
+        if '_num_tracks' in r:
+            config['_num_tracks'] += r['_num_tracks']
+            config['_num_steps'] += r['_num_steps']
+            config['_num_rays'] += r['_num_rays']
+            num_tracks += r['_num_tracks']
+            num_steps += r['_num_steps']
+            num_rays += r['_num_rays']
+            del r['_num_tracks']
+            del r['_num_steps']
+            del r['_num_rays']
+        num_events += 1
+        if args.omit_untriggered and r['threshold'] < 0:
+            continue
+        all_results.append(r)
 
-            if args.output and len(all_results)>0 and (len(all_results)%100)==0:
-                save_results(all_results, args.output)
-                print(f'Wrote {len(all_results)} results to {args.output}')
+    if (num_events-events_written)>=args.write_batch:
+        save_results(all_results[batch_start:], num_events-events_written, f)
+        print_line()
+        events_written = num_events
+        batch_start = len(all_results)
+        config['_num_tracks'] = 0
+        config['_num_steps'] = 0
+        config['_num_rays'] = 0
 
-            if remaining > 0:
+max_workers = args.nthread or os.cpu_count() or 1
+with open(args.output, 'wb') as f:
+    # Run the simulations in this thread
+    if max_workers == 1:
+        init()
+        for _ in range(args.n):
+            process_results(one_event())
+    else:
+        # Use a process pool for parallelism
+        batch_size = max_workers * 10
+        with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
+            remaining = args.n
+            futures = set()
+
+            # Submit initial batch
+            first_batch = min(batch_size, remaining)
+            for _ in range(first_batch):
                 futures.add(executor.submit(one_event))
-                remaining -= 1
+            remaining -= first_batch
 
-if args.output and (len(all_results)==0 or (len(all_results)%100)!=0):
-    save_results(all_results, args.output)
-    print(f'Wrote {len(all_results)} results to {args.output}')
+            # Keep a bounded number of in-flight futures; as one completes, submit another
+            while futures:
+                done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+                for fut in done:
+                    futures.remove(fut)
+                    process_results(fut.result())
+                    if remaining > 0:
+                        futures.add(executor.submit(one_event))
+                        remaining -= 1
+
+    if num_events>events_written:
+        save_results(all_results[batch_start:], num_events-events_written, f)
+        print_line()
+        events_written = num_events
+        batch_start = len(all_results)
 
 th = args.threshold_min
+pc = 98
+bsim = config['bmax']
+filtered_results = all_results
 while True:
-    filtered_results = [r for r in all_results if r['threshold'] >= th]
+    filtered_results = [r for r in filtered_results if r['threshold'] >= th]
     ntrig = len(filtered_results)
-    if(ntrig < 10):
+    if(ntrig < 10 or th > 10*config['threshold_min']):
         break
-    if(True): #ntrig < 0.9*len(all_results)):
-        bmax = numpy.percentile([r['b'] for r in filtered_results],98.0)
-        print(f'{th:6.1f} {th/20:6.2f} {ntrig:6d} {ntrig/len(all_results):5.3f} {ntrig/len(all_results)*numpy.pi*args.bmax**2:.4e} {bmax*1e-2:6.1f}')
+    if(ntrig < 0.9*num_events):
+        bmax = numpy.percentile([r['b'] for r in filtered_results],pc)
+        thmax = numpy.percentile([numpy.arccos(r['costheta'])/numpy.pi*180.0 for r in filtered_results],pc)        
+        print(f'{th:6.1f} {th/20:6.2f} | {ntrig:6d} {ntrig/num_events:5.3f} | {ntrig/num_events*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
     th = th + 10.0

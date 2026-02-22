@@ -27,6 +27,7 @@
 
 #include <util/memory.hpp>
 #include <util/vcl.hpp>
+#include <math/constants.hpp>
 #include <math/special.hpp>
 #include <math/ray_vcl.hpp>
 #include <math/rng_vcl.hpp>
@@ -37,6 +38,9 @@
 #include <util/log.hpp>
 
 namespace calin { namespace simulation { namespace vcl_raytracer {
+
+// These classes are too complex for SWIG to handle directly from the header
+// files. We define a simplified subset directly in the SWIG interface file.
 
 #ifndef SWIG
 
@@ -615,6 +619,90 @@ public:
     return mask;
   }
 
+  unsigned psf(Eigen::VectorXd& x_out, Eigen::VectorXd& y_out, Eigen::VectorXd& t_out, unsigned nray,
+    double theta = 0, double phi = 0, double distance = std::numeric_limits<double>::infinity(), double radius = 0) 
+  {
+    theta *= M_PI/180.0;
+    double sintheta = std::sin(theta);
+    phi *= M_PI/180.0;
+    mat3_vt rot;
+    calin::math::geometry::VCL<VCLReal>::rotation_y_to_xyz_Ryxy(rot, 
+      sintheta*std::cos(phi), std::cos(theta), sintheta*std::sin(phi));
+
+    if(radius <= 0) {
+      radius = std::sqrt(reflec_aperture2_);
+    }
+    if(distance <= 0) {
+      throw std::runtime_error("Light emission distance must be positive or infinity");
+    }
+
+    double dcospolar = 1.0 - std::cos(radius / distance);
+    double fppos_2y = 2.0 * fp_pos_.y();
+
+    unsigned ntraced = 0;
+    unsigned iray = 0;
+    x_out.resize(nray);
+    y_out.resize(nray);
+    t_out.resize(nray);
+
+    while(iray < nray) {
+      vec3_vt x;
+      vec3_vt u;
+
+      if(distance < std::numeric_limits<double>::infinity()) {
+        x.x() = 0; 
+        x.y() = distance;
+        x.z() = 0;
+        real_vt cospolar = 1.0 - dcospolar * rng_->uniform();
+        real_vt sinpolar = vcl::sqrt(vcl::nmul_add(cospolar, cospolar, 1.0));
+        real_vt cosazimuth;
+        real_vt sinazimuth;
+        rng_->sincos(sinazimuth, cosazimuth);
+        u.x() = sinpolar * cosazimuth;
+        u.y() = -cospolar;
+        u.z() = sinpolar * sinazimuth;
+      } else {
+        u.x() = 0;
+        u.y() = -1.0;
+        u.z() = 0;
+        real_vt rho = radius * vcl::sqrt(rng_->uniform());
+        real_vt cosphi;
+        real_vt sinphi;
+        rng_->sincos(sinphi, cosphi);
+        x.x() = rho * cosphi;
+        x.y() = fppos_2y;   // Launch from twice the FP distance
+        x.z() = rho * sinphi;
+      }
+
+      Ray ray(x, u, -x.y() * calin::math::constants::g4_1_c, 0);
+      ray.rotate(rot);
+
+      TraceInfo info;
+      trace_reflector_frame(true, ray, info);
+
+      typename VCLReal::int_at status;
+      typename VCLReal::real_at xfp;
+      typename VCLReal::real_at yfp;
+      typename VCLReal::real_at tfp;
+      info.status.store_a(status);
+      info.fplane_x.store_a(xfp);
+      info.fplane_z.store_a(yfp);
+      info.fplane_t.store_a(tfp);
+
+      for(unsigned i=0; i< VCLReal::num_real; i++) {
+        ntraced++;
+        if(status[i] >= STS_OUTSIDE_FOCAL_PLANE_APERTURE) {
+          x_out[iray] = xfp[i];
+          y_out[iray] = yfp[i];
+          t_out[iray] = tfp[i];
+          iray++;
+          if(iray >= nray)break;
+        }
+      }
+    }
+    return ntraced;
+  }
+
 private:
 
   void populate_obscuration(std::vector<VCLObscuration<VCLReal>*>& to,
@@ -953,7 +1041,7 @@ private:
 
 // std::ostream& operator <<(std::ostream& stream, const VSORayTracer::TraceInfo& o);
 
-#endif
+#endif // defined SWIG
 
 bool test_tube_obscuration(const Eigen::Vector3d& x1, const Eigen::Vector3d& x2, double radius,
   const Eigen::Vector3d& r, const Eigen::Vector3d& u);

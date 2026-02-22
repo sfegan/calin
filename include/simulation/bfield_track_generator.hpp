@@ -38,7 +38,7 @@ namespace calin { namespace simulation { namespace bfield_track_generator {
 
 enum PropagationMode { FWD_TO_GROUND, BWD_FIXED_DISTANCE };
 
-class BFieldTrackGenerator
+class BFieldTrackGenerator: public calin::simulation::tracker::ShowerGenerator
 {
  public:
   BFieldTrackGenerator(const Eigen::Vector3d& bfield_nT,
@@ -54,7 +54,7 @@ class BFieldTrackGenerator
                         double total_energy,
                         const Eigen::Vector3d& x0 = Eigen::Vector3d(0,0,0),
                         const Eigen::Vector3d& u0 = Eigen::Vector3d(0,0,-1),
-                        double weight=1.0);
+                        double ct0=0.0, double weight=1.0) override;
 
  protected:
   Eigen::Vector3d bfield_;

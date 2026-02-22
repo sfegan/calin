@@ -34,40 +34,6 @@
 using namespace calin::simulation::geant4_shower_generator;
 using namespace calin::util::log;
 
-void calin::simulation::geant4_shower_generator::
-g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec)
-{
-  evec[0] = g4vec[0];
-  evec[1] = g4vec[1];
-  evec[2] = g4vec[2];
-}
-
-void calin::simulation::geant4_shower_generator::
-g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec,
-                    double to_units)
-{
-  evec[0] = g4vec[0]/to_units;
-  evec[1] = g4vec[1]/to_units;
-  evec[2] = g4vec[2]/to_units;
-}
-
-void calin::simulation::geant4_shower_generator::
-eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec)
-{
-  g4vec[0] = evec[0];
-  g4vec[1] = evec[1];
-  g4vec[2] = evec[2];
-}
-
-void calin::simulation::geant4_shower_generator::
-eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec,
-               double from_units)
-{
-  g4vec[0] = evec[0]*from_units;
-  g4vec[1] = evec[1]*from_units;
-  g4vec[2] = evec[2]*from_units;
-}
-
 // ============================================================================
 //
 // EAS_SteppingAction - Stacking action - kill low energy particles
@@ -201,20 +167,22 @@ void EAS_SteppingAction::UserSteppingAction(const G4Step* the_step)
 // ============================================================================
 
 EAS_PrimaryGeneratorAction::EAS_PrimaryGeneratorAction()
-    : G4VUserPrimaryGeneratorAction()
+    : G4VUserPrimaryGeneratorAction(), particle_gun_(new G4ParticleGun)
 {
   // nothing to see here
 }
 
 EAS_PrimaryGeneratorAction::~EAS_PrimaryGeneratorAction()
 {
-  delete(particle_source_);
+  // delete(particle_source_);
+  delete particle_gun_;
 }
 
 void EAS_PrimaryGeneratorAction::GeneratePrimaries(G4Event* the_event)
 {
   // this function is called at the begining of event
-  particle_source_->GeneratePrimaryVertex(the_event);
+  // particle_source_->GeneratePrimaryVertex(the_event);
+  particle_gun_->GeneratePrimaryVertex(the_event);
 }
 
 // ============================================================================
@@ -266,7 +234,7 @@ G4VPhysicalVolume* EAS_FlatDetectorConstruction::Construct()
 
   G4double world_hx = layer_side_cm_*CLHEP::cm;
   G4double world_hy = layer_side_cm_*CLHEP::cm;
-  G4double world_hz = ztop_of_atm_cm_*CLHEP::cm;
+  G4double world_hz = (ztop_of_atm_cm_ + 100.0)*CLHEP::cm;
 
   G4GeometryManager::GetInstance()->SetWorldMaximumExtent(
     std::max({world_hx, world_hy, world_hz}));
@@ -281,7 +249,7 @@ G4VPhysicalVolume* EAS_FlatDetectorConstruction::Construct()
 
   G4VPhysicalVolume* world_physical
       = new G4PVPlacement(0,                           // no rotation
-                          G4ThreeVector(0, 0, 0), // translation
+                          G4ThreeVector(0, 0, 0),      // translation
                           world_logical    ,           // its logical volume
                           std::string("PHY_WORLD"),    // its name
                           0,                           // its mother volume

@@ -28,6 +28,8 @@
 #include <simulation/geant4_shower_generator_internals.hpp>
 #include <provenance/chronicle.hpp>
 
+using calin::math::constants::g4_1_c;
+
 using namespace calin::simulation::geant4_shower_generator;
 using namespace calin::util::log;
 
@@ -156,17 +158,23 @@ void Geant4ShowerGenerator::construct()
   gen_action_ = new EAS_PrimaryGeneratorAction();
   run_manager_->SetUserAction(gen_action_);
 
+  // Set minimum energy cut if requested
+  if(config_.minimum_energy_cut() > 0) {
+    set_minimum_energy_cut(config_.minimum_energy_cut());
+  }
+
   // initialize G4 kernel
   run_manager_->Initialize();
 
-  // Make the ions we support
-
-  // G4IonTable::GetIonTable()->GetIon(2, 4, 0.0); // Helium - already made by G4 as "alpha"
-  G4IonTable::GetIonTable()->GetIon(6, 12, 0.0); // Carbon
-  G4IonTable::GetIonTable()->GetIon(8, 16, 0.0); // Oxygen
-  G4IonTable::GetIonTable()->GetIon(12, 24, 0.0); // Magnesium
-  G4IonTable::GetIonTable()->GetIon(14, 28, 0.0); // Silicon
-  G4IonTable::GetIonTable()->GetIon(26, 56, 0.0); // Iron
+  if(config_.enable_ions()) {
+    // Make the ions we support
+    // G4IonTable::GetIonTable()->GetIon(2, 4, 0.0); // Helium - already made by G4 as "alpha"
+    G4IonTable::GetIonTable()->GetIon(6, 12, 0.0); // Carbon
+    G4IonTable::GetIonTable()->GetIon(8, 16, 0.0); // Oxygen
+    G4IonTable::GetIonTable()->GetIon(12, 24, 0.0); // Magnesium
+    G4IonTable::GetIonTable()->GetIon(14, 28, 0.0); // Silicon
+    G4IonTable::GetIonTable()->GetIon(26, 56, 0.0); // Iron
+  }
 }
 
 Geant4ShowerGenerator::~Geant4ShowerGenerator()
@@ -209,22 +217,25 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
                 double total_energy,
                 const Eigen::Vector3d& x0,
                 const Eigen::Vector3d& u0,
-                double weight)
+                double ct0, double weight)
 {
   event_action_->set_visitor(visitor);
   step_action_->set_visitor(visitor);
 
-  G4GeneralParticleSource* gps = new G4GeneralParticleSource();
-
-  // default particle kinematic
   G4ParticleTable* particle_table = G4ParticleTable::GetParticleTable();
-  G4ParticleDefinition* particle
-      = particle_table->FindParticle(particle_type_to_pdg_type(type));
+  auto pdg_type = particle_type_to_pdg_type(type);
+  if(std::abs(pdg_type) > 1000020040 and config_.enable_ions() == false) {
+    throw std::invalid_argument(
+      "Cannot simulate ion primaries unless \"enable_ions\" option is selected");
+  }
+  G4ParticleDefinition* particle = particle_table->FindParticle(pdg_type);
 
-  if(total_energy * CLHEP::MeV < particle->GetPDGMass())
+  double kinetic_energy = total_energy * CLHEP::MeV - particle->GetPDGMass();
+  if(kinetic_energy < 0) {
     throw std::invalid_argument(
       "Total energy must be larger than particle rest mass ("
       + std::to_string(particle->GetPDGMass()/CLHEP::MeV) + " MeV)");
+  }
 
   G4ThreeVector position;
   eigen_to_g4vec(position, x0, CLHEP::cm);
@@ -232,16 +243,13 @@ generate_showers(calin::simulation::tracker::TrackVisitor* visitor,
   G4ThreeVector momentum_direction;
   eigen_to_g4vec(momentum_direction, u0);
 
-  G4SingleParticleSource* sps = gps->GetCurrentSource();
-  sps->SetParticleDefinition(particle);
-  sps->GetPosDist()->SetPosDisType("Point");
-  sps->GetPosDist()->SetCentreCoords(position);
-  sps->GetAngDist()->SetAngDistType("planar");
-  sps->GetAngDist()->SetParticleMomentumDirection(momentum_direction);
-  sps->GetEneDist()->SetEnergyDisType("Mono");
-  sps->GetEneDist()->SetMonoEnergy(total_energy * CLHEP::MeV - particle->GetPDGMass());
-
-  gen_action_->setGPS(gps);
+  auto* particle_generator = gen_action_->particleGenerator();
+  particle_generator->SetParticleDefinition(particle);
+  particle_generator->SetParticleEnergy(kinetic_energy);
+  particle_generator->SetParticlePosition(position);
+  particle_generator->SetParticleMomentumDirection(momentum_direction);
+  particle_generator->SetParticleTime(ct0 * g4_1_c * CLHEP::ns);
+  particle_generator->SetParticleWeight(weight);
 
   // start a run
   run_manager_->BeamOn(num_events);
@@ -294,6 +302,7 @@ Geant4ShowerGenerator::config_type Geant4ShowerGenerator::default_config()
   config.set_zground(0);
   config.set_ztop_of_atmosphere(100E5);
   config.set_tracking_cut_scale(10);
+  config.set_minimum_energy_cut(20);
   config.set_detector_box_size(1000E5);
   config.set_material("G4_AIR");
   config.set_seed(0);
@@ -303,13 +312,15 @@ Geant4ShowerGenerator::config_type Geant4ShowerGenerator::default_config()
 
 Geant4ShowerGenerator::config_type Geant4ShowerGenerator::customized_config(
   unsigned num_atm_layers, double zground, double ztop_of_atmosphere,
-  VerbosityLevel verbose_level, uint32_t seed, double default_cut_value_cm)
+  VerbosityLevel verbose_level, uint32_t seed, double default_cut_value_cm,
+  double default_set_minimum_energy_cut_mev)
 {
   config_type config = default_config();
   config.set_num_atm_layers(num_atm_layers);
   config.set_zground(zground);
   config.set_ztop_of_atmosphere(ztop_of_atmosphere);
   config.set_tracking_cut_scale(default_cut_value_cm);
+  config.set_minimum_energy_cut(20);
   config.set_seed(seed);
   switch(verbose_level) {
     case VerbosityLevel::SUPPRESSED_ALL:

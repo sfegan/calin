@@ -59,11 +59,10 @@
 %newobject *::add_processor_and_pe_visitor;
 
 %import "simulation/ray_processor.pb.i"
+
+%apply Eigen::Vector3d& OUTPUT { Eigen::Vector3d& obs_dir_out };
+
 %include "simulation/ray_processor.hpp"
-
-%template(StdVectorRayProcessorDetectorSphere)
-  std::vector<calin::simulation::ray_processor::RayProcessorDetectorSphere>;
-
 %include "simulation/vso_ray_processor.hpp"
 
 %apply unsigned &OUTPUT { unsigned& scope_id_out };

@@ -373,14 +373,18 @@ def mstn_generic_config(scope_x, scope_y, scope_z, array_lat, array_lon, array_a
     dc.set_alignment_image_plane(1600)
     dc.set_facet_spacing(124)
     dc.set_facet_size(120)
-    dc.set_facet_focal_length(1608.3)
-    dc.set_facet_focal_length_dispersion(3.9)
-    dc.set_facet_spot_size_probability(0.8)
-    # Updated 2022-08-10 so on-axis PSF could match value presented by DESY :
+    #############################################################################################################################
+    # Updated 2026-06-10 using values in table and plots from DESY:
     # https://indico.cta-observatory.org/event/3956/contributions/32824/attachments/20968/29502/220228_MST-PSF-MC-Feedback.pdf
-    # dc.set_facet_spot_size(0.5 * 2.8) # Spot size of 28mm at 2F
-    dc.set_facet_spot_size(0.5 * 2.0)
-    dc.set_facet_spot_size_dispersion(0.5 * 0.02)
+    # https://indico.cta-observatory.org/event/2992/contributions/25449/attachments/17980/24236/ROBAST.pdf
+    # See also PSF notebook included in calin distribution
+    dc.set_facet_focal_length(0.5 * 3216.6)
+    dc.set_facet_focal_length_dispersion(0.5 * 7.8)
+    dc.set_facet_spot_size_probability(0.8)
+    dc.set_facet_spot_size(0.5 * 1.4)
+    dc.set_facet_spot_size_dispersion(0.5 * 0.16)
+    dc.set_facet_alignment_dispersion(0.24) # This value tuned to match PSF curve presented by DESY
+    #############################################################################################################################
     dc.set_facet_labeling_parity(True)
     dc.set_weathering_factor(1.0)
     #for id in [1,62,67,72,77,82,87]: dc.add_facet_missing_list(id-1) # 84 mirror

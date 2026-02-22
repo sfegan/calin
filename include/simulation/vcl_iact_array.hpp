@@ -32,10 +32,12 @@
 #include <vector>
 #include <sstream>
 
+#include <calin_global_definitions.hpp>
 #include <util/log.hpp>
 #include <util/string.hpp>
 #include <math/special.hpp>
 #include <math/hex_array.hpp>
+#include <math/least_squares.hpp>
 #include <simulation/vcl_iact.hpp>
 #include <simulation/vcl_ray_propagator.hpp>
 #include <simulation/vcl_raytracer.hpp>
@@ -350,6 +352,7 @@ public:
 
   virtual ~VCLIACTArray();
 
+  unsigned add_propagator_set(const Eigen::VectorXd& scattering_radius_polynomial, const std::string& name = "");
   unsigned add_propagator_set(double scattering_radius = 0.0, const std::string& name = "");
 
   DaviesCottonVCLFocalPlaneRayPropagator* add_davies_cotton_propagator(
@@ -406,15 +409,34 @@ public:
   void point_all_telescopes_az_el_phi_deg(double az_deg, double el_deg, double phi_deg);
   void point_all_telescopes_az_el_deg(double az_deg, double el_deg);
 
+  void set_viewcone_from_telescope_fields_of_view();
+
   static calin::ix::simulation::vcl_iact::VCLIACTArrayConfiguration default_config();
 
   unsigned num_propagator_sets() const { return propagator_set_.size(); }
+  const std::string& propagator_set_name(unsigned ipropagator_set) const {
+    return propagator_set_.at(ipropagator_set)->name; }
+  unsigned propagator_set_size(unsigned ipropagator_set) const {
+    return propagator_set_.at(ipropagator_set)->propagators.size(); }
+  const std::string& propagator_set_element_name(unsigned ipropagator_set, unsigned ipropagator_element) const {
+    return propagator_set_.at(ipropagator_set)->propagators.at(ipropagator_element)->name; }
+  FocalPlaneRayPropagator* propagator_set_element(
+      unsigned ipropagator_set, unsigned ipropagator_element) const {
+    return propagator_set_.at(ipropagator_set)->propagators.at(ipropagator_element)->propagator; }
+  DaviesCottonVCLFocalPlaneRayPropagator* propagator_set_dc_element(
+      unsigned ipropagator_set, unsigned ipropagator_element) const {
+    return dynamic_cast<DaviesCottonVCLFocalPlaneRayPropagator*>(
+      propagator_set_.at(ipropagator_set)->propagators.at(ipropagator_element)->propagator); }
   double scattered_distance(unsigned ipropagator_set) const {
     return propagator_set_.at(ipropagator_set)->scattered_distance; }
   Eigen::Vector3d scattered_offset(unsigned ipropagator_set) const {
     return propagator_set_.at(ipropagator_set)->scattered_offset; }
-  double scattering_radius(unsigned ipropagator_set) const {
-    return propagator_set_.at(ipropagator_set)->scattering_radius; }
+  Eigen::VectorXd scattering_radius_polynomial(unsigned ipropagator_set) const {
+    return propagator_set_.at(ipropagator_set)->scattering_radius_polynomial; }
+  double scattering_radius(unsigned ipropagator_set, double energy_mev) const {
+    return calin::math::least_squares::polyval(
+      propagator_set_.at(ipropagator_set)->scattering_radius_polynomial,
+      std::log10(energy_mev)-6); }
 
   unsigned num_propagators() const { return propagator_.size(); }
   unsigned num_scopes() const { return detector_.size(); }
@@ -431,7 +453,8 @@ public:
   calin::math::spline_interpolation::CubicSpline* new_height_dependent_pe_bandwidth_spline() const;
   double fixed_pe_bandwidth() const;
 
-  void save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const;
+  void save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event,
+    bool store_pe_weights = true, bool store_times_as_integer = false) const;
 
 #ifndef SWIG
   void visit_event(const calin::simulation::tracker::Event& event, bool& kill_event) final;
@@ -461,7 +484,7 @@ protected:
 
   struct PropagatorSet {
     unsigned ipropagator_set;
-    double scattering_radius;
+    Eigen::VectorXd scattering_radius_polynomial;
     double scattered_distance;
     Eigen::Vector3d scattered_offset;
     std::string name;
@@ -652,11 +675,15 @@ template<typename VCLArchitecture> VCLIACTArray<VCLArchitecture>::
 }
 
 template<typename VCLArchitecture> unsigned VCLIACTArray<VCLArchitecture>::
-add_propagator_set(double scattering_radius, const std::string& name)
+add_propagator_set(const Eigen::VectorXd& scattering_radius_polynomial, const std::string& name)
 {
+  Eigen::VectorXd scattering_radius_polynomial_copy = scattering_radius_polynomial;
+  if(scattering_radius_polynomial_copy.size() == 0) {
+    scattering_radius_polynomial_copy.setZero(1);
+  }
   auto* propagator_set = new PropagatorSet;
   propagator_set->ipropagator_set = propagator_set_.size();
-  propagator_set->scattering_radius = scattering_radius;
+  propagator_set->scattering_radius_polynomial = scattering_radius_polynomial_copy;
   propagator_set->scattered_distance = 0.0;
   propagator_set->scattered_offset = Eigen::Vector3d::Zero();
   if(name == "") {
@@ -666,6 +693,14 @@ add_propagator_set(double scattering_radius, const std::string& name)
   }
   propagator_set_.emplace_back(propagator_set);
   return propagator_set->ipropagator_set;
+}
+
+template<typename VCLArchitecture> unsigned VCLIACTArray<VCLArchitecture>::
+add_propagator_set(double scattering_radius, const std::string& name)
+{
+  Eigen::VectorXd scattering_radius_polynomial(1);
+  scattering_radius_polynomial.setConstant(scattering_radius);
+  return add_propagator_set(scattering_radius_polynomial, name);
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
@@ -721,7 +756,9 @@ add_propagator(FocalPlaneRayPropagator* propagator, PEProcessor* pe_processor,
   }
 
   if(propagator_set_.empty()) {
-    add_propagator_set(config_.scattering_radius(), "default_propagator_set");
+    Eigen::VectorXd scattering_radius_polynomial = calin::protobuf_to_eigenvec(
+      config_.scattering_radius_polynomial());
+    add_propagator_set(scattering_radius_polynomial, "default_propagator_set");
   }
   PropagatorSet* propagator_set = propagator_set_.back();
   propagator_set->propagators.emplace_back(propagator_info);
@@ -883,17 +920,19 @@ template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
 point_telescope_az_el_phi_deg(unsigned iscope,
   double az_deg, double el_deg, double phi_deg)
 {
+  using namespace calin::util::log;
   if(iscope >= detector_.size()) {
     throw std::out_of_range("Telescope ID out of range");
   }
-
+  if(this->viewcone_enabled_) {
+    LOG(WARNING) << "Disabling viewcone after telescope repointing.";
+    this->clear_viewcone();
+  }
   DetectorInfo* detector(detector_[iscope]);
   PropagatorInfo* ipropagator(detector->propagator_info);
   unsigned propagator_isphere = iscope-ipropagator->detector0;
-
   ipropagator->propagator->point_telescope_az_el_phi_deg(
     propagator_isphere, az_deg, el_deg, phi_deg);
-
   schedule_update_detector_efficiencies();
 }
 
@@ -907,6 +946,11 @@ template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
 point_all_telescopes_az_el_phi_deg(const Eigen::VectorXd& az_deg,
   const Eigen::VectorXd&  el_deg, const Eigen::VectorXd&  phi_deg)
 {
+  using namespace calin::util::log;
+  if(this->viewcone_enabled_) {
+    LOG(WARNING) << "Disabling viewcone after telescope repointing.";
+    this->clear_viewcone();
+  }
   for(auto* propagator : propagator_) {
     for(unsigned propagator_isphere=0; propagator_isphere<propagator->ndetector;
         ++propagator_isphere) {
@@ -942,6 +986,25 @@ point_all_telescopes_az_el_deg(double az_deg, double el_deg)
     Eigen::VectorXd::Constant(detector_.size(), az_deg),
     Eigen::VectorXd::Constant(detector_.size(), el_deg),
     Eigen::VectorXd::Constant(detector_.size(), 0.0));
+}
+
+template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
+set_viewcone_from_telescope_fields_of_view()
+{
+  std::vector<calin::simulation::ray_processor::RayProcessorDetectorSphere> detector_spheres;
+  for(auto* propagator : propagator_) {
+    auto spheres = propagator->propagator->detector_spheres();
+    detector_spheres.insert(detector_spheres.end(), spheres.begin(), spheres.end());
+  }
+  double border_rad = std::acos(1/(this->atm_->n_minus_one(zobs_)+1));
+  if(config_.refraction_mode() != calin::ix::simulation::vcl_iact::REFRACT_NO_RAYS) {
+    border_rad += this->atm_->refraction_bending(
+      this->atm_->top_of_atmosphere(), std::acos(wmin_));
+  }
+  Eigen::Vector3d viewcone_dir;
+  double viewcone_radius = calin::simulation::ray_processor::
+    viewcone_for_detector_spheres(viewcone_dir, detector_spheres, border_rad);
+  this->set_viewcone(viewcone_dir, viewcone_radius);
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
@@ -1034,7 +1097,8 @@ VCLIACTArray<VCLArchitecture>::new_height_dependent_pe_bandwidth_spline() const
 }
 
 template<typename VCLArchitecture> void VCLIACTArray<VCLArchitecture>::
-save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event) const
+save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* sim_event,
+  bool store_pe_weights, bool store_times_as_integer) const
 {
   sim_event->set_event_id(saved_event_.event_id);
   switch(saved_event_.type) {
@@ -1126,7 +1190,7 @@ save_to_simulated_event(calin::ix::simulation::simulated_event::SimulatedEvent* 
       if(peproc == nullptr) {
         throw std::runtime_error("Only SimpleListPEProcessor supported in save_to_simulated_event()");
       }
-      peproc->save_to_simulated_event(new_detector_group_event);
+      peproc->save_to_simulated_event(new_detector_group_event, store_pe_weights, store_times_as_integer);
     }
   }
 }
@@ -1141,8 +1205,6 @@ visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
     update_detector_efficiencies_is_pending_ = false;
   }
 
-  calin::math::rng::VCLToScalarRNGCore scalar_core(this->rng_->core());
-  calin::math::rng::RNG scalar_rng(&scalar_core);
   Eigen::Vector3d e1(1.0, 0.0, 0.0);
   Eigen::Vector3d e2(0.0, 1.0, 0.0);
   calin::math::geometry::rotate_in_place_z_to_u_Rzy(e1, event.u0);
@@ -1157,11 +1219,19 @@ visit_event(const calin::simulation::tracker::Event& event, bool& kill_event)
     detector->nrays_propagated = 0;
     detector->sphere = detector->unscattered_sphere;
   }
+
+  double log10_energy_tev = std::log10(event.e0) - 6.0;
   for(auto* propagator_set : propagator_set_) {
-    if(propagator_set->scattering_radius > 0.0) {
-      double b = propagator_set->scattering_radius*std::sqrt(scalar_rng.uniform());
+    double scattering_radius = 
+      calin::math::least_squares::polyval(
+        propagator_set->scattering_radius_polynomial, log10_energy_tev);
+    if(scattering_radius > 0.0) {
+      double_vt uniform_deviate_vt = this->rng_->uniform_double();
+      double_at uniform_deviate_at;
+      uniform_deviate_vt.store_a(uniform_deviate_at);
+      double b = scattering_radius*std::sqrt(uniform_deviate_at[0]);
       propagator_set->scattered_distance = b;
-      double theta = scalar_rng.uniform()*M_PI*2.0;
+      double theta = uniform_deviate_at[1]*M_PI*2.0;
       double bx = b*std::cos(theta);
       double by = b*std::sin(theta);
       Eigen::Vector3d bvec = bx*e1 + by*e2;
@@ -1334,7 +1404,7 @@ do_propagate_rays_for_detector(DetectorInfo* detector)
   double_vt emission_z = ray.z();
   double_vt emission_uz = ray.uz();
 
-  if(detector->propagator_info->propagator_set->scattering_radius > 0.0) {
+  if(detector->propagator_info->propagator_set->scattered_distance > 0.0) {
     // Translate the ray to unscattered frame since this is how the propagator works
     ray.translate_origin(detector->propagator_info->propagator_set->scattered_offset.template cast<double_vt>());
   }
@@ -1590,6 +1660,7 @@ VCLIACTArray<VCLArchitecture>::default_config()
   config.set_detector_energy_lo(1.25);
   config.set_detector_energy_hi(4.8);
   config.set_detector_energy_bin_width(0.05);
+  config.add_scattering_radius_polynomial(0.0);
   config.set_grid_theshold(4);
   config.set_grid_area_divisor(256.0);
   return config;
@@ -1658,6 +1729,44 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
       stream << message.first << " (x" << message.second << ")\n";
     }
   }
+
+  message_counts.clear();
+  for(const auto* ipropagator_set : propagator_set_) {
+    std::string banner;
+    bool banner_found = false;
+    if(ipropagator_set->scattering_radius_polynomial.size() == 0 or 
+      (ipropagator_set->scattering_radius_polynomial.size() == 1 and ipropagator_set->scattering_radius_polynomial[0] == 0.0)) {
+        banner = "- Scattering radius : DISABLED";
+    } else if(ipropagator_set->scattering_radius_polynomial.size() == 1) {
+      banner = "- Fixed Scattering radius : " + double_to_string_with_commas(ipropagator_set->scattering_radius_polynomial[0]*1e-5,3) + " km";
+    } else {
+      banner = "- Variable Scattering radius :\n";
+      banner += "  10GeV, 100GeV, 1TeV, 10TeV, 100TeV : "; 
+      banner += double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, -2.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, -1.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 0.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 1.0)*0.01,0);
+      banner += ", " + double_to_string_with_commas(calin::math::least_squares::polyval(ipropagator_set->scattering_radius_polynomial, 2.0)*0.01,0) + " m";
+    }
+    for(auto& message : message_counts) {
+      if(message.first == banner) {
+        message.second++;
+        banner_found = true;
+        break;
+      }
+    }
+    if(not banner_found) {
+      message_counts.emplace_back(banner, 1);
+    }
+  } 
+  for(const auto& message : message_counts) {
+    if(message.second == 1) {
+      stream << message.first << '\n';
+    } else if(message.second > 1) {
+      stream << message.first << " (x" << message.second << ")\n";
+    }
+  }
+
   stream
     << "Detector zenith range : " << double_to_string_with_commas(std::acos(wmax_)/M_PI*180.0,1)
     << " to " << double_to_string_with_commas(std::acos(wmin_)/M_PI*180.0,1) << " degrees.\n"
@@ -1678,6 +1787,14 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
     << " to " << double_to_string_with_commas(zobs_/1e5,3) << " km : "
     << double_to_string_with_commas(prop_delay_ct*0.03335641,2) <<  "ns ("
     << double_to_string_with_commas(prop_delay_ct,1) << " cm)\n";
+  if(this->is_viewcone_enabled()) {
+    stream << "Viewcone : "
+      << "Zn=" << double_to_string_with_commas(std::acos(-this->viewcone_n_[2])/M_PI*180,3) << " deg, "
+      << "Az=" << double_to_string_with_commas(std::atan2(-this->viewcone_n_[0],-this->viewcone_n_[1])/M_PI*180,3) << " deg, "
+      << "Theta=" << double_to_string_with_commas(std::acos(this->viewcone_wmax_)/M_PI*180,3) << " deg\n";
+  } else {
+    stream << "Viewcone : DISABLED\n";
+  }
   if(this->variable_bandwidth_spline_) {
     double bw_zobs = this->variable_bandwidth_spline_->value(zobs_);
     double bw_5 = this->variable_bandwidth_spline_->value(5e5);

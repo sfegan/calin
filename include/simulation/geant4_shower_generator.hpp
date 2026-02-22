@@ -86,7 +86,7 @@ public:
                         double total_energy,
                         const Eigen::Vector3d& x0 = Eigen::Vector3d(0,0,0),
                         const Eigen::Vector3d& u0 = Eigen::Vector3d(0,0,-1),
-                        double weight=1.0) override;
+                        double ct0=0.0, double weight=1.0) override;
 
   const config_type& config() const { return config_; }
   uint32_t random_seed() const { return config_.seed(); }
@@ -99,7 +99,8 @@ public:
 
   static config_type customized_config(unsigned num_atm_layers, double zground, double ztop,
     VerbosityLevel verbose_level = VerbosityLevel::SUPRESSED_STDOUT,
-    uint32_t seed = 0, double default_cut_value_cm = 10.0);
+    uint32_t seed = 0, double default_cut_value_cm = 10.0,
+    double default_set_minimum_energy_cut_mev = 20.0);
 
   std::string pdg_type_to_string(int pdg_type);
   double pdg_type_to_mass(int pdg_type);

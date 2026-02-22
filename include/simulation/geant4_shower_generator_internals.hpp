@@ -54,7 +54,8 @@ using calin::math::special::SQR;
 #include <G4NistManager.hh>
 #include <G4VModularPhysicsList.hh>
 #include <G4PhysListFactory.hh>
-#include <G4GeneralParticleSource.hh>
+// #include <G4GeneralParticleSource.hh>
+#include <G4ParticleGun.hh>
 #include <G4VUserActionInitialization.hh>
 #include <G4UserEventAction.hh>
 #include <FTFP_BERT.hh>
@@ -64,18 +65,40 @@ using calin::math::special::SQR;
 
 namespace calin { namespace simulation { namespace geant4_shower_generator {
 
-void g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec);
-void g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec,
-                    double to_units);
-void eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec);
-void eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec,
-                    double from_units);
+inline void g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec)
+{
+  evec[0] = g4vec[0];
+  evec[1] = g4vec[1];
+  evec[2] = g4vec[2];
+}
+
+inline void g4vec_to_eigen(Eigen::Vector3d& evec, const G4ThreeVector& g4vec, double to_units)
+{
+  evec[0] = g4vec[0]/to_units;
+  evec[1] = g4vec[1]/to_units;
+  evec[2] = g4vec[2]/to_units;
+}
+
+inline void eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec)
+{
+  g4vec[0] = evec[0];
+  g4vec[1] = evec[1];
+  g4vec[2] = evec[2];
+}
+
+inline void eigen_to_g4vec(G4ThreeVector& g4vec, const Eigen::Vector3d& evec, double from_units)
+{
+  g4vec[0] = evec[0]*from_units;
+  g4vec[1] = evec[1]*from_units;
+  g4vec[2] = evec[2]*from_units;
+}
 
 inline bool apply_kinetic_energy_cut(int pdg_type)
 {
-  return pdg_type==11 // electron
-      or pdg_type==2212 // proton
-      or pdg_type==2112 // neutron
+  return pdg_type==11         // electron
+      or pdg_type==2212       // proton
+      or pdg_type==2112       // neutron
+      or pdg_type>=1000000000 // all ions
       ;
 }
 
@@ -120,10 +143,13 @@ public:
 
   void GeneratePrimaries(G4Event* the_event) override;
 
-  void setGPS(G4GeneralParticleSource* particle_source) {
-    delete particle_source_; particle_source_ = particle_source; }
+  // void setGPS(G4GeneralParticleSource* particle_source) {
+    // delete particle_source_; particle_source_ = particle_source; }
+  // G4GeneralParticleSource* getGPS() { return particle_source_; }
+  G4ParticleGun* particleGenerator() { return particle_gun_; }
 protected:
-  G4GeneralParticleSource* particle_source_ = nullptr;
+  // G4GeneralParticleSource* particle_source_ = nullptr;
+  G4ParticleGun* particle_gun_ = nullptr;
 };
 
 class EAS_DetectorConstruction: public G4VUserDetectorConstruction

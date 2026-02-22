@@ -1,0 +1,87 @@
+/*
+
+   calin/proto/diagnostics/standardized_plots.proto -- Stephen Fegan -- 2026-02-12
+
+   Standard plot types (camera face, X-Y etc)
+
+   Copyright 2026, Stephen Fegan <sfegan@llr.in2p3.fr>
+   Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
+
+   This file is part of "calin"
+
+   "calin" is free software: you can redistribute it and/or modify it
+   under the terms of the GNU General Public License version 2 or
+   later, as published by the Free Software Foundation.
+
+   "calin" is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+*/
+
+syntax = "proto3";
+option cc_enable_arenas = true;
+
+import "calin.proto";
+//import "common_types.proto";
+
+package calin.ix.diagnostics.standardized_plots;
+
+enum ChannelOrModuleValues {
+  CHANNEL_VALUES                                           = 0;
+  MODULE_VALUES                                            = 1;
+};
+
+enum CameraProjection {
+  ENGINEERING_PROJECTION                                   = 0;
+  SKY_PROJECTION                                           = 1;
+};
+
+message TextAnnotation {
+  string text                                              = 1
+    [(CFO).desc = "Text to display."];
+  int32 loc                                                = 2
+    [(CFO).desc = "Location of annotation, following matplotlib converion for legend."];
+};
+
+message CameraChannelOrModuleDataPlot {
+  repeated double value                                    = 1 
+    [(CFO).desc = "Values to be displayed in channel or module."];
+  repeated bool value_is_present                           = 2
+    [(CFO).desc = "Mask defining valid channels or modules; true if value is valid for a given channel or module."];
+  string value_units                                       = 3
+    [(CFO).desc = "Value units."];
+  string value_axis_label                                  = 4
+    [(CFO).desc = "Value axis label, description of what is being shown."];
+  ChannelOrModuleValues value_data_type                    = 5
+    [(CFO).desc = "Whether values correspond to channel-by-channel or module-by-module data."];
+  double value_lim_lower                                   = 6
+    [(CFO).desc = "Lower limit on value in colorbar."];
+  double value_lim_upper                                   = 7
+    [(CFO).desc = "Upper limit on value in colorbar."];
+  map<string, double> additional_data                      = 8
+    [(CFO).desc = "Additional data to be displayed on the plot."];
+  string additional_data_schema                            = 9
+    [(CFO).desc = "Schema of additional data, can be used to apply specific algorithm to display the data."];
+  string vaue_print_format                                 = 10
+    [(CFO).desc = "Format for printing the values, e.g. \"%.2f DC\". This is used for the stats and top12/bottom12 value display, if selected."];
+  string title                                             = 11
+    [(CFO).desc = "Title for plot."];
+  bool display_stats                                       = 12
+    [(CFO).desc = "Display stats: median, scale, min, max."];
+  bool display_top12                                       = 13
+    [(CFO).desc = "Display top and bottom 12 channel/module numbers."];
+  bool display_top12_value                                 = 14
+    [(CFO).desc = "Display top and bottom 12 values (only if \"display_top12\" is also selected)."];
+  repeated TextAnnotation text_annotations                 = 15
+    [(CFO).desc = "Additional text annotations to display, if any."];
+  CameraProjection projection                              = 16
+    [(CFO).desc = "Projection for data (engineering or sky)."];
+  string camera_instance                                   = 17
+    [(CFO).desc = "Camera instance such as \"NectarCam/QM\" or \"NectarCam/2\"."];
+  int64 camera_epoch                                       = 18
+    [(CFO).desc = "Epoch of data for camera type, since they may evolve over time."];
+  string filename                                          = 19
+    [(CFO).desc = "Nominal filename for the plot in calin."];
+};

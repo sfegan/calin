@@ -26,6 +26,7 @@ import "calin.proto";
 import "common_types.proto";
 import "simulation/vcl_iact.proto";
 import "simulation/geant4_shower_generator.proto";
+import "simulation/vs_optics.proto";
 
 package calin.ix.simulation.simulated_event;
 
@@ -60,7 +61,11 @@ message PixelEvent
     [(CFO).desc = "Photon detection times relative to detector reference time.",
      (CFO).units = "ns" ];
 
-  repeated float weight                                    = 3
+  repeated uint32 integer_time                             = 3
+    [(CFO).desc = "Photon detection times relative to detector reference time stored as integer.",
+     (CFO).units = "as defined by PARENT::integer_time_resolution", (CFO).int32_type = INT_16 ];
+
+  repeated float weight                                    = 4
     [(CFO).desc = "Photon weights",
      (CFO).units = "1" ];
 };
@@ -78,7 +83,11 @@ message DetectorEvent
     [(CFO).desc = "Maximum photon detection time for this event relative to reference time.",
      (CFO).units = "ns" ];
 
-  repeated PixelEvent pixel                                = 4
+  double integer_time_resolution                           = 4
+    [(CFO).desc = "Resolution of integer time bins, if used.",
+     (CFO).units = "ns" ];
+
+  repeated PixelEvent pixel                                = 10
     [(CFO).desc = "Events for each pixel in this detector." ];
 };
 
@@ -125,128 +134,110 @@ enum ParticleType {
 
 message SimulatedEvent 
 {
-  int64  event_id                                          = 1
-    [(CFO).desc = "Unique identifier for simulated event." ];
+  uint64 instance_id                                       = 1
+    [(CFO).desc = "Identifier for simulation instance." ];
 
-  ParticleType type                                        =  2
+  uint64 event_id                                          = 2
+    [(CFO).desc = "Identifier for event unique to simulation instance." ];
+
+  ParticleType type                                        = 3
     [(CFO).desc = "Simplified particle type." ];
 
-  int32 pdg_type                                           =  3
+  int32 pdg_type                                           = 4
     [(CFO).desc = "PDG particle type code." ];   
 
-  double q                                                 =  4
+  double q                                                 = 5
     [(CFO).desc = "Particle charge.",
      (CFO).units = "e" ];
 
-  double mass                                              = 5
+  double mass                                              = 6
     [(CFO).desc = "Particle rest mass.",
      (CFO).units = "MeV" ];
 
-  calin.ix.common_types.Vector3D x0                        = 6
+  calin.ix.common_types.Vector3D x0                        = 7
     [(CFO).desc = "Position of start of event.",
      (CFO).units = "cm" ];
 
-  calin.ix.common_types.Vector3D u0                        = 7
+  calin.ix.common_types.Vector3D u0                        = 8
     [(CFO).desc = "Direction of start of event.",
      (CFO).units = "1" ];
 
-  double energy                                            = 8
+  double energy                                            = 9
     [(CFO).desc = "Primary energy at start of event.",
      (CFO).units = "MeV" ];
 
-  double t0                                                = 9  
+  double t0                                                = 10  
     [(CFO).desc = "Time at start of event.",
      (CFO).units = "ns" ];
 
-  double weight                                            = 10
+  double weight                                            = 11
     [(CFO).desc = "Event weighting for thinning." ];
 
-  repeated DetectorArrayEvent array                         = 20
+  calin.ix.common_types.Vector3D viewcone_axis             = 12
+    [(CFO).desc = "Nominal viewcone axis for this event.",
+     (CFO).units = "1" ];
+
+  double viewcone_costheta                                 = 13
+    [(CFO).desc = "Costheta of event direction with respect to nominal viewcone axis." ];
+
+  repeated DetectorArrayEvent array                        = 20
     [(CFO).desc = "Event as seen by each of the configured detector arrays." ];
 };
 
-message AtmosphericLayer
+message AtmosphericLevel
 {
-  double altitude_top                                      = 1
-    [(CFO).desc = "Altitude at top of layer.",
+  double altitude                                          = 1
+    [(CFO).desc = "Altitude of level.",
      (CFO).units = "cm" ];
 
-  double altitude_bottom                                   = 2
-    [(CFO).desc = "Altitude at bottom of layer.",
-     (CFO).units = "cm" ];
-
-  double thickness_top                                     = 3
-    [(CFO).desc = "Thickness at top of layer.",
+  double thickness                                         = 2
+    [(CFO).desc = "Thickness from infinity to level.",
      (CFO).units = "g/cm2" ];
 
-  double density                                           = 4
-    [(CFO).desc = "Mean density of layer.",
+  double density                                           = 3
+    [(CFO).desc = "Density at level.",
      (CFO).units = "g/cm3" ];
 
-  double n_minus_one_top                                   = 5
-    [(CFO).desc = "Refractive index minus 1 at top of layer.",
+  double n_minus_one                                       = 4
+    [(CFO).desc = "Refractive index minus 1 at level.",
      (CFO).units = "1" ];
 
-  double yield_top                                         = 6
-    [(CFO).desc = "Cherenkov yield at top of layer.",
-     (CFO).units = "ph/cm" ];
-
-  calin.ix.common_types.Vector3D bfield_top                = 7
-    [(CFO).desc = "Geomagnetic field vector at top of layer.",
+  calin.ix.common_types.Vector3D bfield                    = 10
+    [(CFO).desc = "Geomagnetic field vector at level.",
      (CFO).units = "nT" ];
 
-  double absorption_1x0ev_top                              = 8
-    [(CFO).desc = "Absorption probability for 1.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double optical_depth_1d5ev                               = 20
+    [(CFO).desc = "Optical depth for 1.5 eV photon from level." ];
 
-  double absorption_1x5ev_top                              = 9
-    [(CFO).desc = "Absorption probability for 1.5 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double optical_depth_2d0ev                               = 21
+    [(CFO).desc = "Optical depth for 2.0 eV photon from level." ];
 
-  double absorption_2x0ev_top                              = 10
-    [(CFO).desc = "Absorption probability for 2.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double optical_depth_2d5ev                               = 22
+    [(CFO).desc = "Optical depth for 2.5 eV photon from level." ];
 
-  double absorption_2x5ev_top                              = 11
-    [(CFO).desc = "Absorption probability for 2.5 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double optical_depth_3d0ev                               = 23
+    [(CFO).desc = "Optical depth for 3.0 eV photon from level." ];
 
-  double absorption_3x0ev_top                              = 12
-    [(CFO).desc = "Absorption probability for 3.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double optical_depth_3d5ev                               = 24
+    [(CFO).desc = "Optical depth for 3.5 eV photon from level." ];
 
-  double absorption_3x5ev_top                              = 13
-    [(CFO).desc = "Absorption probability for 3.5 eV photon from top of layer.",
-     (CFO).units = "cm" ];
-
-  double absorption_4x0ev_top                              = 14
-    [(CFO).desc = "Absorption probability for 4.0 eV photon from top of layer.",
-     (CFO).units = "cm" ];
+  double optical_depth_4d0ev                               = 25
+    [(CFO).desc = "Optical depth for 4.0 eV photon from level." ];
 };
 
 message DetectorGroupConfiguration
 {
-  string name                                              = 1
-    [(CFO).desc = "Name of this detector group." ];
+  string type_name                                         = 1
+    [(CFO).desc = "Name of detector types in this group." ];
 
   uint32 ndetector                                         = 2
     [(CFO).desc = "Number of detectors in this group" ];
 
-  uint32 detector0                                         = 3
-    [(CFO).desc = "Index of first detector in this group." ];
-  
   string propagator_banner                                 = 10
     [(CFO).desc = "Banner or description for the propagator." ];
 
-  string bandwidth_manager_banner                          = 11
-    [(CFO).desc = "Banner or description for the bandwidth manager." ];
-
-  string pe_processor_banner                               = 12
-    [(CFO).desc = "Banner or description for the PE processor." ];
-
-  double pe_time_spread                                    = 13
-    [(CFO).desc = "Time resolution for pe detector.",
-     (CFO).units = "ns" ];
+  calin.ix.simulation.vs_optics.VSOArrayData dc_array_config = 20
+    [(CFO).desc = "Configuration of DC array, if appropriate." ];
 };
 
 message DetectorArrayConfiguration
@@ -254,28 +245,129 @@ message DetectorArrayConfiguration
   string name                                              = 1
     [(CFO).desc = "Name of this detector set." ];
 
-  double scattered_distance                                = 2
-    [(CFO).desc = "Scattered detector distance for this set.",
+  repeated double scattering_radius_polynomial             = 40
+    [(CFO).desc = "Radius of the scattering region for the array center, "
+      "perpendicular to primary direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
      (CFO).units = "cm" ];
 
   repeated DetectorGroupConfiguration detector_group_config = 10
     [(CFO).desc = "Configuration for the detector groups in this set."];
 };  
 
+message DetectorTypeConfiguration
+{
+  string type_name                                         = 1
+    [(CFO).desc = "Name of detector type." ];
+
+  string detector_efficiency_banner                        = 10
+    [(CFO).desc = "Banner from detector efficiency curve." ];
+
+  repeated double detector_efficiency_energy               = 11
+    [(CFO).desc = "Detector efficiency curve energies (X-axis).",
+     (CFO).units = "eV" ];
+
+  repeated double detector_efficiency_efficiency           = 12
+    [(CFO).desc = "Detector efficiency curve efficiencies (Y-axis).",
+     (CFO).units = "1" ];
+
+  string angular_response_banner                          = 20
+    [(CFO).desc = "Banner from angular response curve." ];
+
+  repeated double angular_response_costheta               = 21
+    [(CFO).desc = "Detector angular response cos_angles (X-axis).",
+     (CFO).units = "eV" ];
+
+  repeated double angular_response_efficiency             = 22
+    [(CFO).desc = "Detector angular response efficiencies (Y-axis).",
+     (CFO).units = "1" ];
+
+  string pe_spectrum_banner                               = 30
+    [(CFO).desc = "Banner from PE charge spectrum generator." ];
+
+  repeated double pe_spectrum_banner_q                    = 31
+    [(CFO).desc = "PE charge spectrum charge (X-axis).",
+     (CFO).units = "arbitrary-q-units" ];
+
+  repeated double pe_spectrum_banner_dp_dq                = 32
+    [(CFO).desc = "PE charge spectrum charge (Y-axis).",
+     (CFO).units = "1/arbitrary-q-units" ];
+
+  double pe_time_spread                                   = 33
+    [(CFO).desc = "PE timespread, if enabled.",
+     (CFO).units = "ns" ];
+
+  calin.ix.simulation.vs_optics.IsotropicDCArrayParameters dc_array_parameters = 40
+    [(CFO).desc = "DC array construction parameters, if appropriate." ];
+};
+
 message SimulationConfiguration
 {
-  string banner                                            = 1
+  ParticleType particle_type                               = 1
+    [(CFO).desc = "Simplified particle type." ];
+
+  double energy_lo                                         = 2
+    [(CFO).desc = "Low energy bound for simulated events.",
+     (CFO).units = "TeV" ];
+
+  double energy_hi                                         = 3
+    [(CFO).desc = "High energy bound for simulated events.",
+     (CFO).units = "TeV" ];
+
+  repeated double energy_spectrum_polynomial               = 4
+    [(CFO).desc = "Energy spectrum shape index for simulated events as "
+      " a polynomial in x=log10(E/1TeV). dF/dE ~ 10^(P0*x + P1*x^2 + ...)." ];
+
+  double elevation                                         = 5
+    [(CFO).desc = "Elevation of the nominal observation axis for the simulation.",
+     (CFO).units = "degrees" ];     
+
+  double azimuth                                           = 6
+    [(CFO).desc = "Azimuth of nominal observation axis for the simulation.",
+     (CFO).units = "degrees" ];
+
+  double theta                                             = 7
+    [(CFO).desc = "Radial offset distance of nominal primary axis with respect to the observation direction.",
+     (CFO).units = "degrees" ];
+
+  double phi                                               = 8
+    [(CFO).desc = "Polar angle of of nominal source primary axis with respect to the observation direction.",
+     (CFO).units = "degrees" ];     
+
+  calin.ix.common_types.Vector3D primary_axis              = 9
+    [(CFO).desc = "Nominal source primary direction vector.",
+     (CFO).units = "1" ];
+
+  repeated double viewcone_halfangle_polynomial            = 10
+    [(CFO).desc = "Half-angle of the scattering viewcone for the primary direction "
+      "with respect to the nominal direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
+     (CFO).units = "degrees" ];
+
+  repeated double scattering_radius_polynomial             = 11
+    [(CFO).desc = "Radius of the scattering region for the array center, "
+      "perpendicular to primary direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
+     (CFO).units = "m" ];
+
+  string banner                                            = 20
     [(CFO).desc = "Banner or description for this simulation run." ];
 
-  repeated AtmosphericLayer atmospheric_layer              = 2
-    [(CFO).desc = "Atmospheric layers." ];
+  repeated AtmosphericLevel atmospheric_level              = 21
+    [(CFO).desc = "Atmospheric levels." ];
 
-  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration shower_generator_config = 10
+  calin.ix.simulation.geant4_shower_generator.GEANT4ShowerGeneratorConfiguration geant4_shower_generator_config = 22
     [(CFO).desc = "Configuration for GEANT4 shower generation." ];
 
-  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 20
+  calin.ix.simulation.vcl_iact.VCLIACTArrayConfiguration iact_array_config = 23
     [(CFO).desc = "Configuration for IACT array simulation." ];
 
-  DetectorArrayConfiguration detector_array_config             = 30
+  repeated DetectorArrayConfiguration detector_array_config = 24
     [(CFO).desc = "Configuration for detector arrays in this simulation." ];
+
+  map<string, DetectorTypeConfiguration> detector_type_config = 25
+    [(CFO).desc = "Configuration for detector types that would be common to multiple detectie array sets, keyed by some unique string that should match."];
+
+  map<string, string> command_line_args                    = 100
+    [(CFO).desc = "Extra configuration parameters as key-value pairs." ];
 };

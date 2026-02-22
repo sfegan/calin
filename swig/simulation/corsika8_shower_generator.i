@@ -30,9 +30,11 @@
 #include "simulation/tracker.hpp"
 #include "simulation/misc_trackers.hpp"
 #include "simulation/straight_track_generator.hpp"
+#include "simulation/bfield_track_generator.hpp"
 #include "simulation/air_cherenkov_tracker.hpp"
 #include "simulation/iact_array_tracker.hpp"
 #include "simulation/quadrature_iact_array_integration.hpp"
+#include "simulation/vcl_raytracer.hpp"
 #include "simulation/vso_quadrature_iact_array_integration.hpp"
 #include "simulation/corsika8_shower_generator.hpp"
 #define SWIG_FILE_WITH_INIT

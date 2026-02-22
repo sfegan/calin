@@ -127,6 +127,85 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
   //
+  //    db       .d88b.   .d8b.  d8888b. 
+  //    88      .8P  Y8. d8' `8b 88  `8D 
+  //    88      88    88 88ooo88 88   88 
+  //    88      88    88 88~~~88 88   88 
+  //    88booo. `8b  d8' 88   88 88  .8D 
+  //    Y88888P  `Y88P'  YP   YP Y8888D' 
+  //
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+
+  void load_from_simulated_event_with_pmt_noise(
+    const calin::ix::simulation::simulated_event::DetectorGroupEvent& detector_group_event,
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
+    double time_spread = 0)
+  {
+    this->start_processing();
+
+    constexpr unsigned num_double = VCLArchitecture::num_double;
+    typename VCLArchitecture::double_at pe_dt;
+    typename VCLArchitecture::double_at pe_w;
+    std::fill(pe_w, pe_w+num_double, 1.0);
+    std::fill(pe_dt, pe_dt+num_double, 0.0);
+    unsigned idev = 0;
+
+    for(int idetector=0; idetector<detector_group_event.detector_size(); ++idetector) {
+      const auto& detector_event = detector_group_event.detector(idetector);
+      unsigned iscope = detector_event.detector_id();
+      double ref_time = detector_event.reference_time();
+      for(int jpixel=0; jpixel<detector_event.pixel_size(); ++jpixel) {
+        const auto& pixel_event = detector_event.pixel(jpixel);
+        int ipix = pixel_event.pixel_id();
+        for(int kpe=0; kpe<pixel_event.weight_size(); ++kpe) {
+          if(idev == 0) {
+            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            if(time_spread > 0) {
+              (rng_->normal_double() * time_spread).store_a(pe_dt);
+            } else if (time_spread < 0) {
+              rng_->uniform_double_zc(time_spread).store_a(pe_dt);
+            }
+          }
+          double t = pixel_event.time(kpe) + ref_time + pe_dt[idev];
+          double w = pixel_event.weight(kpe) * pe_w[idev];
+          this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, w);
+          idev = (idev+1) % num_double;
+        }
+        for(int kpe=pixel_event.weight_size(); kpe<pixel_event.time_size(); ++kpe) {
+          if(idev == 0) {
+            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            if(time_spread > 0) {
+              (rng_->normal_double() * time_spread).store_a(pe_dt);
+            } else if (time_spread < 0) {
+              rng_->uniform_double_zc(time_spread).store_a(pe_dt);
+            }
+          }
+          double t = pixel_event.time(kpe) + ref_time + pe_dt[idev];
+          this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, pe_w[idev]);
+          idev = (idev+1) % num_double;
+        }
+        for(int kpe=0; kpe<pixel_event.integer_time_size(); ++kpe) {
+          if(idev == 0) {
+            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            if(time_spread > 0) {
+              (rng_->normal_double() * time_spread).store_a(pe_dt);
+            } else if (time_spread < 0) {
+              rng_->uniform_double_zc(time_spread).store_a(pe_dt);
+            }
+          }
+          double t = pixel_event.integer_time(kpe)*detector_event.integer_time_resolution() + ref_time + pe_dt[idev];
+          this->process_focal_plane_hit(iscope, ipix, 0.0, 0.0, 0.0, 0.0, t, pe_w[idev]);
+          idev = (idev+1) % num_double;
+        }
+      }
+    }
+    this->finish_processing();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  //
   //    d8888b. d88888b .d8888. 
   //    88  `8D 88'     88'  YP 
   //    88oodD' 88ooooo `8bo.   
@@ -1218,7 +1297,7 @@ public:
               const unsigned ipix = ipix0 + ihit;
               th &= th - 1;
               unsigned nneighbor_hit = 0;
-              // unsigned ipix_n1 = 0;
+              // unsigned ipix_n1 = -1;
               for(auto jpix : neighbors.col(ipix)) {
                 if(jpix>=0 && jpix<int(npix_)) {
                   const unsigned jmask = jpix/mask_t_size_bits;
@@ -1541,8 +1620,8 @@ public:
               const int ipix = ipix0 + ihit;
               th &= th - 1;
               unsigned nneighbor_hit = 0;
-              int ipix_n1;
-              int ipix_n2;
+              int ipix_n1 = -1;
+              int ipix_n2 = -1;
               for(auto jpix : neighbors.col(ipix)) {
                 if(jpix>=0 && jpix<int(npix_)) {
                   const unsigned jmask = jpix/mask_t_size_bits;
@@ -1754,11 +1833,11 @@ public:
     cr.nsb_freq_per_pixel_ghz    = nsb_freq_per_pixel_ghz;
     
     if(pegen!=nullptr) {
-      if(cr.pegen!=nullptr and cr.adopt_pegen) {
-       delete cr.pegen;
+      if(cr.nsb_pegen!=nullptr and cr.adopt_nsb_pegen) {
+        delete cr.nsb_pegen;
       }
-      cr.pegen                   = pegen;
-      cr.adopt_pegen             = adopt_pegen;
+      cr.nsb_pegen                   = pegen;
+      cr.adopt_nsb_pegen             = adopt_pegen;
     }
 
     cr.recalc_pedestal(this);
@@ -1859,11 +1938,11 @@ public:
     return cr.nsb_freq_per_pixel_ghz;
   }
 
-  calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* get_cr_pegen(unsigned camera_response_id)
+  calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* get_cr_nsb_pegen(unsigned camera_response_id)
   {
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
-    return cr.pegen;
+    return cr.nsb_pegen;
   }
 
   Eigen::VectorXi get_cr_impulse_response_id(unsigned camera_response_id)
@@ -1934,7 +2013,7 @@ public:
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
 
-    add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.pegen, t0_samples);
+    add_nsb_noise_to_waveform(cr.nsb_freq_per_pixel_ghz, cr.nsb_pegen, t0_samples);
   }
 
   void convolve_impulse_response_fftw_codelet_cr(unsigned camera_response_id)
@@ -2203,7 +2282,7 @@ private:
     CameraResponse() = default;
     CameraResponse(CameraResponse&& o): 
       nsb_freq_per_pixel_ghz(o.nsb_freq_per_pixel_ghz),
-      pegen(o.pegen), 
+      nsb_pegen(o.nsb_pegen), 
       add_ac_coupling_offset(o.add_ac_coupling_offset),
       impulse_response_id(o.impulse_response_id),
       pedestal(std::move(o.pedestal)),
@@ -2212,17 +2291,17 @@ private:
       threshold(std::move(o.threshold)),
       neighbors(o.neighbors),
       coincidence_window(o.coincidence_window),
-      adopt_pegen(o.adopt_pegen)
+      adopt_nsb_pegen(o.adopt_nsb_pegen)
     {
-      o.pegen = nullptr;
+      o.nsb_pegen = nullptr;
     }
     CameraResponse& operator=(CameraResponse&& o) {
       if(this != &o) {
         nsb_freq_per_pixel_ghz = o.nsb_freq_per_pixel_ghz;
-        if(adopt_pegen) {
-          delete pegen;
+        if(adopt_nsb_pegen) {
+          delete nsb_pegen;
         }
-        pegen = o.pegen;
+        nsb_pegen = o.nsb_pegen;
         add_ac_coupling_offset = o.add_ac_coupling_offset;
         impulse_response_id = o.impulse_response_id;
         pedestal = std::move(o.pedestal);
@@ -2231,14 +2310,14 @@ private:
         threshold = std::move(o.threshold);
         neighbors = o.neighbors;
         coincidence_window = o.coincidence_window;
-        adopt_pegen = o.adopt_pegen;
-        o.pegen = nullptr;
+        adopt_nsb_pegen = o.adopt_nsb_pegen;
+        o.nsb_pegen = nullptr;
       }
       return *this;
     }
     ~CameraResponse() {
-      if(adopt_pegen) {
-        delete pegen;
+      if(adopt_nsb_pegen) {
+        delete nsb_pegen;
       }
     }
     void recalc_pedestal(VCLWaveformPEProcessor* base) {
@@ -2246,9 +2325,9 @@ private:
       if(add_ac_coupling_offset) {
         vecX_t offset;
         if(impulse_response_id.size() == 1) {
-          offset = base->ac_coupling_offset(impulse_response_id[0], nsb_freq_per_pixel_ghz, pegen, relative_gain);
+          offset = base->ac_coupling_offset(impulse_response_id[0], nsb_freq_per_pixel_ghz, nsb_pegen, relative_gain);
         } else {
-          offset = base->ac_coupling_offset(impulse_response_id, nsb_freq_per_pixel_ghz, pegen, relative_gain);
+          offset = base->ac_coupling_offset(impulse_response_id, nsb_freq_per_pixel_ghz, nsb_pegen, relative_gain);
         }
         if(pedestal.size() == 0) {
           pedestal = -offset;
@@ -2258,7 +2337,7 @@ private:
       }
     }
     Eigen::VectorXd nsb_freq_per_pixel_ghz;
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr;
+    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* nsb_pegen = nullptr;
     bool add_ac_coupling_offset = true;
     Eigen::VectorXi impulse_response_id;
     vecX_t demand_pedestal;
@@ -2269,7 +2348,7 @@ private:
     Eigen::MatrixXi neighbors;
     unsigned multiplicity = 3;
     unsigned coincidence_window = 0;
-    bool adopt_pegen = false;
+    bool adopt_nsb_pegen = false;
   };
 
   unsigned nsample_;

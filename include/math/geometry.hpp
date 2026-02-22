@@ -599,4 +599,41 @@ inline bool square_grid_site_center(double& x_out, double& y_out,
   return true;
 }
 
+inline Eigen::Vector3d project_circle_on_sphere_to_2d(const Eigen::Vector4d& circle_on_sphere)
+{
+  Eigen::Vector3d circle_2d;
+  const double n1 = circle_on_sphere.x();
+  const double n2 = circle_on_sphere.y();
+  const double n3 = circle_on_sphere.z();
+  const double d = circle_on_sphere[3];
+  circle_2d.x() = n1/(n3+d);
+  circle_2d.y() = n2/(n3+d);
+  circle_2d[2] = std::sqrt(1.0 - d*d)/(n3+d);
+  return circle_2d;
+}
+
+inline Eigen::Vector4d deproject_circle_on_sphere_from_2d(const Eigen::Vector3d& circle_2d)
+{
+  Eigen::Vector4d circle_on_sphere;
+  const double x = circle_2d.x();
+  const double y = circle_2d.y();
+  const double r = circle_2d[2];
+  const double r2 = r*r;
+  const double a = 1.0 + x*x + y*y - r2;
+  const double k = 2.0/std::sqrt(a*a + 4.0*r2);
+  const double d = a * k / 2.0;
+  circle_on_sphere.x() = x * k;
+  circle_on_sphere.y() = y * k;
+  circle_on_sphere.z() = k - d;
+  circle_on_sphere[3] = d;
+  return circle_on_sphere;
+} 
+
+// Input circles are (x,y,radius) or circles and output is (x,y,z,radius) for containing circle
+Eigen::Vector3d containing_circle_2d(const Eigen::MatrixXd& circles);
+
+// Input circles are (nx,ny,nz,cos_half_angle) on sphere and output is (nx,ny,nz,cos_half_angle) for containing circle
+Eigen::Vector4d containing_circle_sphere(const Eigen::MatrixXd& circles_on_sphere);
+
+
 } } } // namespace calin::math::geometry

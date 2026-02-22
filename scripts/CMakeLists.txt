@@ -15,4 +15,5 @@
 
 install(PROGRAMS cta_stage1.py DESTINATION ${CALIN_BIN_INSTALL_DIR})
 install(PROGRAMS render_stage1_results.py DESTINATION ${CALIN_BIN_INSTALL_DIR})
-install(PROGRAMS scriptSPEFit.py DESTINATION ${CALIN_BIN_INSTALL_DIR})
+install(PROGRAMS shower_trigger_threshold.py DESTINATION ${CALIN_BIN_INSTALL_DIR})
+install(PROGRAMS singles_rate_curve.py DESTINATION ${CALIN_BIN_INSTALL_DIR})

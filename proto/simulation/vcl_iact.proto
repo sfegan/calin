@@ -84,9 +84,10 @@ message VCLIACTArrayConfiguration
   RefractionMode refraction_mode                           = 30
     [(CFO).desc = "Atmospheric refraction mode." ];
 
-  double scattering_radius                                 = 40
+  repeated double scattering_radius_polynomial             = 40
     [(CFO).desc = "Radius of the scattering region for the array center, "
-      "perpendicular to primary direction.",
+      "perpendicular to primary direction, defined as a polynomial of "
+      "x=log10(E/1TeV): R = P0 + P1*x + P2*x^2 + ...",
      (CFO).units = "cm" ];
 
   uint32 grid_theshold                                     = 50

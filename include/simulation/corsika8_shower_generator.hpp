@@ -52,7 +52,7 @@ namespace calin { namespace simulation { namespace corsika8_shower_generator {
                           double total_energy,
                           const Eigen::Vector3d& x0 = Eigen::Vector3d(0,0,0),
                           const Eigen::Vector3d& u0 = Eigen::Vector3d(0,0,-1),
-                          double weight=1.0) override = 0;
+                          double ct0=0.0, double weight=1.0) override = 0;
 
     static config_type default_config();
 
