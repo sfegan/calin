@@ -139,21 +139,21 @@ inline bool oct_box_has_future_intersection(
   return oct_box_has_future_intersection(tmin,tmax,center,flat_to_flat,height,pos,dir);
 }
 
-inline void rotation_theta_phi(Eigen::Matrix3d& m,
+inline void rotation_theta_phi_Rzy(Eigen::Matrix3d& m,
   const double ct, const double st, const double cp, const double sp)
 {
   m << ct*cp, -sp, st*cp,
        ct*sp,  cp, st*sp,
-         -sp,   0,    ct;
+         -st,   0,    ct;
 }
 
-inline void rotation_theta_phi(Eigen::Matrix3d& m, double theta, double phi)
+inline void rotation_theta_phi_Rzy(Eigen::Matrix3d& m, double theta, double phi)
 {
   const double ct = std::cos(theta);
   const double st = std::sin(theta);
   const double cp = std::cos(phi);
   const double sp = std::sin(phi);
-  return rotation_theta_phi(m, ct, st, cp, sp);
+  return rotation_theta_phi_Rzy(m, ct, st, cp, sp);
 }
 
 inline void rotation_z_to_xyz_Rzy(Eigen::Matrix3d& m,
@@ -427,18 +427,18 @@ scatter_direction_in_place(Eigen::Vector3d& v, double dispersion_per_axis,
 // Skip in SWIG as SWIG output templates map above functions in equivalents of these
 // -----------------------------------------------------------------------------
 
-inline Eigen::Matrix3d rotation_theta_phi(
+inline Eigen::Matrix3d rotation_theta_phi_Rzy(
   const double ct, const double st, const double cp, const double sp)
 {
   Eigen::Matrix3d m;
-  rotation_theta_phi(m, ct, st, cp, sp);
+  rotation_theta_phi_Rzy(m, ct, st, cp, sp);
   return m;
 }
 
-inline Eigen::Matrix3d rotation_theta_phi(double theta, double phi)
+inline Eigen::Matrix3d rotation_theta_phi_Rzy(double theta, double phi)
 {
   Eigen::Matrix3d m;
-  rotation_theta_phi(m, theta, phi);
+  rotation_theta_phi_Rzy(m, theta, phi);
   return m;
 }
 
