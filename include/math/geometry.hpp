@@ -182,7 +182,7 @@ inline void rotation_y_to_xyz_Ryx(Eigen::Matrix3d& m,
 {
   double st = std::sqrt(z*z+x*x);
   if(st == 0.0) {
-    if(z>=0) {
+    if(y>=0) {
       m.setIdentity();
     } else {
       m <<  1,  0,  0,
@@ -203,7 +203,7 @@ inline void rotation_x_to_xyz_Rxz(Eigen::Matrix3d& m,
 {
   double st = std::sqrt(y*y+z*z);
   if(st == 0.0) {
-    if(z>=0) {
+    if(x>=0) {
       m.setIdentity();
     } else {
       m << -1,  0,  0,
@@ -290,7 +290,7 @@ inline void rotation_x_to_xyz_Rxzx(Eigen::Matrix3d& m,
 {
   double st = sqrt(y*y+z*z);
   if(st == 0.0) {
-    if(y>=0) {
+    if(x>=0) {
       m.setIdentity();
     } else {
       m << -1,  0,  0,
@@ -589,7 +589,7 @@ inline int find_square_grid_site(double x, double y, double pitch_inv, unsigned 
 inline bool square_grid_site_center(double& x_out, double& y_out,
   int isite, double pitch, unsigned nside, double xc = 0, double yc = 0)
 {
-  if((isite<0)or(isite>int(calin::math::special::SQR(nside))))return false;
+  if((isite<0)or(isite>=int(calin::math::special::SQR(nside))))return false;
   const double half_side = 0.5*nside - 0.5;
   div_t div_res = std::div(isite, nside);
   const int ux = div_res.rem;
