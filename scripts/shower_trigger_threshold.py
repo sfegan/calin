@@ -428,8 +428,8 @@ def print_line():
             f'{args.n*args.reuse/num_events*config["_run_time"]/3600:.2f} hr ;',
             f'{num_events/config["_run_time"]:,.2f} Hz ;',
             f'{num_rays:,d} rays ;',
-            f'{num_rays/num_steps:.2f}',
-            f'{num_steps/num_tracks:.2f}')
+            f'{num_rays/max(num_steps,1):.2f}',
+            f'{num_steps/max(num_tracks,1):.2f}')
     
 def process_results(results):
     global num_events
@@ -474,6 +474,7 @@ with open(args.output, 'wb') as f:
     # Run the simulations in this thread
     if max_workers == 1:
         init()
+        print(iact.banner())
         for _ in range(args.n):
             process_results(one_event())
     else:
