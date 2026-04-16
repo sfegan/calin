@@ -376,10 +376,6 @@ containing_circle_sphere(const Eigen::MatrixXd& circles_on_sphere)
 {
   // Thanks to Fergal Daly for telling me (in ~1999) that the stereographic 
   // projection of a circle on a sphere is a circle in 2D. Yay !
-  // NOTE: Finding the smallest enclosing circle in 2D and deprojecting it
-  // is only an approximation of the smallest enclosing circle on the sphere
-  // as stereographic projection does not preserve the "smallest" property
-  // (the scale factor varies across the plane).
   if(circles_on_sphere.cols() != 4) {
     throw std::runtime_error("circles_on_sphere must have 4 columns");
   }
