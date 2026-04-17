@@ -211,29 +211,29 @@ public:
   }
 
 #ifndef SWIG
-  inline Eigen::Vector3d norm_of_polynomial_surface(const double* p, unsigned np) const
+  inline Eigen::Vector3d norm_of_polynomial_surface(const double* p, unsigned np, bool convex = true) const
   {
-    return calin::math::geometry::norm_of_polynomial_surface(this->x(), this->z(), p, np);
+    return calin::math::geometry::norm_of_polynomial_surface(this->x(), this->z(), p, np, convex);
   }
 
   double reflect_from_polynomial_surface(const double* p, unsigned np);
   double reflect_from_rough_polynomial_surface(const double* p, unsigned np,
     double roughness, calin::math::rng::RNG& rng);
 
-  void refract_at_polynomial_surface_in(const double* p, unsigned np, double n)
+  void refract_at_polynomial_surface_in(const double* p, unsigned np, double n, bool convex = true)
   {
-    refract_at_surface_in(norm_of_polynomial_surface(p,np), n);
+    refract_at_surface_in(norm_of_polynomial_surface(p,np,convex), n);
   }
 
-  void refract_at_polynomial_surface_out(const double* p, unsigned np, double n)
+  void refract_at_polynomial_surface_out(const double* p, unsigned np, double n, bool convex = true)
   {
-    refract_at_surface_out(norm_of_polynomial_surface(p,np), n);
+    refract_at_surface_out(norm_of_polynomial_surface(p,np,convex), n);
   }
 #endif
 
-  Eigen::Vector3d norm_of_polynomial_surface(const Eigen::VectorXd& p) const
+  Eigen::Vector3d norm_of_polynomial_surface(const Eigen::VectorXd& p, bool convex = true) const
   {
-    return norm_of_polynomial_surface(p.data(), p.size());
+    return norm_of_polynomial_surface(p.data(), p.size(), convex);
   }
 
   double reflect_from_polynomial_surface(const Eigen::VectorXd& p)
@@ -247,14 +247,14 @@ public:
     return reflect_from_rough_polynomial_surface(p.data(), p.size(), roughness, rng);
   }
 
-  void refract_at_polynomial_surface_in(const Eigen::VectorXd& p, double n)
+  void refract_at_polynomial_surface_in(const Eigen::VectorXd& p, double n, bool convex = true)
   {
-    refract_at_polynomial_surface_in(p.data(), p.size(), n);
+    refract_at_polynomial_surface_in(p.data(), p.size(), n, convex);
   }
 
-  void refract_at_polynomial_surface_out(const Eigen::VectorXd& p, double n)
+  void refract_at_polynomial_surface_out(const Eigen::VectorXd& p, double n, bool convex = true)
   {
-    refract_at_polynomial_surface_out(p.data(), p.size(), n);
+    refract_at_polynomial_surface_out(p.data(), p.size(), n, convex);
   }
 
 private:

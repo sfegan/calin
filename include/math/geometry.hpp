@@ -537,32 +537,37 @@ bool euler_is_zero(const calin::ix::common_types::EulerAngles3D& euler);
 
 #ifndef SWIG
 inline Eigen::Vector3d norm_and_y_of_polynomial_surface(double& yps, double x, double z,
-  const double* p, unsigned np)
+  const double* p, unsigned np, bool convex = true)
 {
   double dyps_drho2;
   double rho2 = x*x + z*z;
   calin::math::least_squares::polyval_and_derivative(yps, dyps_drho2, p, np, rho2);
-  Eigen::Vector3d norm(2*x*dyps_drho2, -1, 2*z*dyps_drho2);
+  Eigen::Vector3d norm;
+  if(convex ^ (p[1]>0)) {
+    norm = Eigen::Vector3d(2*x*dyps_drho2, -1, 2*z*dyps_drho2);
+  } else {
+    norm = Eigen::Vector3d(-2*x*dyps_drho2, 1, -2*z*dyps_drho2);
+  }
   norm.normalize();
   return norm;
 }
 
-inline Eigen::Vector3d norm_of_polynomial_surface(double x, double z, const double* p, unsigned np)
+inline Eigen::Vector3d norm_of_polynomial_surface(double x, double z, const double* p, unsigned np, bool convex = true)
 {
   double yps;
-  return norm_and_y_of_polynomial_surface(yps, x, z, p, np);
+  return norm_and_y_of_polynomial_surface(yps, x, z, p, np, convex);
 }
 #endif
 
-inline Eigen::Vector3d norm_of_polynomial_surface(double x, double z, const Eigen::VectorXd& p)
+inline Eigen::Vector3d norm_of_polynomial_surface(double x, double z, const Eigen::VectorXd& p, bool convex = true)
 {
-  return norm_of_polynomial_surface(x, z, p.data(), p.size());
+  return norm_of_polynomial_surface(x, z, p.data(), p.size(), convex);
 }
 
 inline Eigen::Vector3d norm_and_y_of_polynomial_surface(double& y_out, double x, double z,
-  const Eigen::VectorXd& p)
+  const Eigen::VectorXd& p, bool convex = true)
 {
-  return norm_and_y_of_polynomial_surface(y_out, x, z, p.data(), p.size());
+  return norm_and_y_of_polynomial_surface(y_out, x, z, p.data(), p.size(), convex);
 }
 
 inline int find_square_grid_site(double x, double y, double pitch_inv, unsigned nside,
