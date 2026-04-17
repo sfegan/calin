@@ -186,6 +186,44 @@ public:
     IntersectionPoint ip = IP_CLOSEST, bool time_reversal_ok = true,
     double n = 1.0);
 
+  bool propagate_to_standard_cone_1st_interaction_fwd_bwd(double slope,
+    double n = 1.0);
+
+  bool propagate_to_standard_cone_1st_interaction_fwd_only(double slope,
+    double n = 1.0);
+
+  bool propagate_to_y_cone_1st_interaction_fwd_bwd(double slope,
+    double vertex_y = 0, double n = 1.0);
+
+  bool propagate_to_y_cone_1st_interaction_fwd_only(double slope,
+    double vertex_y = 0, double n = 1.0);
+
+  bool propagate_to_standard_cone_2nd_interaction_fwd_bwd(double slope,
+    double n = 1.0);
+
+  bool propagate_to_standard_cone_2nd_interaction_fwd_only(double slope,
+    double n = 1.0);
+
+  bool propagate_to_y_cone_2nd_interaction_fwd_bwd(double slope,
+    double vertex_y = 0, double n = 1.0);
+
+  bool propagate_to_y_cone_2nd_interaction_fwd_only(double slope,
+    double vertex_y = 0, double n = 1.0);
+
+  bool propagate_to_standard_cone_2nd_interaction(double slope,
+    bool time_reversal_ok = true, double n = 1.0)
+  {
+    if(time_reversal_ok)
+      return propagate_to_standard_cone_2nd_interaction_fwd_bwd(slope, n);
+    else
+      return propagate_to_standard_cone_2nd_interaction_fwd_only(slope, n);
+  }
+
+  IPOut propagate_to_cone(const Eigen::Vector3d& vertex,
+    const Eigen::Vector3d& axis, double slope,
+    IntersectionPoint ip = IP_CLOSEST, bool time_reversal_ok = true,
+    double n = 1.0);
+
   IPOut propagate_to_cylinder(const Eigen::Vector3d& center,
     const Eigen::Vector3d& normal, double radius,
     IntersectionPoint ip = IP_CLOSEST, bool time_reversal_ok = true, double n = 1.0);
