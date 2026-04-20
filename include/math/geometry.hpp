@@ -382,6 +382,11 @@ inline void rotate_in_place_z_to_u_Rzy(Eigen::Vector3d& v, const Eigen::Vector3d
 {
   const double st = sqrt(u.x()*u.x() + u.y()*u.y());
   if(st < std::numeric_limits<double>::epsilon()) {
+    if(u.z() < 0) {
+      v.x() = -v.x();
+      v.y() = v.y();
+      v.z() = -v.z();
+    }
     return;
   }
   const double st_inv = 1.0/st;
@@ -395,6 +400,11 @@ inline void derotate_in_place_z_to_u_Rzy(Eigen::Vector3d& v, const Eigen::Vector
 {
   const double st = sqrt(u.x()*u.x() + u.y()*u.y());
   if(st < std::numeric_limits<double>::epsilon()) {
+    if(u.z() < 0) {
+      v.x() = -v.x();
+      v.y() = v.y();
+      v.z() = -v.z();
+    }
     return;
   }
   const double st_inv = 1.0/st;
@@ -543,7 +553,7 @@ inline Eigen::Vector3d norm_and_y_of_polynomial_surface(double& yps, double x, d
   double rho2 = x*x + z*z;
   calin::math::least_squares::polyval_and_derivative(yps, dyps_drho2, p, np, rho2);
   Eigen::Vector3d norm;
-  if(convex ^ (p[1]>0)) {
+  if(convex ^ (p[1]<0)) {
     norm = Eigen::Vector3d(2*x*dyps_drho2, -1, 2*z*dyps_drho2);
   } else {
     norm = Eigen::Vector3d(-2*x*dyps_drho2, 1, -2*z*dyps_drho2);

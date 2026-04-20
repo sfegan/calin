@@ -102,22 +102,30 @@ public:
     return dir_dot_norm;
   }
 
-  // Refract at incoming surface (where n>1 and norm.dir<0)
+  // Refract at incoming surface (where n>1 and we choose the normal such that norm.dir<0)
   void refract_at_surface_in(const Eigen::Vector3d& surface_norm,
       double n) {
     const double eta = 1.0/n;
-    const double cosi = -dir_.dot(surface_norm);
+    const double cosi = dir_.dot(surface_norm);  
     const double c2 = 1-eta*eta*(1-cosi*cosi);
-    dir_ = eta*dir_ + (eta*cosi - std::sqrt(c2))*surface_norm;
+    if(cosi < 0)  {
+      dir_ = eta*dir_ - (eta*cosi + std::sqrt(c2))*surface_norm;
+    } else {
+      dir_ = eta*dir_ - (eta*cosi - std::sqrt(c2))*surface_norm;
+    }
   };
 
-  // Refract at outgoing surface (where n>1 and norm.dir>0)
+  // Refract at outgoing surface (where n>1 and we choose the normal such that norm.dir>0)
   bool refract_at_surface_out(const Eigen::Vector3d& surface_norm, double n) {
     const double eta = n;
     const double cosi = dir_.dot(surface_norm);
     const double c2 = 1-eta*eta*(1-cosi*cosi);
     if(c2<0)return false;
-    dir_ = eta*dir_ - (eta*cosi - std::sqrt(c2))*surface_norm;
+    if(cosi > 0) {
+      dir_ = eta*dir_ - (eta*cosi - std::sqrt(c2))*surface_norm;
+    } else {
+      dir_ = eta*dir_ - (eta*cosi + std::sqrt(c2))*surface_norm;
+    }
     return true;
   };
 
@@ -224,6 +232,24 @@ public:
     IntersectionPoint ip = IP_CLOSEST, bool time_reversal_ok = true,
     double n = 1.0);
 
+  Eigen::Vector3d norm_of_conical_surface(double slope, double vertex_y = 0,
+    bool convex = true) const;
+
+  double reflect_from_conical_surface(double slope, double vertex_y = 0,
+    bool convex = true);
+
+  void refract_at_conical_surface_in(double slope, double vertex_y, double n,
+    bool convex = true)
+  {
+    refract_at_surface_in(norm_of_conical_surface(slope, vertex_y, convex), n);
+  }
+
+  void refract_at_conical_surface_out(double slope, double vertex_y, double n,
+    bool convex = true)
+  {
+    refract_at_surface_out(norm_of_conical_surface(slope, vertex_y, convex), n);
+  }
+
   IPOut propagate_to_cylinder(const Eigen::Vector3d& center,
     const Eigen::Vector3d& normal, double radius,
     IntersectionPoint ip = IP_CLOSEST, bool time_reversal_ok = true, double n = 1.0);
@@ -258,14 +284,14 @@ public:
   double reflect_from_rough_polynomial_surface(const double* p, unsigned np,
     double roughness, calin::math::rng::RNG& rng);
 
-  void refract_at_polynomial_surface_in(const double* p, unsigned np, double n, bool convex = true)
+  void refract_at_polynomial_surface_in(const double* p, unsigned np, double n)
   {
-    refract_at_surface_in(norm_of_polynomial_surface(p,np,convex), n);
+    refract_at_surface_in(norm_of_polynomial_surface(p,np), n);
   }
 
-  void refract_at_polynomial_surface_out(const double* p, unsigned np, double n, bool convex = true)
+  bool refract_at_polynomial_surface_out(const double* p, unsigned np, double n)
   {
-    refract_at_surface_out(norm_of_polynomial_surface(p,np,convex), n);
+    return refract_at_surface_out(norm_of_polynomial_surface(p,np), n);
   }
 #endif
 
@@ -285,14 +311,14 @@ public:
     return reflect_from_rough_polynomial_surface(p.data(), p.size(), roughness, rng);
   }
 
-  void refract_at_polynomial_surface_in(const Eigen::VectorXd& p, double n, bool convex = true)
+  void refract_at_polynomial_surface_in(const Eigen::VectorXd& p, double n)
   {
-    refract_at_polynomial_surface_in(p.data(), p.size(), n, convex);
+    refract_at_polynomial_surface_in(p.data(), p.size(), n);
   }
 
-  void refract_at_polynomial_surface_out(const Eigen::VectorXd& p, double n, bool convex = true)
+  bool refract_at_polynomial_surface_out(const Eigen::VectorXd& p, double n)
   {
-    refract_at_polynomial_surface_out(p.data(), p.size(), n, convex);
+    return refract_at_polynomial_surface_out(p.data(), p.size(), n);
   }
 
 private:

@@ -594,6 +594,23 @@ Ray::IPOut Ray::propagate_to_cone(const Eigen::Vector3d& vertex,
   return ipo;
 }
 
+Eigen::Vector3d Ray::norm_of_conical_surface(double slope, double vertex_y,
+  bool convex) const
+{
+  const double dy = pos_.y() - vertex_y;
+  const double m2 = SQR(slope);
+  Eigen::Vector3d norm(pos_.x(), -m2 * dy, pos_.z());
+  norm.normalize();
+  if(!convex) norm = -norm;
+  return norm;
+}
+
+double Ray::reflect_from_conical_surface(double slope, double vertex_y,
+  bool convex)
+{
+  return reflect_from_surface(norm_of_conical_surface(slope, vertex_y, convex));
+}
+
 Ray::IPOut Ray::propagate_to_cylinder(const Eigen::Vector3d& center,
   const Eigen::Vector3d& normal, double radius,
   IntersectionPoint ip, bool time_reversal_ok, double n)
