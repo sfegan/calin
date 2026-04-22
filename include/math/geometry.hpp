@@ -34,7 +34,7 @@
 
 namespace calin { namespace math { namespace geometry {
 
-inline bool box_has_future_intersection(double& tmin, double& tmax,
+inline bool box_has_future_intersection(double& tmin_out, double& tmax_out,
   const Eigen::Vector3d& min_corner, const Eigen::Vector3d& max_corner,
   const Eigen::Vector3d& pos, const Eigen::Vector3d& dir)
 {
@@ -51,21 +51,23 @@ inline bool box_has_future_intersection(double& tmin, double& tmax,
 
   const double tx1 = min_rel.x() * vx;
   const double tx2 = max_rel.x() * vx;
-  tmin = std::min(tx1, tx2);
-  tmax = std::max(tx1, tx2);
+  tmin_out = std::min(tx1, tx2);
+  tmax_out = std::max(tx1, tx2);
 
   const double ty1 = min_rel.y() * vy;
   const double ty2 = max_rel.y() * vy;
-  tmin = std::max(tmin, std::min(std::min(ty1, ty2), tmax));
-  tmax = std::min(tmax, std::max(std::max(ty1, ty2), tmin));
+  tmin_out = std::max(tmin_out, std::min(std::min(ty1, ty2), tmax_out));
+  tmax_out = std::min(tmax_out, std::max(std::max(ty1, ty2), tmin_out));
 
   const double tz1 = min_rel.z() * vz;
   const double tz2 = max_rel.z() * vz;
-  tmin = std::max(tmin, std::min(std::min(tz1, tz2), tmax));
-  tmax = std::min(tmax, std::max(std::max(tz1, tz2), tmin));
+  tmin_out = std::max(tmin_out, std::min(std::min(tz1, tz2), tmax_out));
+  tmax_out = std::min(tmax_out, std::max(std::max(tz1, tz2), tmin_out));
 
-  return tmax > std::max(tmin, 0.0);
+  return tmax_out > std::max(tmin_out, 0.0);
 }
+
+#ifndef SWIG 
 
 inline bool box_has_future_intersection(
   const Eigen::Vector3d& min_corner, const Eigen::Vector3d& max_corner,
@@ -76,7 +78,9 @@ inline bool box_has_future_intersection(
   return box_has_future_intersection(tmin,tmax,min_corner,max_corner,pos,dir);
 }
 
-inline bool oct_box_has_future_intersection(double& tmin, double& tmax,
+#endif 
+
+inline bool oct_box_has_future_intersection(double& tmin_out, double& tmax_out,
   const Eigen::Vector3d& center, double flat_to_flat, double height,
   const Eigen::Vector3d& pos, const Eigen::Vector3d& dir)
 {
@@ -88,16 +92,16 @@ inline bool oct_box_has_future_intersection(double& tmin, double& tmax,
   const double max_rel_x = center.x() + half_flat_to_flat - pos.x();
   const double tx1 = min_rel_x * vx;
   const double tx2 = max_rel_x * vx;
-  tmin = std::min(tx1, tx2);
-  tmax = std::max(tx1, tx2);
+  tmin_out = std::min(tx1, tx2);
+  tmax_out = std::max(tx1, tx2);
 
   const double vz = 1.0 / dir.z();
   const double min_rel_z = center.z() - half_flat_to_flat - pos.z();
   const double max_rel_z = center.z() + half_flat_to_flat - pos.z();
   const double tz1 = min_rel_z * vz;
   const double tz2 = max_rel_z * vz;
-  tmin = std::max(tmin, std::min(std::min(tz1, tz2), tmax));
-  tmax = std::min(tmax, std::max(std::max(tz1, tz2), tmin));
+  tmin_out = std::max(tmin_out, std::min(std::min(tz1, tz2), tmax_out));
+  tmax_out = std::min(tmax_out, std::max(std::max(tz1, tz2), tmin_out));
 
   const double x45 = pos.x() * M_SQRT1_2 + pos.z() * M_SQRT1_2;
   const double xc45 = center.x() * M_SQRT1_2 + center.z() * M_SQRT1_2;
@@ -106,8 +110,8 @@ inline bool oct_box_has_future_intersection(double& tmin, double& tmax,
   const double max_rel_x45 = xc45 + half_flat_to_flat - x45;
   const double tx45_1 = min_rel_x45 * vx45;
   const double tx45_2 = max_rel_x45 * vx45;
-  tmin = std::max(tmin, std::min(std::min(tx45_1, tx45_2), tmax));
-  tmax = std::min(tmax, std::max(std::max(tx45_1, tx45_2), tmin));
+  tmin_out = std::max(tmin_out, std::min(std::min(tx45_1, tx45_2), tmax_out));
+  tmax_out = std::min(tmax_out, std::max(std::max(tx45_1, tx45_2), tmin_out));
 
   const double z45 = pos.z() * M_SQRT1_2 - pos.x() * M_SQRT1_2;
   const double zc45 = center.z() * M_SQRT1_2 - center.x() * M_SQRT1_2;
@@ -116,19 +120,21 @@ inline bool oct_box_has_future_intersection(double& tmin, double& tmax,
   const double max_rel_z45 = zc45 + half_flat_to_flat - z45;
   const double tz45_1 = min_rel_z45 * vz45;
   const double tz45_2 = max_rel_z45 * vz45;
-  tmin = std::max(tmin, std::min(std::min(tz45_1, tz45_2), tmax));
-  tmax = std::min(tmax, std::max(std::max(tz45_1, tz45_2), tmin));
+  tmin_out = std::max(tmin_out, std::min(std::min(tz45_1, tz45_2), tmax_out));
+  tmax_out = std::min(tmax_out, std::max(std::max(tz45_1, tz45_2), tmin_out));
 
   const double vy = 1.0 / dir.y();
   const double min_rel_y = center.y() - half_height - pos.y();
   const double max_rel_y = center.y() + half_height - pos.y();
   const double ty1 = min_rel_y * vy;
   const double ty2 = max_rel_y * vy;
-  tmin = std::max(tmin, std::min(std::min(ty1, ty2), tmax));
-  tmax = std::min(tmax, std::max(std::max(ty1, ty2), tmin));
+  tmin_out = std::max(tmin_out, std::min(std::min(ty1, ty2), tmax_out));
+  tmax_out = std::min(tmax_out, std::max(std::max(ty1, ty2), tmin_out));
 
-  return tmax > std::max(tmin, 0.0);
+  return tmax_out > std::max(tmin_out, 0.0);
 }
+
+#ifndef SWIG
 
 inline bool oct_box_has_future_intersection(
   const Eigen::Vector3d& center, double flat_to_flat, double height,
@@ -138,6 +144,10 @@ inline bool oct_box_has_future_intersection(
   double tmax;
   return oct_box_has_future_intersection(tmin,tmax,center,flat_to_flat,height,pos,dir);
 }
+
+#endif // SWIG
+
+#ifndef SWIG
 
 inline void rotation_theta_phi_Rzy(Eigen::Matrix3d& m,
   const double ct, const double st, const double cp, const double sp)
@@ -431,7 +441,7 @@ scatter_direction_in_place(Eigen::Vector3d& v, double dispersion_per_axis,
   v = x;
 }
 
-#ifndef SWIG
+#endif // SWIG
 
 // -----------------------------------------------------------------------------
 // Skip in SWIG as SWIG output templates map above functions in equivalents of these
@@ -525,7 +535,77 @@ inline Eigen::Matrix3d rotation_x_to_vec_Rxzx(const Eigen::Vector3d& v)
   rotation_x_to_vec_Rxzx(m, v);
   return m;
 }
-#endif
+
+inline Eigen::Vector3d rotate_vec_Rz(const Eigen::Vector3d& v,
+  const double& cos_theta, const double& sin_theta)
+{
+  Eigen::Vector3d w = v;
+  rotate_in_place_Rz(w, cos_theta, sin_theta);
+  return w; 
+}
+
+inline Eigen::Vector3d derotate_vec_Rz(const Eigen::Vector3d& v,
+  const double& cos_theta, const double& sin_theta)
+{
+  Eigen::Vector3d w = v;
+  derotate_in_place_Rz(w, cos_theta, sin_theta);
+  return w;
+}
+
+inline Eigen::Vector3d rotate_vec_Ry(const Eigen::Vector3d& v,
+  const double& cos_theta, const double& sin_theta)
+{
+  Eigen::Vector3d w = v;
+  rotate_in_place_Ry(w, cos_theta, sin_theta);
+  return w;
+}
+
+inline Eigen::Vector3d derotate_vec_Ry(const Eigen::Vector3d& v,
+  const double& cos_theta, const double& sin_theta)
+{
+  Eigen::Vector3d w = v;
+  derotate_in_place_Ry(w, cos_theta, sin_theta);
+  return w;
+}
+
+inline Eigen::Vector3d rotate_vec_Rx(const Eigen::Vector3d& v,
+  const double& cos_theta, const double& sin_theta)
+{
+  Eigen::Vector3d w = v;
+  rotate_in_place_Rx(w, cos_theta, sin_theta);
+  return w;
+}
+
+inline Eigen::Vector3d derotate_vec_Rx(const Eigen::Vector3d& v,
+  const double& cos_theta, const double& sin_theta)
+{
+  Eigen::Vector3d w = v;
+  derotate_in_place_Rx(w, cos_theta, sin_theta);
+  return w;
+}
+
+inline Eigen::Vector3d rotate_vec_z_to_u_Rzy(const Eigen::Vector3d& v, const Eigen::Vector3d& u)
+{
+  Eigen::Vector3d w = v;
+  rotate_in_place_z_to_u_Rzy(w, u);
+  return w;
+}
+
+inline Eigen::Vector3d derotate_vec_z_to_u_Rzy(const Eigen::Vector3d& v, const Eigen::Vector3d& u)
+{
+  Eigen::Vector3d w = v;
+  derotate_in_place_z_to_u_Rzy(w, u);
+  return w;
+}
+
+inline Eigen::Vector3d
+scatter_direction_in_place(const Eigen::Vector3d& v, double dispersion_per_axis,
+  calin::math::rng::RNG& rng)
+{
+  Eigen::Vector3d w = v;
+  scatter_direction_in_place(w, dispersion_per_axis, rng);
+  return w;
+} 
 
 Eigen::Quaterniond euler_to_quaternion(const calin::ix::common_types::EulerAngles3D& euler);
 Eigen::Matrix3d euler_to_matrix(const calin::ix::common_types::EulerAngles3D& euler);
