@@ -457,6 +457,7 @@ def setup_pointing(el_deg, az_deg):
         numpy.sin(theta) * numpy.sin(phi),
         numpy.cos(theta)
     ])
+    vc_dir = calin.math.geometry.rotate_vec_z_to_u_Rzy(vc_dir, -pt_dir)
 
     if not saved_args.no_viewcone_cut:
         iact.set_viewcone_from_telescope_fields_of_view()
@@ -655,10 +656,10 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     # Use nominal zn=0 polynomials for the startup banner (before any pointing
     # is known); each per-pointing banner will carry the resolved values.
     if el_deg is None:
-        el_deg = 70.0
-    if az_deg is None:
-        az_deg = 0.0
-    zn_deg = 90.0 - el_deg
+        zn_deg = 90.0
+    else:
+        zn_deg = 90.0 - el_deg
+
     if bmax_poly is None:
         bmax_poly = make_bmax_polynomial(zn_deg)
     if viewcone_poly is None:
@@ -671,7 +672,17 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     for arg in args_dict:
         banner += f'- {arg}: {args_dict[arg]}\n'
 
-    banner += f'\nPointing : El={el_deg:.2f} deg (Zn={zn_deg:.2f} deg), Az={az_deg:.2f} deg\n'
+    npointing = numpy.count_nonzero([get_pointing(saved_args.grid_nside, i)[1] <= saved_args.grid_znmax 
+                                     for i in range(num_pointings(saved_args.grid_nside))])
+    
+    banner += f'\nGrid parameters : Nside={saved_args.grid_nside}, Ncell={num_pointings(saved_args.grid_nside):,d}\n'
+    banner += f'                  ZNmax={saved_args.grid_znmax} deg\n'
+    banner += f'                  Acell={calin.math.healpix_array.cell_area(saved_args.grid_nside) * (180/numpy.pi)**2:.2f} deg^2\n'
+    banner += f'                  Dcell={calin.math.healpix_array.cell_dimension(saved_args.grid_nside) * (180/numpy.pi):.2f} deg\n'
+    banner += f'                  Number of pointings : {npointing:,d}\n'
+
+    if el_deg is not None:
+        banner += f'\nPointing : El={el_deg:.2f} deg (Zn={zn_deg:.2f} deg), Az={az_deg:.2f} deg\n'
 
     banner += '\nPrimary viewcone :'
     if len(viewcone_poly) == 0 or (len(viewcone_poly) == 1 and viewcone_poly[0] == 0):
@@ -714,9 +725,8 @@ def print_line(filename, pointing_index, el_deg, az_deg,
     total_files  = active_pointings * args.nfiles_per_pointing
     total_events = total_files * args.block_size
 
-    w = len(str(total_pointings))
-    line = f'[{pointing_index:>{w}d}/{total_pointings}'
-    line += f' El={el_deg:.1f} Az={az_deg:.1f}] {filename}: {num_events_total:,d}'
+    line = f'[{pointing_index:,d}/{total_pointings:,d}'
+    line += f' El={el_deg:04.1f} Az={az_deg:05.1f}] {filename}: {num_events_total:,d}'
     fraction = num_events_total / total_events if total_events > 0 else 0.0
     if total_events > 0:
         line += f' / {total_events:,d} = {fraction*100.0:.2f}%'
