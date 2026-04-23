@@ -3,7 +3,7 @@
 # Simulate events from given spectrum with GEANT4 accounting for variable
 # scattering radius and viewcone. Write events to HDF5 files, one or more per
 # pointing, iterating over a grid of pointings supplied by the user-provided
-# pointing grid functions "num_pointings" and "get_pointing".
+# pointing grid functions "num_grid_pointings" and "get_grid_pointing".
 #
 # Copyright 2026, Stephen Fegan <sfegan@llr.in2p3.fr>
 # Laboratoire Leprince-Ringuet, CNRS/IN2P3, Ecole Polytechnique, Institut Polytechnique de Paris
@@ -45,20 +45,20 @@ import calin.provenance.anthology
 # POINTING GRID INTERFACE
 #
 # Replace these two functions with your healpix (or other) grid implementation.
-# - num_pointings(nside) : returns the total number of pointings for the given
+# - num_grid_pointings(nside) : returns the total number of pointings for the given
 #                          healpix nside parameter, ignoring any zn cut
-# - get_pointing(nside,i): returns (index, zn_deg, az_deg) for the i-th pixel
+# - get_grid_pointing(nside,i): returns (index, zn_deg, az_deg) for the i-th pixel
 #                          in the grid; index == i for a healpix grid
 #
-# num_pointings() is used only to determine the zero-padding width for output
+# num_grid_pointings() is used only to determine the zero-padding width for output
 # filenames, so the mapping index<->pointing is stable regardless of grid_znmax.
 # =============================================================================
 
-def num_pointings(nside):
+def num_grid_pointings(nside):
     """Return the total number of pointings for the given healpix nside."""
     return calin.math.healpix_array.npixel(nside)
 
-def get_pointing(nside, i):
+def get_grid_pointing(nside, i):
     """Return (index, zn_deg, az_deg) for the i-th pixel of the healpix grid."""
     zn_rad, az_rad = calin.math.healpix_array.pixid_to_ang(nside, i)
     return (i, numpy.rad2deg(zn_rad), numpy.rad2deg(az_rad))
@@ -672,14 +672,11 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     for arg in args_dict:
         banner += f'- {arg}: {args_dict[arg]}\n'
 
-    npointing = numpy.count_nonzero([get_pointing(saved_args.grid_nside, i)[1] <= saved_args.grid_znmax 
-                                     for i in range(num_pointings(saved_args.grid_nside))])
-    
-    banner += f'\nGrid parameters : Nside={saved_args.grid_nside}, Ncell={num_pointings(saved_args.grid_nside):,d}\n'
+    banner += f'\nGrid parameters : Nside={saved_args.grid_nside}, Ncell={num_grid_pointings(saved_args.grid_nside):,d}\n'
     banner += f'                  ZNmax={saved_args.grid_znmax} deg\n'
     banner += f'                  Acell={calin.math.healpix_array.cell_area(saved_args.grid_nside) * (180/numpy.pi)**2:.2f} deg^2\n'
     banner += f'                  Dcell={calin.math.healpix_array.cell_dimension(saved_args.grid_nside) * (180/numpy.pi):.2f} deg\n'
-    banner += f'                  Number of pointings : {npointing:,d}\n'
+    banner += f'                  Number of pointings : {total_pointings:,d}\n'
 
     if el_deg is not None:
         banner += f'\nPointing : El={el_deg:.2f} deg (Zn={zn_deg:.2f} deg), Az={az_deg:.2f} deg\n'
@@ -717,30 +714,25 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     return banner
 
 
-def print_line(filename, pointing_index, el_deg, az_deg,
+def print_line(filename, el_deg, az_deg,
+               num_files_generated,
                num_events_total, num_rays_total, num_steps_total,
                num_tracks_total, num_bytes_total,
-               total_pointings, active_pointings, begin_utc, args):
+               begin_utc):
     runtime = (datetime.datetime.now(datetime.timezone.utc) - begin_utc).total_seconds()
-    total_files  = active_pointings * args.nfiles_per_pointing
-    total_events = total_files * args.block_size
 
-    line = f'[{pointing_index:,d}/{total_pointings:,d}'
-    line += f' El={el_deg:04.1f} Az={az_deg:05.1f}] {filename}: {num_events_total:,d}'
-    fraction = num_events_total / total_events if total_events > 0 else 0.0
-    if total_events > 0:
-        line += f' / {total_events:,d} = {fraction*100.0:.2f}%'
-    line += f' ; {format_duration(runtime)}'
-    if fraction > 0:
-        line += f' / {format_duration(runtime/fraction)}'
+    line += f'[El={el_deg:04.1f} Az={az_deg:05.1f}] {filename}: {num_events_total:,d}'
+    line = f' {num_files_generated:,d}/{total_files_to_generate:,d}'
+
+    fraction = num_events_total / total_events_to_generate
+    line += f' ; {num_events_total:,d} / {total_events_to_generate:,d} = {fraction*100.0:.2f}%'
+
+    line += f' ; {format_duration(runtime)} / {format_duration(runtime/fraction)}'
     line += f' ({num_events_total/runtime:,.1f} Hz)'
     line += f' ; {num_rays_total:,d} rays'
     if num_tracks_total > 0:
         line += f' ; {num_rays_total/num_steps_total:.2f} {num_steps_total/num_tracks_total:.2f}'
-    line += f' ; {num_bytes_total*1e-9:,.3f}'
-    if fraction > 0:
-        line += f' / {num_bytes_total/fraction*1e-9:,.3f}'
-    line += ' GB'
+    line += f' ; {num_bytes_total*1e-9:,.3f} / {num_bytes_total/fraction*1e-9:,.3f} GB'
     if stop_requested:
         line += ' (STOPPING)'
     print(line)
@@ -855,13 +847,28 @@ if __name__ == '__main__':
     args.viewcone_polynomial = sorted(args.viewcone_polynomial, key=lambda t: t[0])
 
     # Determine total pointings (ignoring znmax) for zero-padding width
-    total_pointings = num_pointings(args.grid_nside)
-    pointing_index_width = len(str(total_pointings - 1)) if total_pointings > 0 else 1
+    num_grid_cells = num_grid_pointings(args.grid_nside)
+    pointing_index_width = len(str(num_grid_cells - 1)) if num_grid_cells > 0 else 1
+
+    args.nfiles_per_pointing = max(1, args.nfiles_per_pointing)
+
+    global total_pointings
+    global total_files_to_generate
+    global total_events_to_generate
+
+    # Count how many pointings survive the znmax cut (for progress reporting)
+    total_grid_pointings = num_grid_pointings(args.grid_nside)
+    total_pointings = sum(
+        1 for i in range(total_grid_pointings)
+        if get_grid_pointing(args.grid_nside, i)[1] <= args.grid_znmax)
+
+    total_files_to_generate = total_pointings * args.nfiles_per_pointing
+    total_events_to_generate = total_files_to_generate * args.block_size
 
     max_workers = args.nthread or os.cpu_count() or 1
 
     global begin_utc
-    global num_files
+    global num_files_generated
     global num_events_total
     global num_tracks_total
     global num_steps_total
@@ -870,7 +877,7 @@ if __name__ == '__main__':
     global stop_requested
 
     begin_utc        = datetime.datetime.now(datetime.timezone.utc)
-    num_files        = 0
+    num_files_generated = 0
     num_events_total = 0
     num_tracks_total = 0
     num_steps_total  = 0
@@ -878,32 +885,29 @@ if __name__ == '__main__':
     num_bytes_total  = 0
     stop_requested   = False
 
-    # Count how many pointings survive the znmax cut (for progress reporting)
-    active_pointings = sum(
-        1 for i in range(total_pointings)
-        if get_pointing(args.grid_nside, i)[1] <= args.grid_znmax)
 
     def process_results(result):
         if result is None:
             return
-        global num_files, num_events_total, num_tracks_total
+        global num_files_generated, num_events_total, num_tracks_total
         global num_steps_total, num_rays_total, num_bytes_total
 
         filename, p_idx, el_deg, az_deg, nevents, ntracks, nsteps, nrays, nbytes = result
-        num_files        += 1
-        num_events_total += nevents
-        num_tracks_total += ntracks
-        num_steps_total  += nsteps
-        num_rays_total   += nrays
-        num_bytes_total  += nbytes
-        print_line(filename, p_idx, el_deg, az_deg,
+        num_files_generated += 1
+        num_events_total    += nevents
+        num_tracks_total    += ntracks
+        num_steps_total     += nsteps
+        num_rays_total      += nrays
+        num_bytes_total     += nbytes
+        print_line(filename, el_deg, az_deg,
+                   num_files_generated,
                    num_events_total, num_rays_total, num_steps_total, num_tracks_total,
-                   num_bytes_total, total_pointings, active_pointings, begin_utc, args)
+                   num_bytes_total, begin_utc)
 
     def pointing_jobs():
         # Yield one job per (pointing x file), skipping pointings above grid_znmax.
-        for i in range(total_pointings):
-            p_idx, zn_deg, az_deg = get_pointing(args.grid_nside, i)
+        for i in range(total_grid_pointings):
+            p_idx, zn_deg, az_deg = get_grid_pointing(args.grid_nside, i)
             if zn_deg > args.grid_znmax:
                 continue
             el_deg = 90.0 - zn_deg
