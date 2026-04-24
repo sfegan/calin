@@ -672,11 +672,13 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     for arg in args_dict:
         banner += f'- {arg}: {args_dict[arg]}\n'
 
-    banner += f'\nGrid parameters : Nside={saved_args.grid_nside}, Ncell={num_grid_pointings(saved_args.grid_nside):,d}\n'
-    banner += f'                  ZNmax={saved_args.grid_znmax} deg\n'
-    banner += f'                  Acell={calin.math.healpix_array.cell_area(saved_args.grid_nside) * (180/numpy.pi)**2:.2f} deg^2\n'
-    banner += f'                  Dcell={calin.math.healpix_array.cell_dimension(saved_args.grid_nside) * (180/numpy.pi):.2f} deg\n'
-    banner += f'                  Number of pointings : {total_pointings:,d}\n'
+    banner += f'\nGrid parameters :\n'
+    banner += f'- HealPix nside: {saved_args.grid_nside}\n'
+    banner += f'- Number of cells: {num_grid_pointings(saved_args.grid_nside):,d}\n'
+    banner += f'- Zenith cut: {saved_args.grid_znmax} deg\n'
+    banner += f'- Cell area: {calin.math.healpix_array.cell_area(saved_args.grid_nside) * (180/numpy.pi)**2:.2f} deg^2\n'
+    banner += f'- Cell dimension: {calin.math.healpix_array.cell_dimension(saved_args.grid_nside) * (180/numpy.pi):.2f} deg\n'
+    banner += f'- Number of pointings: {total_pointings:,d}\n'
 
     if el_deg is not None:
         banner += f'\nPointing : El={el_deg:.2f} deg (Zn={zn_deg:.2f} deg), Az={az_deg:.2f} deg\n'
@@ -721,8 +723,9 @@ def print_line(filename, el_deg, az_deg,
                begin_utc):
     runtime = (datetime.datetime.now(datetime.timezone.utc) - begin_utc).total_seconds()
 
-    line += f'[El={el_deg:04.1f} Az={az_deg:05.1f}] {filename}: {num_events_total:,d}'
-    line = f' {num_files_generated:,d}/{total_files_to_generate:,d}'
+    line = f'{filename} [El={el_deg:04.1f} Az={az_deg:05.1f}]:'
+    
+    # line += f' {num_files_generated:,d} / {total_files_to_generate:,d}'
 
     fraction = num_events_total / total_events_to_generate
     line += f' ; {num_events_total:,d} / {total_events_to_generate:,d} = {fraction*100.0:.2f}%'
