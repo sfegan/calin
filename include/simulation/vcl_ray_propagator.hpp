@@ -719,8 +719,7 @@ public:
   }
 
   void start_propagating() final {
-    nrays_propagated_ = 0;
-    nrays_detected_ = 0;
+    // nothing to see here
   }
 
   void point_telescope_az_el_phi_deg(unsigned iscope,
@@ -738,8 +737,6 @@ public:
       VCLFocalPlaneParameters<VCLArchitecture>& fp_parameters) final {
     colorizer_->colorize(ray, ray_mask);
 
-    nrays_propagated_ += vcl::horizontal_count(ray_mask);
-
     TraceInfo info;
     ray_mask = ray_tracer_[scope_id]->
       trace_global_frame(ray_mask, ray, info, /* do_derotation = */ false);
@@ -752,8 +749,6 @@ public:
     fp_parameters.fplane_t     = info.detector_t;
     fp_parameters.pixel_id     = info.pixel_id;
     fp_parameters.detection_prob = 1.0;
-
-    nrays_detected_ += vcl::horizontal_count(ray_mask);
 
     return ray_mask;
   }
@@ -769,9 +764,6 @@ public:
     return stream.str();
   }
 
-  unsigned nrays_propagated() const { return nrays_propagated_; }
-  unsigned nrays_detected() const { return nrays_detected_; }
-
 #ifndef SWIG
 private:
   calin::ix::simulation::panoseti_optics::ArrayParameters array_params_;
@@ -782,9 +774,6 @@ private:
   RealRNG* rng_ = nullptr;
   std::vector<RayTracer*> ray_tracer_;
   double air_ref_index_ = 1.0;
-
-  unsigned nrays_propagated_ = 0;
-  unsigned nrays_detected_ = 0;
 #endif
 };
 
