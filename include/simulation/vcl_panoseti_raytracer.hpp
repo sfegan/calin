@@ -539,6 +539,11 @@ public:
       iobs_);
   }
 
+  const Eigen::Vector3d& scope_position() const { return double_scope_position_; }
+  const Eigen::Matrix3d& rot_reflector_to_global() const { return double_rot_reflector_to_global_; }
+  const Eigen::Matrix3d& rot_global_to_reflector() const { return double_rot_global_to_reflector_; }
+  Eigen::Vector3d pointing_direction() const { return double_rot_reflector_to_global_ * Eigen::Vector3d::UnitY(); }
+
 private:
 
   const calin::math::spline_interpolation::CubicSpline* lens_refractive_index_spline_;
