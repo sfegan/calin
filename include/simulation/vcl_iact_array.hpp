@@ -707,6 +707,11 @@ template<typename VCLArchitecture> VCLIACTArray<VCLArchitecture>::
   for(auto& ray_colorizer_cache_entry : ray_colorizer_cache_) {
     delete ray_colorizer_cache_entry.colorizer;
   }
+  free(grid_detector_x_);
+  free(grid_detector_y_);
+  free(grid_detector_z_);
+  free(grid_detector_ssr_);
+  free(grid_idetector_);
 }
 
 template<typename VCLArchitecture> unsigned VCLIACTArray<VCLArchitecture>::
