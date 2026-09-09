@@ -835,6 +835,108 @@ public:
     x = inverse_cdf_logit_double(std::forward<Functor>(f));
   }
 
+  int64_vt poisson_small_double(const double_vt& lambda)
+  {
+    double_vt prod = uniform_double();
+    double_vt exp_neg_lambda = vcl::exp(-lambda);
+    double_bvt active = prod > exp_neg_lambda;
+    int64_vt k = 0;
+
+    while(vcl::horizontal_or(active)) {
+      k = select(active, k + 1, k);
+      prod = select(active, prod * uniform_double(), prod);
+      active = active & (prod > exp_neg_lambda);
+    }
+    return k;
+  }
+
+  int64_vt poisson_ptrs_double(const double_vt& lambda)
+  {
+    // Wolfgang Hörmann's PTRS algorithm (1993)
+    // Reference: W. Hörmann, Insurance: Mathematics and Economics 12, 39-45 (1993)
+    // Implementation follows NumPy: numpy/random/src/distributions/distributions.c
+    const double_vt slam = vcl::sqrt(lambda);
+    const double_vt loglam = vcl::log(lambda);
+    const double_vt b = 0.931 + 2.53 * slam;
+    const double_vt a = -0.059 + 0.02483 * b;
+    const double_vt invalpha = 1.1239 + 1.1328 / (b - 3.4);
+    const double_vt vr = 0.9277 - 3.6224 / (b - 2.0);
+
+    double_bvt accepted = false;
+    int64_vt result(0);
+
+    while(true) {
+      double_vt U = uniform_double() - 0.5;
+      double_vt V = uniform_double();
+      double_vt us = 0.5 - vcl::abs(U);
+
+      double_vt k_double = vcl::floor((2.0 * a / us + b) * U + lambda + 0.43);
+
+      // Quick accept: k >= 0 AND us >= 0.07 AND V <= vr
+      double_bvt quick_accept = (k_double >= 0.0) & (us >= 0.07) & (V <= vr);
+
+      // Rejection: k < 0 OR (us < 0.013 AND V > us)
+      double_bvt reject = (k_double < 0.0) | ((us < 0.013) & (V > us));
+
+      // Full test (only for lanes not quick-accepted and not rejected)
+      double_bvt need_full = (!accepted) & (!quick_accept) & (!reject);
+      double_bvt full_accept(false);
+      if(vcl::horizontal_or(need_full)) {
+        // Acceptance condition: log(V) + log(invalpha) - log(a/us^2 + b) <= -lambda + k*loglam - lgamma(k+1)
+        double_vt log_hat = vcl::log(V * invalpha / (a / (us * us) + b));
+        // Compute lgamma(k+1) only for lanes where need_full is set
+        typename VCLArchitecture::double_at k_arr;
+        typename VCLArchitecture::double_at lgamma_arr;
+        k_double.store(k_arr);
+        auto need_full_bits = need_full.to_bits();
+        for(unsigned lane = 0; lane < VCLArchitecture::num_double; ++lane) {
+          lgamma_arr[lane] = (need_full_bits >> lane) & 1 ?
+            std::lgamma(k_arr[lane] + 1.0) : 0.0;
+        }
+        double_vt lgam_kp1;
+        lgam_kp1.load(lgamma_arr);
+        double_vt rhs = -lambda + k_double * loglam - lgam_kp1;
+        full_accept = need_full & (log_hat <= rhs);
+      }
+
+      double_bvt newly_accepted = (!accepted) & (quick_accept | full_accept);
+      result = select(newly_accepted, truncate_to_int64(k_double), result);
+      accepted |= newly_accepted;
+
+      if(vcl::horizontal_and(accepted)) {
+        return result;
+      }
+    }
+  }
+
+  int64_vt poisson_double(const double_vt& lambda, double small_lambda_max = 10.0)
+  {
+    double_bvt is_small = lambda < small_lambda_max;
+    bool any_small = vcl::horizontal_or(is_small);
+    bool any_large = !vcl::horizontal_and(is_small);
+
+    if(!any_large) {
+      return poisson_small_double(lambda);
+    }
+    if(!any_small) {
+      return poisson_ptrs_double(lambda);
+    }
+
+    double_vt lambda_ptrs = select(is_small, double_vt(small_lambda_max), lambda);
+    double_vt lambda_small = select(is_small, lambda, 0.0);
+
+    int64_vt k_ptrs = poisson_ptrs_double(lambda_ptrs);
+    int64_vt k_small = poisson_small_double(lambda_small);
+
+    return select(is_small, k_small, k_ptrs);
+  }
+
+  int64_vt poisson_real(const double_vt& lambda, double small_lambda_max = 10.0)
+  {
+    return poisson_double(lambda, small_lambda_max);
+  }
+
+
   static uint64_vt uint64_from_seed(uint64_t seed = 0)
   {
     if(seed == 0)seed = RNG::uint64_from_random_device();
