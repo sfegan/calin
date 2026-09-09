@@ -587,51 +587,62 @@ TYPED_TEST(VCLRNGTests, CDFNormalFloatZCMoments)
   verify_float_range("m3", m3, -0.02, 0.02);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments)
+template<typename TypeParam>
+void test_poisson_double_moments(double lambda_val,
+  double m1_exp, double m1_tol,
+  double m2_exp, double m2_tol,
+  double m3_exp, double m3_tol,
+  double small_lambda_max = 10.0)
 {
   uint64_t seed = RNG::std_test_seed;
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
   const unsigned N = 1000000;
 
-  struct TestCase {
-    double lambda;
-    double m1_expected;
-    double m1_tol;
-    double m2_expected;
-    double m2_tol;
-    double m3_expected;
-    double m3_tol;
-  };
+  BasicKahanAccumulator<typename TypeParam::double_vt> sumx;
+  BasicKahanAccumulator<typename TypeParam::double_vt> sumxx;
+  BasicKahanAccumulator<typename TypeParam::double_vt> sumxxx;
+  typename TypeParam::double_vt lambda(lambda_val);
 
-  const std::vector<TestCase> test_cases = {
-    {   0.1,      0.1,   0.003,       0.11,    0.003,       0.131,    0.003 },
-    {   1.0,      1.0,   0.008,        2.0,     0.03,         5.0,     0.10 },
-    {  10.0,     10.0,    0.03,      110.0,      0.6,      1310.0,      6.0 },
-    { 100.0,    100.0,     0.1,    10100.0,     20.0,   1030100.0,   2500.0 }
-  };
-
-  for(const auto& tc : test_cases) {
-    BasicKahanAccumulator<typename TypeParam::double_vt> sumx;
-    BasicKahanAccumulator<typename TypeParam::double_vt> sumxx;
-    BasicKahanAccumulator<typename TypeParam::double_vt> sumxxx;
-    typename TypeParam::double_vt lambda(tc.lambda);
-
-    for(unsigned i = 0; i < N; ++i) {
-      typename TypeParam::double_vt x = to_double(core.poisson_double(lambda));
-      sumx.accumulate(x);
-      sumxx.accumulate(x*x);
-      sumxxx.accumulate(x*x*x);
-    }
-
-    typename TypeParam::double_vt m1 = sumx.total()/double(N);
-    typename TypeParam::double_vt m2 = sumxx.total()/double(N);
-    typename TypeParam::double_vt m3 = sumxxx.total()/double(N);
-
-    std::string tag = "lambda=" + std::to_string(tc.lambda) + " ";
-    verify_double_range(tag + "m1", m1, tc.m1_expected - tc.m1_tol, tc.m1_expected + tc.m1_tol);
-    verify_double_range(tag + "m2", m2, tc.m2_expected - tc.m2_tol, tc.m2_expected + tc.m2_tol);
-    verify_double_range(tag + "m3", m3, tc.m3_expected - tc.m3_tol, tc.m3_expected + tc.m3_tol);
+  for(unsigned i = 0; i < N; ++i) {
+    typename TypeParam::double_vt x = to_double(core.poisson_double(lambda, small_lambda_max));
+    sumx.accumulate(x);
+    sumxx.accumulate(x*x);
+    sumxxx.accumulate(x*x*x);
   }
+
+  typename TypeParam::double_vt m1 = sumx.total()/double(N);
+  typename TypeParam::double_vt m2 = sumxx.total()/double(N);
+  typename TypeParam::double_vt m3 = sumxxx.total()/double(N);
+
+  std::string tag = "lambda=" + std::to_string(lambda_val) + " (small_max=" + std::to_string(small_lambda_max) + ") ";
+  verify_double_range(tag + "m1", m1, m1_exp - m1_tol, m1_exp + m1_tol);
+  verify_double_range(tag + "m2", m2, m2_exp - m2_tol, m2_exp + m2_tol);
+  verify_double_range(tag + "m3", m3, m3_exp - m3_tol, m3_exp + m3_tol);
+}
+
+TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda0_1)
+{
+  test_poisson_double_moments<TypeParam>(0.1, 0.1, 0.003, 0.11, 0.003, 0.131, 0.003);
+}
+
+TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda1)
+{
+  test_poisson_double_moments<TypeParam>(1.0, 1.0, 0.008, 2.0, 0.03, 5.0, 0.10);
+}
+
+TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda10)
+{
+  test_poisson_double_moments<TypeParam>(10.0, 10.0, 0.03, 110.0, 0.6, 1310.0, 6.0);
+}
+
+TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda10_SmallAlgo)
+{
+  test_poisson_double_moments<TypeParam>(10.0, 10.0, 0.03, 110.0, 0.6, 1310.0, 6.0, /* small_lambda_max = */ 10.5);
+}
+
+TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda100)
+{
+  test_poisson_double_moments<TypeParam>(100.0, 100.0, 0.1, 10100.0, 20.0, 1030100.0, 2500.0);
 }
 
 
