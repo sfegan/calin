@@ -888,7 +888,7 @@ public:
         typename VCLArchitecture::double_at k_arr;
         typename VCLArchitecture::double_at lgamma_arr;
         k_double.store(k_arr);
-        auto need_full_bits = need_full.to_bits();
+        auto need_full_bits = vcl::to_bits(need_full);
         for(unsigned lane = 0; lane < VCLArchitecture::num_double; ++lane) {
           lgamma_arr[lane] = (need_full_bits >> lane) & 1 ?
             std::lgamma(k_arr[lane] + 1.0) : 0.0;
