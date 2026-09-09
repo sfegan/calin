@@ -434,6 +434,7 @@ public:
     uix <<= 63;
     c ^= reinterpret_d(uix);
 
+    double_vt k_safe = max(k, 1.0);
     double_vt c2 = select(swap_mask, c, s);
     s = select(swap_mask, s, c);
     c = c2;
@@ -850,6 +851,50 @@ public:
     return k;
   }
 
+  static inline double_vt lfactorial_approx_double(const double_vt& k)
+  {
+    constexpr double C_LS2PI  =  0.91893853320467274178; // 0.5 * ln(2*pi)
+    constexpr double C_1_12   =  1.0 / 12.0;
+    constexpr double C_1_360  = -1.0 / 360.0;
+    constexpr double C_1_1260 =  1.0 / 1260.0;
+    constexpr double C_1_1680 = -1.0 / 1680.0;
+
+    double_vt k_safe = max(k, 1.0);
+    double_vt inv_k = 1.0 / k_safe;
+    double_vt inv_k2 = inv_k * inv_k;
+
+    double_vt poly = mul_add(inv_k2, C_1_1680, C_1_1260);
+    poly = mul_add(inv_k2, poly, C_1_360);
+    poly = mul_add(inv_k2, poly, C_1_12);
+    double_vt series = inv_k * poly;
+
+    double_vt stirling = C_LS2PI + mul_add(k + 0.5, vcl::log(k_safe), -k) + series;
+
+    static const double lfa[10] = {
+      0.0,
+      0.0,
+      0.6931471805599453094,
+      1.7917594692280550008,
+      3.1780538303479456196,
+      4.7874917427820459942,
+      6.5792512120101009951,
+      8.5251613610654143002,
+      10.604602902745250880,
+      12.801827480081469611
+    };
+
+    double_bvt is_small = k < 10.0;
+    if(vcl::horizontal_or(is_small)) {
+      int64_vt ik = truncate_to_int64(k);
+      ik = max(ik, int64_vt(0));
+      ik = min(ik, int64_vt(9));
+      double_vt table_val = vcl::lookup<0x40000000>(ik, lfa);
+      return select(is_small, table_val, stirling);
+    }
+
+    return stirling;
+  }
+
   int64_vt poisson_ptrs_double(const double_vt& lambda)
   {
     // Wolfgang Hörmann's PTRS algorithm (1993)
@@ -882,19 +927,9 @@ public:
       double_bvt need_full = (!accepted) & (!quick_accept) & (!reject);
       double_bvt full_accept(false);
       if(vcl::horizontal_or(need_full)) {
-        // Acceptance condition: log(V) + log(invalpha) - log(a/us^2 + b) <= -lambda + k*loglam - lgamma(k+1)
+        // Acceptance condition: log(V) + log(invalpha) - log(a/us^2 + b) <= -lambda + k*loglam - lfactorial(k)
         double_vt log_hat = vcl::log(V * invalpha / (a / (us * us) + b));
-        // Compute lgamma(k+1) only for lanes where need_full is set
-        typename VCLArchitecture::double_at k_arr;
-        typename VCLArchitecture::double_at lgamma_arr;
-        k_double.store(k_arr);
-        auto need_full_bits = vcl::to_bits(need_full);
-        for(unsigned lane = 0; lane < VCLArchitecture::num_double; ++lane) {
-          lgamma_arr[lane] = (need_full_bits >> lane) & 1 ?
-            std::lgamma(k_arr[lane] + 1.0) : 0.0;
-        }
-        double_vt lgam_kp1;
-        lgam_kp1.load(lgamma_arr);
+        double_vt lgam_kp1 = lfactorial_approx_double(k_double);
         double_vt rhs = -lambda + k_double * loglam - lgam_kp1;
         full_accept = need_full & (log_hat <= rhs);
       }
