@@ -837,6 +837,7 @@ public:
 
   int64_vt poisson_small_double(const double_vt& lambda)
   {
+    // Knuth's algorithm for small lambda
     double_vt prod = uniform_double();
     double_vt exp_neg_lambda = vcl::exp(-lambda);
     double_bvt active = prod > exp_neg_lambda;
@@ -965,11 +966,29 @@ public:
     return select(is_small, k_small, k_ptrs);
   }
 
-  int64_vt poisson_real(const double_vt& lambda, double small_lambda_max = 10.0)
+  void poisson_real(int64_vt& n, const double_vt& lambda, double small_lambda_max = 10.0)
   {
-    return poisson_double(lambda, small_lambda_max);
+    n = poisson_double(lambda, small_lambda_max);
   }
 
+  int64_vt borel_tanner_double(const int64_vt& k, const double_vt& mu)
+  {
+    // Borel-Tanner distribution - useful for SiPM crosstalk simulation with 
+    // - k: number of primary avalanches (genuine PEs) and 
+    // - mu: mean number of secondary avalanches per primary or secondary avalanche.
+    double_vt n_double = to_double(k);
+    double_vt a = n_double;
+    while(vcl::horizontal_or(a > 0.0)) {
+      a = to_double(poisson_double(a * mu));
+      n_double += a;
+    }
+    return truncate_to_int64(n_double);
+  }
+
+  void borel_tanner_real(int64_vt& n, const int64_vt& k, const double_vt& mu)
+  {
+    n = borel_tanner_double(k, mu);
+  }
 
   static uint64_vt uint64_from_seed(uint64_t seed = 0)
   {
@@ -1153,27 +1172,43 @@ public:
     return rvs;
   }
 
-//   double normal(double mean, double sigma) { return mean+normal()*sigma; }
+  Eigen::VectorXi bulk_poisson_double(unsigned n, double lambda)
+  {
+    if(n % VCLArchitecture::num_double != 0) {
+      throw std::runtime_error("bulk_poisson_double : number of elements must be multiple of " + std::to_string(VCLArchitecture::num_double));
+    }
+    Eigen::VectorXi rvs(n);
+    const double_vt lambda_vt(lambda);
+    for(unsigned i=0; i<n; i+=VCLArchitecture::num_double) {
+      int64_vt x = poisson_double(lambda_vt);
+      x.store(rvs.data() + i);
+    }
+    return rvs;
+  }
+
+  Eigen::VectorXi bulk_borel_tanner_double(unsigned n, int64_t k, double mu)
+  {
+    if(n % VCLArchitecture::num_double != 0) {
+      throw std::runtime_error("bulk_borel_tanner_double : number of elements must be multiple of " + std::to_string(VCLArchitecture::num_double));
+    }
+    Eigen::VectorXi rvs(n);
+    const int64_vt k_vt(k);
+    const double_vt mu_vt(mu);
+    for(unsigned i=0; i<n; i+=VCLArchitecture::num_double) {
+      int64_vt x = borel_tanner_double(k_vt, mu_vt);
+      x.store(rvs.data() + i);
+    }
+    return rvs;
+  }
+
 //   double gamma_by_alpha_and_beta(double alpha, double beta);
 //   double gamma_by_mean_and_sigma(const double mean, const double sigma) {
 //     double b = mean/(sigma*sigma);
 //     return gamma_by_alpha_and_beta(mean*b,b); }
-//   int poisson(double lambda);
 //   int polya(double mean, double non_poisson_sigma) {
 //     return poisson(gamma_by_mean_and_sigma(mean, non_poisson_sigma)); }
 //   int binomial(double pp, int n);
-//
-//   static uint64_t nonzero_uint64_from_random_device() { uint64_t x;
-//     do x = uint64_from_random_device(); while(x==0ULL); return x; }
-//   static uint32_t nonzero_uint32_from_random_device() { uint32_t x;
-//     do x = uint32_from_random_device(); while(x==0U); return x; }
-//
-//   double inverse_cdf(const std::vector<std::pair<double,double>> &inv_cdf);
-//   static void generate_inverse_cdf(std::vector<std::pair<double,double>> &cdf,
-//     unsigned nbins=0);
-//
-//   static constexpr uint64_t std_test_seed = 12939; // essential supply
-//
+
   RNG& scalar_rng() {
     if(scalar_rng_ == nullptr) {
       auto* scalar_core = new calin::math::rng::VCLToScalarRNGCore<VCLArchitecture>(core_, /* adopt_core= */ false);
