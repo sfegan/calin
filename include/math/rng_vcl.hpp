@@ -434,7 +434,6 @@ public:
     uix <<= 63;
     c ^= reinterpret_d(uix);
 
-    double_vt k_safe = max(k, 1.0);
     double_vt c2 = select(swap_mask, c, s);
     s = select(swap_mask, s, c);
     c = c2;
@@ -859,7 +858,7 @@ public:
     constexpr double C_1_1260 =  1.0 / 1260.0;
     constexpr double C_1_1680 = -1.0 / 1680.0;
 
-    double_vt k_safe = max(k, 1.0);
+    double_vt k_safe = max(k, double_vt(1.0));
     double_vt inv_k = 1.0 / k_safe;
     double_vt inv_k2 = inv_k * inv_k;
 
