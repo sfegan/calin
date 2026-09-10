@@ -844,7 +844,7 @@ public:
     int64_vt k = 0;
 
     while(vcl::horizontal_or(active)) {
-      k = select(active, k + 1, k);
+      k = select(int64_bvt(active), k + 1, k);
       prod = select(active, prod * uniform_double(), prod);
       active = active & (prod > exp_neg_lambda);
     }
@@ -940,7 +940,7 @@ public:
       }
 
       double_bvt newly_accepted = (!accepted) & (quick_accept | full_accept);
-      result = select(newly_accepted, truncate_to_int64(k_double), result);
+      result = select(int64_bvt(newly_accepted), truncate_to_int64(k_double), result);
       accepted |= newly_accepted;
 
       if(vcl::horizontal_and(accepted)) {
