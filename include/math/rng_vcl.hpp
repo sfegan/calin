@@ -132,6 +132,7 @@ public:
   CALIN_TYPEALIAS(uint64_bvt, typename VCLArchitecture::uint64_bvt);
   CALIN_TYPEALIAS(float_bvt, typename VCLArchitecture::float_bvt);
   CALIN_TYPEALIAS(double_bvt, typename VCLArchitecture::double_bvt);
+  CALIN_TYPEALIAS(int64_bvt, typename VCLArchitecture::int64_bvt);
   CALIN_TYPEALIAS(Vector3f_vt, typename VCLArchitecture::Vector3f_vt);
   CALIN_TYPEALIAS(Vector3d_vt, typename VCLArchitecture::Vector3d_vt);
 
@@ -950,7 +951,7 @@ public:
 
   int64_vt poisson_double(const double_vt& lambda, double small_lambda_max = 10.0)
   {
-    double_bvt is_small = lambda < small_lambda_max;
+    int64_bvt is_small = lambda < small_lambda_max;
     bool any_small = vcl::horizontal_or(is_small);
     bool any_large = !vcl::horizontal_and(is_small);
 
