@@ -951,7 +951,7 @@ public:
 
   int64_vt poisson_int64(const double_vt& lambda, double small_lambda_max = 10.0)
   {
-    int64_bvt is_small = lambda < small_lambda_max;
+    double_bvt is_small = lambda < small_lambda_max;
     bool any_small = vcl::horizontal_or(is_small);
     bool any_large = !vcl::horizontal_and(is_small);
 
@@ -968,7 +968,7 @@ public:
     int64_vt k_ptrs = poisson_ptrs_int64(lambda_ptrs);
     int64_vt k_small = poisson_small_int64(lambda_small);
 
-    return select(is_small, k_small, k_ptrs);
+    return select(int64_bvt(is_small), k_small, k_ptrs);
   }
 
   void poisson_int(int64_vt& n, const double_vt& lambda, double small_lambda_max = 10.0)
