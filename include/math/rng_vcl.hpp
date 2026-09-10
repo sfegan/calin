@@ -835,11 +835,10 @@ public:
     x = inverse_cdf_logit_double(std::forward<Functor>(f));
   }
 
-  int64_vt poisson_small_double(const double_vt& lambda)
+  int64_vt poisson_small_exp_neg_lambda_double(const double_vt& exp_neg_lambda)
   {
-    // Knuth's algorithm for small lambda
+    // Knuth's algorithm for small lambda with precomputed exp(-lambda)
     double_vt prod = uniform_double();
-    double_vt exp_neg_lambda = vcl::exp(-lambda);
     double_bvt active = prod > exp_neg_lambda;
     int64_vt k = 0;
 
@@ -849,6 +848,11 @@ public:
       active = active & (prod > exp_neg_lambda);
     }
     return k;
+  }
+
+  int64_vt poisson_small_double(const double_vt& lambda)
+  {
+    return poisson_small_exp_neg_lambda_double(vcl::exp(-lambda));
   }
 
   static inline double_vt lfactorial_approx_double(const double_vt& k)
@@ -988,6 +992,31 @@ public:
   void borel_tanner_real(int64_vt& n, const int64_vt& k, const double_vt& mu)
   {
     n = borel_tanner_double(k, mu);
+  }
+
+  int64_vt borel_tanner_k1_exp_neg_mu_double(const double_vt& exp_neg_mu)
+  {
+    // Borel-Tanner distribution - useful for SiPM crosstalk simulation with 
+    // - k: fixed to 1 primary avalanche (genuine PE) and
+    // - exp_neg_mu: exp(-mu), where mu is presumed small
+    double_vt a = to_double(poisson_small_exp_neg_lambda_double(exp_neg_mu));
+    double_vt n_double = 1.0 + a;
+    while(vcl::horizontal_or(a > 0.0)) {
+      double_vt exp_neg_a_mu = select(a > 0.0, exp_neg_mu, 1.0);
+      a = vcl::max(a - 1.0, 0.0);
+      while(vcl::horizontal_or(a > 0.0)) {
+        exp_neg_a_mu *= select(a > 0.0, exp_neg_mu, 1.0);
+        a = vcl::max(a - 1.0, 0.0);
+      }
+      a = to_double(poisson_small_exp_neg_lambda_double(exp_neg_a_mu));
+      n_double += a;
+    }
+    return truncate_to_int64(n_double);
+  }
+
+  void borel_tanner_k1_exp_neg_mu_double(int64_vt& n, const double_vt& exp_neg_mu)
+  {
+    n = borel_tanner_k1_exp_neg_mu_double(exp_neg_mu);
   }
 
   static uint64_vt uint64_from_seed(uint64_t seed = 0)
