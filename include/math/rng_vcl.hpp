@@ -1202,30 +1202,34 @@ public:
     return rvs;
   }
 
-  Eigen::VectorXi bulk_poisson_double(unsigned n, double lambda)
+  Eigen::VectorXi bulk_poisson_int32(unsigned n, double lambda)
   {
-    if(n % VCLArchitecture::num_double != 0) {
-      throw std::runtime_error("bulk_poisson_double : number of elements must be multiple of " + std::to_string(VCLArchitecture::num_double));
+    if(n % VCLArchitecture::num_int32 != 0) {
+      throw std::runtime_error("bulk_poisson_int32 : number of elements must be multiple of " + std::to_string(VCLArchitecture::num_int32));
     }
     Eigen::VectorXi rvs(n);
     const double_vt lambda_vt(lambda);
-    for(unsigned i=0; i<n; i+=VCLArchitecture::num_double) {
-      int64_vt x = poisson_double(lambda_vt);
+    for(unsigned i=0; i<n; i+=VCLArchitecture::num_int32) {
+      int64_vt xlo = poisson_double(lambda_vt);
+      int64_vt xhi = poisson_double(lambda_vt);
+      int32_vt x = vcl::compress(xlo, xhi);
       x.store(rvs.data() + i);
     }
     return rvs;
   }
 
-  Eigen::VectorXi bulk_borel_tanner_double(unsigned n, int64_t k, double mu)
+  Eigen::VectorXi bulk_borel_tanner_int32(unsigned n, int64_t k, double mu)
   {
-    if(n % VCLArchitecture::num_double != 0) {
-      throw std::runtime_error("bulk_borel_tanner_double : number of elements must be multiple of " + std::to_string(VCLArchitecture::num_double));
+    if(n % VCLArchitecture::num_int32 != 0) {
+      throw std::runtime_error("bulk_borel_tanner_int32 : number of elements must be multiple of " + std::to_string(VCLArchitecture::num_int32));
     }
     Eigen::VectorXi rvs(n);
     const int64_vt k_vt(k);
     const double_vt mu_vt(mu);
-    for(unsigned i=0; i<n; i+=VCLArchitecture::num_double) {
-      int64_vt x = borel_tanner_double(k_vt, mu_vt);
+    for(unsigned i=0; i<n; i+=VCLArchitecture::num_int32) {
+      int64_vt xlo = borel_tanner_double(k_vt, mu_vt);
+      int64_vt xhi = borel_tanner_double(k_vt, mu_vt);
+      int32_vt x = vcl::compress(xlo, xhi);
       x.store(rvs.data() + i);
     }
     return rvs;
