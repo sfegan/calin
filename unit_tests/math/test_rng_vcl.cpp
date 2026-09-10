@@ -616,11 +616,10 @@ TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_ExpNegLambda_0_1)
   double m3_exp = 0.131;
   double m3_tol = 0.003;
 
-  std::string tag = "lambda=0.1 (exp neg lambda)";
+  std::string tag = "lambda=0.1 (exp neg lambda) ";
   verify_double_range(tag + "m1", m1, m1_exp - m1_tol, m1_exp + m1_tol);
   verify_double_range(tag + "m2", m2, m2_exp - m2_tol, m2_exp + m2_tol);
   verify_double_range(tag + "m3", m3, m3_exp - m3_tol, m3_exp + m3_tol);
-
 }
 
 template<typename TypeParam>
