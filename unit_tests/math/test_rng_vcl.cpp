@@ -587,7 +587,7 @@ TYPED_TEST(VCLRNGTests, CDFNormalFloatZCMoments)
   verify_float_range("m3", m3, -0.02, 0.02);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_ExpNegLambda_0_1)
+TYPED_TEST(VCLRNGTests, PoissonInt64Moments_ExpNegLambda_0_1)
 {
   uint64_t seed = RNG::std_test_seed;
   VCLRNG<TypeParam> core(seed, __PRETTY_FUNCTION__, "core");
@@ -599,7 +599,7 @@ TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_ExpNegLambda_0_1)
   typename TypeParam::double_vt exp_neg_lambda = std::exp(-0.1);
 
   for(unsigned i = 0; i < N; ++i) {
-    typename TypeParam::double_vt x = to_double(core.poisson_small_exp_neg_lambda_double(exp_neg_lambda));
+    typename TypeParam::double_vt x = to_double(core.poisson_small_exp_neg_lambda_int64(exp_neg_lambda));
     sumx.accumulate(x);
     sumxx.accumulate(x*x);
     sumxxx.accumulate(x*x*x);
@@ -623,7 +623,7 @@ TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_ExpNegLambda_0_1)
 }
 
 template<typename TypeParam>
-void test_poisson_double_moments(double lambda_val,
+void test_poisson_int64_moments(double lambda_val,
   double m1_exp, double m1_tol,
   double m2_exp, double m2_tol,
   double m3_exp, double m3_tol,
@@ -639,7 +639,7 @@ void test_poisson_double_moments(double lambda_val,
   typename TypeParam::double_vt lambda(lambda_val);
 
   for(unsigned i = 0; i < N; ++i) {
-    typename TypeParam::double_vt x = to_double(core.poisson_double(lambda, small_lambda_max));
+    typename TypeParam::double_vt x = to_double(core.poisson_int64(lambda, small_lambda_max));
     sumx.accumulate(x);
     sumxx.accumulate(x*x);
     sumxxx.accumulate(x*x*x);
@@ -655,29 +655,29 @@ void test_poisson_double_moments(double lambda_val,
   verify_double_range(tag + "m3", m3, m3_exp - m3_tol, m3_exp + m3_tol);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda0_1)
+TYPED_TEST(VCLRNGTests, PoissonInt64Moments_Lambda0_1)
 {
-  test_poisson_double_moments<TypeParam>(0.1, 0.1, 0.003, 0.11, 0.003, 0.131, 0.003);
+  test_poisson_int64_moments<TypeParam>(0.1, 0.1, 0.003, 0.11, 0.003, 0.131, 0.003);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda1)
+TYPED_TEST(VCLRNGTests, PoissonInt64Moments_Lambda1)
 {
-  test_poisson_double_moments<TypeParam>(1.0, 1.0, 0.008, 2.0, 0.03, 5.0, 0.10);
+  test_poisson_int64_moments<TypeParam>(1.0, 1.0, 0.008, 2.0, 0.03, 5.0, 0.10);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda10)
+TYPED_TEST(VCLRNGTests, PoissonInt64Moments_Lambda10)
 {
-  test_poisson_double_moments<TypeParam>(10.0, 10.0, 0.03, 110.0, 0.6, 1310.0, 6.0);
+  test_poisson_int64_moments<TypeParam>(10.0, 10.0, 0.03, 110.0, 0.6, 1310.0, 6.0);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda10_SmallAlgo)
+TYPED_TEST(VCLRNGTests, PoissonInt64Moments_Lambda10_SmallAlgo)
 {
-  test_poisson_double_moments<TypeParam>(10.0, 10.0, 0.03, 110.0, 0.6, 1310.0, 6.0, /* small_lambda_max = */ 10.5);
+  test_poisson_int64_moments<TypeParam>(10.0, 10.0, 0.03, 110.0, 0.6, 1310.0, 6.0, /* small_lambda_max = */ 10.5);
 }
 
-TYPED_TEST(VCLRNGTests, PoissonDoubleMoments_Lambda100)
+TYPED_TEST(VCLRNGTests, PoissonInt64Moments_Lambda100)
 {
-  test_poisson_double_moments<TypeParam>(100.0, 100.0, 0.1, 10100.0, 20.0, 1030100.0, 2500.0);
+  test_poisson_int64_moments<TypeParam>(100.0, 100.0, 0.1, 10100.0, 20.0, 1030100.0, 2500.0);
 }
 
 TYPED_TEST(VCLRNGTests, BorelTannerMoments)
@@ -694,7 +694,7 @@ TYPED_TEST(VCLRNGTests, BorelTannerMoments)
   BasicKahanAccumulator<typename TypeParam::double_vt> sumxxx;
   typename TypeParam::double_vt x;
   for(unsigned i=0;i<N;i++) {
-    x = to_double(core.borel_tanner_double(k, mu));
+    x = to_double(core.borel_tanner_int64(k, mu));
     sumx.accumulate(x);
     sumxx.accumulate(x*x);
     sumxxx.accumulate(x*x*x);
@@ -722,7 +722,7 @@ TYPED_TEST(VCLRNGTests, BorelTannerK1Moments)
   BasicKahanAccumulator<typename TypeParam::double_vt> sumxxx;
   typename TypeParam::double_vt x;
   for(unsigned i=0;i<N;i++) {
-    x = to_double(core.borel_tanner_k1_exp_neg_mu_double(exp_neg_mu));
+    x = to_double(core.borel_tanner_k1_exp_neg_mu_int64(exp_neg_mu));
     sumx.accumulate(x);
     sumxx.accumulate(x*x);
     sumxxx.accumulate(x*x*x);

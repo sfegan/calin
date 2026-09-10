@@ -836,7 +836,7 @@ public:
     x = inverse_cdf_logit_double(std::forward<Functor>(f));
   }
 
-  int64_vt poisson_small_exp_neg_lambda_double(const double_vt& exp_neg_lambda)
+  int64_vt poisson_small_exp_neg_lambda_int64(const double_vt& exp_neg_lambda)
   {
     // Knuth's algorithm for small lambda with precomputed exp(-lambda)
     double_vt prod = uniform_double();
@@ -851,9 +851,9 @@ public:
     return k;
   }
 
-  int64_vt poisson_small_double(const double_vt& lambda)
+  int64_vt poisson_small_int64(const double_vt& lambda)
   {
-    return poisson_small_exp_neg_lambda_double(vcl::exp(-lambda));
+    return poisson_small_exp_neg_lambda_int64(vcl::exp(-lambda));
   }
 
   static inline double_vt lfactorial_approx_double(const double_vt& k)
@@ -900,7 +900,7 @@ public:
     return stirling;
   }
 
-  int64_vt poisson_ptrs_double(const double_vt& lambda)
+  int64_vt poisson_ptrs_int64(const double_vt& lambda)
   {
     // Wolfgang Hörmann's PTRS algorithm (1993)
     // Reference: W. Hörmann, Insurance: Mathematics and Economics 12, 39-45 (1993)
@@ -949,34 +949,34 @@ public:
     }
   }
 
-  int64_vt poisson_double(const double_vt& lambda, double small_lambda_max = 10.0)
+  int64_vt poisson_int64(const double_vt& lambda, double small_lambda_max = 10.0)
   {
     int64_bvt is_small = lambda < small_lambda_max;
     bool any_small = vcl::horizontal_or(is_small);
     bool any_large = !vcl::horizontal_and(is_small);
 
     if(!any_large) {
-      return poisson_small_double(lambda);
+      return poisson_small_int64(lambda);
     }
     if(!any_small) {
-      return poisson_ptrs_double(lambda);
+      return poisson_ptrs_int64(lambda);
     }
 
     double_vt lambda_ptrs = select(is_small, double_vt(small_lambda_max), lambda);
     double_vt lambda_small = select(is_small, lambda, 0.0);
 
-    int64_vt k_ptrs = poisson_ptrs_double(lambda_ptrs);
-    int64_vt k_small = poisson_small_double(lambda_small);
+    int64_vt k_ptrs = poisson_ptrs_int64(lambda_ptrs);
+    int64_vt k_small = poisson_small_int64(lambda_small);
 
     return select(is_small, k_small, k_ptrs);
   }
 
-  void poisson_real(int64_vt& n, const double_vt& lambda, double small_lambda_max = 10.0)
+  void poisson_int(int64_vt& n, const double_vt& lambda, double small_lambda_max = 10.0)
   {
-    n = poisson_double(lambda, small_lambda_max);
+    n = poisson_int64(lambda, small_lambda_max);
   }
 
-  int64_vt borel_tanner_double(const int64_vt& k, const double_vt& mu)
+  int64_vt borel_tanner_int64(const int64_vt& k, const double_vt& mu)
   {
     // Borel-Tanner distribution - useful for SiPM crosstalk simulation with 
     // - k: number of primary avalanches (genuine PEs) and 
@@ -984,23 +984,23 @@ public:
     double_vt n_double = to_double(k);
     double_vt a = n_double;
     while(vcl::horizontal_or(a > 0.0)) {
-      a = to_double(poisson_double(a * mu));
+      a = to_double(poisson_int64(a * mu));
       n_double += a;
     }
     return truncate_to_int64(n_double);
   }
 
-  void borel_tanner_real(int64_vt& n, const int64_vt& k, const double_vt& mu)
+  void borel_tanner_int(int64_vt& n, const int64_vt& k, const double_vt& mu)
   {
-    n = borel_tanner_double(k, mu);
+    n = borel_tanner_int64(k, mu);
   }
 
-  int64_vt borel_tanner_k1_exp_neg_mu_double(const double_vt& exp_neg_mu)
+  int64_vt borel_tanner_k1_exp_neg_mu_int64(const double_vt& exp_neg_mu)
   {
     // Borel-Tanner distribution - useful for SiPM crosstalk simulation with 
     // - k: fixed to 1 primary avalanche (genuine PE) and
     // - exp_neg_mu: exp(-mu), where mu is presumed small
-    double_vt a = to_double(poisson_small_exp_neg_lambda_double(exp_neg_mu));
+    double_vt a = to_double(poisson_small_exp_neg_lambda_int64(exp_neg_mu));
     double_vt n_double = 1.0 + a;
     while(vcl::horizontal_or(a > 0.0)) {
       double_vt exp_neg_a_mu = select(a > 0.0, exp_neg_mu, 1.0);
@@ -1009,15 +1009,15 @@ public:
         exp_neg_a_mu *= select(a > 0.0, exp_neg_mu, 1.0);
         a = vcl::max(a - 1.0, 0.0);
       }
-      a = to_double(poisson_small_exp_neg_lambda_double(exp_neg_a_mu));
+      a = to_double(poisson_small_exp_neg_lambda_int64(exp_neg_a_mu));
       n_double += a;
     }
     return truncate_to_int64(n_double);
   }
 
-  void borel_tanner_k1_exp_neg_mu_double(int64_vt& n, const double_vt& exp_neg_mu)
+  void borel_tanner_k1_exp_neg_mu_int(int64_vt& n, const double_vt& exp_neg_mu)
   {
-    n = borel_tanner_k1_exp_neg_mu_double(exp_neg_mu);
+    n = borel_tanner_k1_exp_neg_mu_int64(exp_neg_mu);
   }
 
   static uint64_vt uint64_from_seed(uint64_t seed = 0)
@@ -1210,8 +1210,8 @@ public:
     Eigen::VectorXi rvs(n);
     const double_vt lambda_vt(lambda);
     for(unsigned i=0; i<n; i+=VCLArchitecture::num_int32) {
-      int64_vt xlo = poisson_double(lambda_vt);
-      int64_vt xhi = poisson_double(lambda_vt);
+      int64_vt xlo = poisson_int64(lambda_vt);
+      int64_vt xhi = poisson_int64(lambda_vt);
       int32_vt x = vcl::compress(xlo, xhi);
       x.store(rvs.data() + i);
     }
@@ -1227,8 +1227,8 @@ public:
     const int64_vt k_vt(k);
     const double_vt mu_vt(mu);
     for(unsigned i=0; i<n; i+=VCLArchitecture::num_int32) {
-      int64_vt xlo = borel_tanner_double(k_vt, mu_vt);
-      int64_vt xhi = borel_tanner_double(k_vt, mu_vt);
+      int64_vt xlo = borel_tanner_int64(k_vt, mu_vt);
+      int64_vt xhi = borel_tanner_int64(k_vt, mu_vt);
       int32_vt x = vcl::compress(xlo, xhi);
       x.store(rvs.data() + i);
     }
