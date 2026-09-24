@@ -656,7 +656,11 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     # Use nominal zn=0 polynomials for the startup banner (before any pointing
     # is known); each per-pointing banner will carry the resolved values.
     if el_deg is None:
-        zn_deg = 90.0
+        if saved_args.pointing is not None:
+            _, zn_deg, az_deg = get_grid_pointing(saved_args.grid_nside, saved_args.pointing)
+            el_deg = 90.0 - zn_deg
+        else:
+            zn_deg = 90.0
     else:
         zn_deg = 90.0 - el_deg
 
@@ -678,6 +682,8 @@ def get_banner(sleep_time=0, el_deg=None, az_deg=None,
     banner += f'- Zenith cut: {saved_args.grid_znmax} deg\n'
     banner += f'- Cell area: {calin.math.healpix_array.cell_area(saved_args.grid_nside) * (180/numpy.pi)**2:.2f} deg^2\n'
     banner += f'- Cell dimension: {calin.math.healpix_array.cell_dimension(saved_args.grid_nside) * (180/numpy.pi):.2f} deg\n'
+    if saved_args.pointing is not None:
+        banner += f'- Single pointing mode: Index {saved_args.pointing}\n'
     banner += f'- Number of pointings: {total_pointings:,d}\n'
 
     if el_deg is not None:
@@ -763,6 +769,9 @@ if __name__ == '__main__':
     parser.add_argument('--grid_znmax', type=float, default=65.0,
         help='Maximum zenith angle in degrees; pointings with zn > this value are skipped. '
              'The index-to-pointing mapping is unaffected (default: 65.0)')
+    parser.add_argument('--pointing', type=int, default=None,
+        help='Single pointing index to simulate. When specified, multi-process threading '
+             'is automatically disabled and only this pointing is processed (default: all valid grid pointings)')
     parser.add_argument('--nfiles_per_pointing', type=int, default=1,
         help='Number of HDF5 output files to generate per pointing (default: 1)')
     parser.add_argument('--block_size', type=int, default=1000,
@@ -859,16 +868,25 @@ if __name__ == '__main__':
     global total_files_to_generate
     global total_events_to_generate
 
-    # Count how many pointings survive the znmax cut (for progress reporting)
     total_grid_pointings = num_grid_pointings(args.grid_nside)
-    total_pointings = sum(
-        1 for i in range(total_grid_pointings)
-        if get_grid_pointing(args.grid_nside, i)[1] <= args.grid_znmax)
+
+    if args.pointing is not None:
+        if args.pointing < 0 or args.pointing >= total_grid_pointings:
+            parser.error(f'--pointing {args.pointing} is out of range [0, {total_grid_pointings - 1}] for grid_nside={args.grid_nside}')
+        p_idx, p_zn, p_az = get_grid_pointing(args.grid_nside, args.pointing)
+        if p_zn > args.grid_znmax:
+            parser.error(f'--pointing {args.pointing} has zenith angle {p_zn:.2f} deg which exceeds --grid_znmax {args.grid_znmax:.2f} deg')
+        total_pointings = 1
+        max_workers = 1
+    else:
+        # Count how many pointings survive the znmax cut (for progress reporting)
+        total_pointings = sum(
+            1 for i in range(total_grid_pointings)
+            if get_grid_pointing(args.grid_nside, i)[1] <= args.grid_znmax)
+        max_workers = args.nthread or os.cpu_count() or 1
 
     total_files_to_generate = total_pointings * args.nfiles_per_pointing
     total_events_to_generate = total_files_to_generate * args.block_size
-
-    max_workers = args.nthread or os.cpu_count() or 1
 
     global begin_utc
     global num_files_generated
@@ -909,7 +927,8 @@ if __name__ == '__main__':
 
     def pointing_jobs():
         # Yield one job per (pointing x file), skipping pointings above grid_znmax.
-        for i in range(total_grid_pointings):
+        indices = [args.pointing] if args.pointing is not None else range(total_grid_pointings)
+        for i in indices:
             p_idx, zn_deg, az_deg = get_grid_pointing(args.grid_nside, i)
             if zn_deg > args.grid_znmax:
                 continue
