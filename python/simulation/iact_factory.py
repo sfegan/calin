@@ -162,21 +162,21 @@ def attach_iact_propagators(iact, site, array_params, bmax_polynomial,
                             detector_type_name = 'MST/NC',
                             pe_processor_factory = None):
     """
-    Attach propagator sets and ray propagators (Davies-Cotton or PANOSETI) to the IACT array.
+    Attach propagator sets and ray propagators (Davies-Cotton or PANOSETI).
+
+    ``bmax_polynomial`` is in metres with coefficients in ascending order,
+    matching the command-line polynomial convention used by the simulation scripts.
     """
     if pe_processor_factory is None:
         pe_processor_factory = lambda s, c: calin.simulation.ray_processor.SimpleListPEProcessor(s, c)
 
-    # Resolve bmax_polynomial into numpy array in cm (internal units)
-    if isinstance(bmax_polynomial, (int, float)):
-        bmax_poly_cm = numpy.asarray([float(bmax_polynomial) * 100.0])
-    elif isinstance(bmax_polynomial, numpy.ndarray):
-        bmax_poly_cm = bmax_polynomial
-    elif len(bmax_polynomial) == 0:
+    # Inputs are in metres, with polynomial coefficients in ascending order.
+    # IACT stores coefficients in numpy.polyval order and distances in cm.
+    bmax_coefficients_m = numpy.atleast_1d(numpy.asarray(bmax_polynomial, dtype=float))
+    if bmax_coefficients_m.size == 0:
         bmax_poly_cm = numpy.asarray([0.0])
     else:
-        # Array of floats
-        bmax_poly_cm = numpy.flipud(bmax_polynomial) * 100.0
+        bmax_poly_cm = numpy.flipud(bmax_coefficients_m) * 100.0
 
     all_pe_processor = []
     all_prop = []

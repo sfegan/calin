@@ -116,12 +116,13 @@ def init(args):
     else:
         bmax_polynomial = numpy.flipud(args.bmax_polynomial) * 100.0
 
-    # Attach propagators (factory expects bmax in m; pass back-converted)
+    # Attach propagators; factory accepts polynomial coefficients in ascending
+    # order and metres, matching the command-line representation.
     global all_pe_processor
     global all_prop
     all_pe_processor, all_prop = calin.simulation.iact_factory.attach_iact_propagators(
         iact, args.site, array_params,
-        bmax_polynomial=numpy.flipud(bmax_polynomial) * 0.01,   # back to m for factory
+        bmax_polynomial=args.bmax_polynomial,
         reuse=args.reuse, nscope=nscope, nchan=nchan,
         det_eff=det_eff, cone_eff=cone_eff, pe_gen=pe_gen,
         tts=args.tts,
@@ -433,7 +434,7 @@ def print_line(filename):
 
         filesline = f'{num_batch}:,d'
         if args.n > 0:
-            filesline += f' / {args.n;,d}'
+            filesline += f' / {args.n:,d}'
 
         print(f'\n===== Particle: {args.primary} ; Site: {args.site} ; El: {args.el:.1f}, Az: {args.az:.1f} ; {spectline} ; Bmax: {bmaxline} ; Viewcone: {vcline} ; Files: {filesline} =====\n')
     

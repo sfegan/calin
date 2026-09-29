@@ -28,18 +28,8 @@ import numpy
 import scipy.interpolate
 import calin.math.geometry
 import calin.math.healpix_array
-import calin.ix.simulation.vcl_iact
-import calin.simulation.tracker
-import calin.simulation.vs_cta
-import calin.simulation.vs_panoseti
-import calin.simulation.vs_optics
-import calin.simulation.ray_processor
-import calin.simulation.world_magnetic_model
-import calin.simulation.geant4_shower_generator
-import calin.simulation.vcl_iact
+import calin.simulation.iact_factory
 import calin.ix.simulation.simulated_event
-import calin.iact_data.instrument_layout
-import calin.iact_data.nectarcam_layout
 import calin.provenance.anthology
 
 # =============================================================================
@@ -234,71 +224,27 @@ def init(args):
     instance_id = numpy.random.bit_generator.randbits(64)
     instance_event_id = 0
 
-    # Select simulation classes based on AVX size requested
-    global iact_class
-    if args.avx == 128:
-        iact_class = calin.simulation.vcl_iact.VCLIACTArray128
-    elif args.avx == 256:
-        iact_class = calin.simulation.vcl_iact.VCLIACTArray256
-    else:
-        iact_class = calin.simulation.vcl_iact.VCLIACTArray512
-
-    # Load site-specific atmosphere, observation level and array layout
+    # Load site environment and detector response models once per worker.
     global zobs
     global atm
     global atm_abs
-    global mst_config
-    global dark100_config
+    global site_env
     global det_eff
     global cone_eff
     global pe_gen
     global store_pe_weights
     global lens_refractive_index_spline
-
-    if args.site == 'dark100':
-        zobs = calin.simulation.vs_panoseti.palomar_observation_level()
-        atm = calin.simulation.vs_panoseti.palomar_atmosphere(quiet=True)
-        atm_abs = calin.simulation.vs_panoseti.palomar_atmospheric_absorption(quiet=True)
-        dark100_datapack = calin.simulation.vs_panoseti.read_optical_model_datapack()
-        dark100_config = calin.simulation.vs_panoseti.dark100_palomar_config
-        det_eff = calin.simulation.vs_panoseti.detection_efficiency_from_datapack(dark100_datapack, quiet=True)
-        cone_eff = None
-        lens_refractive_index_spline = calin.simulation.vs_panoseti.lens_refractive_index_spline_from_datapack(dark100_datapack)
-        dummy_array_origin = dark100_config(elevation=0).array_origin()
-    elif args.site == 'ctan':
-        zobs = calin.simulation.vs_cta.ctan_observation_level()
-        atm = calin.simulation.vs_cta.ctan_atmosphere(quiet=True)
-        atm_abs = calin.simulation.vs_cta.ctan_atmospheric_absorption(quiet=True)
-        mst_config = calin.simulation.vs_cta.mstn1_config
-        det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=True)
-        cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=True)
-        lens_refractive_index_spline = None
-        dummy_array_origin = mst_config(elevation=0).array_origin()
-    else:
-        zobs = calin.simulation.vs_cta.ctas_observation_level()
-        atm = calin.simulation.vs_cta.ctas_atmosphere(quiet=True)
-        atm_abs = calin.simulation.vs_cta.ctas_atmospheric_absorption(quiet=True)
-        mst_config = calin.simulation.vs_cta.msts1_config
-        det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=True)
-        cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=True)
-        lens_refractive_index_spline = None
-        dummy_array_origin = mst_config(elevation=0).array_origin()
-
-    # IACT config object (reused for every pointing, only instantiation deferred)
-    global iact_cfg
-    iact_cfg = iact_class.default_config()
-    if args.no_refraction:
-        iact_cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_NO_RAYS)
-    else:
-        iact_cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
-
-    # Load SPE generator
-    pe_gen = None
-    store_pe_weights = False
-    if args.enable_pe_spectrum:
-        if args.site != 'dark100':
-            pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
-        store_pe_weights = True
+    site_env = calin.simulation.iact_factory.load_site_environment(
+        args.site, enable_pe_spectrum=args.enable_pe_spectrum,
+        no_bfield=args.no_bfield, quiet=True)
+    zobs = site_env.zobs
+    atm = site_env.atm
+    atm_abs = site_env.atm_abs
+    det_eff = site_env.det_eff
+    cone_eff = site_env.cone_eff
+    pe_gen = site_env.pe_gen
+    lens_refractive_index_spline = site_env.lens_refractive_index_spline
+    store_pe_weights = pe_gen is not None
 
     global store_times_as_integer
     store_times_as_integer = args.store_times_as_integer
@@ -306,62 +252,18 @@ def init(args):
     # bmax and viewcone polynomials are resolved per-pointing in setup_pointing();
     # nothing to compute here.
 
-    # Magnetic field (if not disabled) — depends only on site, not pointing
-    global wmm
+    # The site environment also resolves the magnetic field at the array origin.
     global bfield
-    if args.no_bfield:
-        bfield = None
-    else:
-        wmm = calin.simulation.world_magnetic_model.WMM()
-        bfield = wmm.field_vs_elevation(dummy_array_origin.latitude(), dummy_array_origin.longitude())
-
-    # Configure Geant4 shower generator
-    geant4_cfg = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator.customized_config(
-        1000, 0, atm.top_of_atmosphere(),
-        calin.simulation.geant4_shower_generator.VerbosityLevel_SUPRESSED_STDOUT)
-    if args.multiple_scattering == 'minimal':
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit Minimal')
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad Minimal')
-    elif args.multiple_scattering == 'simple':
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseSafety')
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseSafety')
-    elif args.multiple_scattering == 'normal':
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-    elif args.multiple_scattering == 'better':
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactor 0.01')
-        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.01')
-    elif args.multiple_scattering == 'insane':
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimit UseDistanceToBoundary')
-        geant4_cfg.add_pre_init_commands('/process/msc/StepLimitMuHad UseDistanceToBoundary')
-        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactor 0.001')
-        geant4_cfg.add_pre_init_commands('/process/msc/RangeFactorMuHad 0.001')
-    if args.primary == 'iron':
-        geant4_cfg.set_enable_ions(True)
-
+    bfield = site_env.bfield
     global generator
     global saved_geant4_cfg
-    saved_geant4_cfg = geant4_cfg
-    generator = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator(atm, geant4_cfg, bfield)
+    generator, saved_geant4_cfg = calin.simulation.iact_factory.create_geant4_generator(
+        atm, bfield=bfield, multiple_scattering=args.multiple_scattering,
+        primary=args.primary)
 
     # Particle type
     global particle_type
-    if args.primary == 'gamma':
-        particle_type = calin.simulation.tracker.ParticleType_GAMMA
-    elif args.primary == 'muon':
-        particle_type = calin.simulation.tracker.ParticleType_MUON
-    elif args.primary == 'electron':
-        particle_type = calin.simulation.tracker.ParticleType_ELECTRON
-    elif args.primary == 'proton':
-        particle_type = calin.simulation.tracker.ParticleType_PROTON
-    elif args.primary == 'helium':
-        particle_type = calin.simulation.tracker.ParticleType_HELIUM
-    elif args.primary == 'iron':
-        particle_type = calin.simulation.tracker.ParticleType_IRON
-    else:
-        raise ValueError(f'Unknown primary particle type: {args.primary}')
+    particle_type = calin.simulation.iact_factory.get_tracker_particle_type(args.primary)
 
     # The spectral transform depends on the per-pointing bmax and viewcone
     # polynomials, so it is computed inside setup_pointing() for each pointing.
@@ -420,53 +322,13 @@ def make_spectral_transform(bmax_polynomial, viewcone_polynomial):
         lx = numpy.log10(args.emin)
         return lambda r: lx
 
-def setup_mst(el_deg):
-    mst = mst_config(elevation = el_deg)
-    mst.mutable_prescribed_array_layout().mutable_scope_positions(0).set_x(0)
-    mst.mutable_prescribed_array_layout().mutable_scope_positions(0).set_y(0)
-    nscope = mst.prescribed_array_layout().scope_positions_size()
-
-    # Instantiate array
-    global array
-    array = calin.simulation.vs_optics.VSOArray()
-    array.generateFromArrayParameters(mst)
-    scope = array.telescope(0)
-    telescope_layout = scope.convert_to_telescope_layout()
-    nchan = telescope_layout.camera().channel_size()
-    return mst, nscope, nchan, 'MST/NC'
-
-def setup_dark100(el_deg):
-    dark100 = dark100_config(elevation = el_deg)
-    dark100.mutable_scope_positions(0).set_x(0)
-    dark100.mutable_scope_positions(0).set_y(0)
-    nscope = dark100.scope_positions_size()
-    nchan = dark100.num_pixels_per_axis() ** 2
-    return dark100, nscope, nchan, 'PANOSETI/Dark100'
-
-def setup_iact(iact, bmax_poly, array_params, nscope, nchan, detector_type_name):
+def setup_pointing(el_deg, az_deg):
+    global iact_cfg
     global all_pe_processor
     global all_prop
-    all_pe_processor = []
-    all_prop = []
-    for i in range(numpy.max([1, saved_args.reuse])):
-        iact.add_propagator_set(numpy.flipud(bmax_poly), f"Super array {i}")
-        pe_processor = calin.simulation.ray_processor.SimpleListPEProcessor(nscope, nchan)
-        if saved_args.site == 'dark100':
-            prop = iact.add_panoseti_propagator(
-                array_params, lens_refractive_index_spline, pe_processor, det_eff,
-                detector_type_name, pe_gen, saved_args.tts)
-        else:
-            prop = iact.add_davies_cotton_propagator(
-                array_params, pe_processor, det_eff, cone_eff, pe_gen, saved_args.tts, detector_type_name)
-        all_pe_processor.append(pe_processor)
-        all_prop.append(prop)
-
-def setup_pointing(el_deg, az_deg):
-    # Generate array parameters
-    if saved_args.site == 'dark100':
-        array_params, nscope, nchan, detector_type_name = setup_dark100(el_deg)
-    else:
-        array_params, nscope, nchan, detector_type_name = setup_mst(el_deg)
+    array_params, nscope, nchan, detector_type_name = \
+        calin.simulation.iact_factory.setup_telescope_array(
+            saved_args.site, el_deg=el_deg)
 
     # Build and return (iact, vc_dir, bmax_poly, viewcone_poly,
     # spectral_tf, sim_config) for the pointing (el_deg, az_deg).
@@ -477,44 +339,28 @@ def setup_pointing(el_deg, az_deg):
     viewcone_poly = make_viewcone_polynomial(zn_deg)
     spectral_tf   = make_spectral_transform(bmax_poly, viewcone_poly)
 
-    # Fresh IACT instance for this pointing
-    iact = iact_class(atm, atm_abs, iact_cfg)
+    # Build a fresh IACT instance for this pointing and attach its propagators.
+    iact, iact_cfg, _ = calin.simulation.iact_factory.create_iact_array(
+        atm, atm_abs, avx=saved_args.avx,
+        no_refraction=saved_args.no_refraction)
+    all_pe_processor, all_prop = calin.simulation.iact_factory.attach_iact_propagators(
+        iact, saved_args.site, array_params,
+        bmax_polynomial=numpy.flipud(bmax_poly) * 0.01,
+        reuse=saved_args.reuse, nscope=nscope, nchan=nchan,
+        det_eff=det_eff, cone_eff=cone_eff, pe_gen=pe_gen,
+        tts=saved_args.tts,
+        lens_spline=lens_refractive_index_spline,
+        detector_type_name=detector_type_name)
 
-    # Populate propagators and pe processors
-    setup_iact(iact, bmax_poly, array_params, nscope, nchan, detector_type_name)
-
-    # Pointing direction and viewcone axis
-    iact.point_all_telescopes_az_el_deg(az_deg, el_deg)
-    el = el_deg * numpy.pi / 180.0
-    az = az_deg * numpy.pi / 180.0
-    pt_dir = numpy.asarray([
-        numpy.cos(el) * numpy.sin(az),
-        numpy.cos(el) * numpy.cos(az),
-        numpy.sin(el)
-    ])
-    theta = saved_args.theta * numpy.pi / 180
-    phi   = saved_args.phi   * numpy.pi / 180
-    vc_dir = numpy.asarray([
-        numpy.sin(theta) * numpy.cos(phi),
-        numpy.sin(theta) * numpy.sin(phi),
-        numpy.cos(theta)
-    ])
-    vc_dir = calin.math.geometry.rotate_vec_z_to_u_Rzy(vc_dir, -pt_dir)
-
-    if not saved_args.no_viewcone_cut:
-        iact.set_viewcone_from_telescope_fields_of_view()
+    pt_dir, vc_dir = calin.simulation.iact_factory.set_iact_pointing(
+        iact, el_deg, az_deg, saved_args.theta, saved_args.phi,
+        apply_viewcone_cut=not saved_args.no_viewcone_cut)
 
     # Simulation configuration protobuf for this pointing
     sim_config = calin.ix.simulation.simulated_event.SimulationConfiguration()
-    particle_map = {
-        'gamma':    calin.ix.simulation.simulated_event.GAMMA,
-        'muon':     calin.ix.simulation.simulated_event.MUON,
-        'electron': calin.ix.simulation.simulated_event.ELECTRON,
-        'proton':   calin.ix.simulation.simulated_event.PROTON,
-        'helium':   calin.ix.simulation.simulated_event.HELIUM,
-        'iron':     calin.ix.simulation.simulated_event.IRON,
-    }
-    sim_config.set_particle_type(particle_map[saved_args.primary])
+    sim_config.set_particle_type(
+        calin.simulation.iact_factory.get_simulated_event_particle_type(
+            saved_args.primary))
     sim_config.set_energy_lo(saved_args.emin)
     if saved_args.emax > saved_args.emin:
         sim_config.set_energy_hi(saved_args.emax)

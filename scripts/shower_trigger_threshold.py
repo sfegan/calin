@@ -26,13 +26,8 @@ import datetime
 import platform
 import numpy
 import calin.math.geometry
-import calin.ix.simulation.vcl_iact
-import calin.simulation.tracker
 import calin.simulation.vs_cta
 import calin.simulation.ray_processor
-import calin.simulation.world_magnetic_model
-import calin.simulation.geant4_shower_generator
-import calin.simulation.vcl_iact
 import calin.simulation.iact_factory
 import calin.iact_data.instrument_layout
 import calin.iact_data.nectarcam_layout
@@ -51,7 +46,7 @@ parser.add_argument('-o', '--output', type=str, default='tt.pickle',
 parser.add_argument('--omit_untriggered', action='store_true',
                     help='Reduce file size by omitting untriggered events')
 
-parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas','dark100'],
+parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
                     help='Site to simulate (default: ctan)')
 parser.add_argument('-b', '--bmax', type=float, default=1000.0,
                    help='Specify the maximum shower impact parameter in meters')
@@ -87,7 +82,7 @@ parser.add_argument('--nsb', type=float, default=0.30,
                    help='Specify the NSB rate in GHz')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
 parser.add_argument('--no_after_pulsing', action='store_true', help='Disable after-pulsing in SPE spectrum (default: enabled)')
-parser.add_argument('-t', '--trigger', type=str, default='3nn', choices=['3nn','4nn','m3','m4','multiplicity'],
+parser.add_argument('-t', '--trigger', type=str, default='3nn', choices=['3nn','4nn','m2','m3','m4','multiplicity'],
                     help='Trigger algorithm to use (default: 3nn)')
 parser.add_argument('-m', '--multiplicity', type=int, default=3,
                     help='Channel multiplicity if "multiplicity" algorithm is selected')
@@ -172,18 +167,17 @@ def init():
     iact, _, _ = calin.simulation.iact_factory.create_iact_array(
         atm, atm_abs, avx=args.avx, no_refraction=args.no_refraction)
 
-    # Load impulse response (CTA only; PANOSETI uses its own optics)
+    # Load CTA impulse response for the waveform electronics simulation.
     global isample0
     global dtsample
     global nsample
-    if args.site in ('ctan', 'ctas'):
-        pulse = calin.simulation.vs_cta.mstn_impulse_response()
-        hg = pulse['hg']
-        dtsample = pulse['dt']
-        isample0 = len(hg)
-        nsample = 1 << (len(hg)-1).bit_length() + 1  # Next power of two greater than 2*len(hg)
+    pulse = calin.simulation.vs_cta.mstn_impulse_response()
+    hg = pulse['hg']
+    dtsample = pulse['dt']
+    isample0 = len(hg)
+    nsample = 1 << ((len(hg)-1).bit_length() + 1)  # Next power of two greater than 2*len(hg)
 
-    # Instantiate electronics simulation (for CTA; may extend later for PANOSETI)
+    # Instantiate CTA waveform electronics simulation.
     global electronics_sim
     electronics_sim = electronics_sim_class(1, nchan, nsample, dtsample, isample0)
 
@@ -204,14 +198,10 @@ def init():
         detector_type_name=detector_type_name,
         pe_processor_factory=make_waveform_pe_processor)
 
-    # Set telescope pointing direction
+    # Set telescope pointing direction and optional viewcone cut.
     global pt_dir
-    iact.point_all_telescopes_az_el_deg(args.az, args.el)
-    if args.enable_viewcone_cut:
-        iact.set_viewcone_from_telescope_fields_of_view()
-    el = args.el * numpy.pi/180.0
-    az = args.az * numpy.pi/180.0
-    pt_dir = numpy.asarray([numpy.cos(el)*numpy.sin(az), numpy.cos(el)*numpy.cos(az), numpy.sin(el)])
+    pt_dir, _ = calin.simulation.iact_factory.set_iact_pointing(
+        iact, args.el, args.az, apply_viewcone_cut=args.enable_viewcone_cut)
 
     # Configure and instantiate Geant4 shower generator
     global generator
@@ -235,6 +225,9 @@ def init():
     if args.trigger == 'multiplicity':
         trigger_method = 'trigger_multiplicity_cr'
         electronics_sim.set_cr_multiplicity(0, args.multiplicity)
+    elif args.trigger == 'm2':
+        trigger_method = 'trigger_multiplicity_cr'
+        electronics_sim.set_cr_multiplicity(0, 2)
     elif args.trigger == 'm3':
         trigger_method = 'trigger_multiplicity_cr'
         electronics_sim.set_cr_multiplicity(0, 3)
@@ -287,20 +280,7 @@ def gen_event():
     u = calin.math.geometry.rotate_vec_z_to_u_Rzy(u, -pt_dir)
 
     x0 = numpy.asarray([0,0,atm.zobs(0)]) + u/u[2]*(atm.top_of_atmosphere() - atm.zobs(0))
-    if args.primary == 'gamma':
-        pt = calin.simulation.tracker.ParticleType_GAMMA
-    elif args.primary == 'muon':
-        pt = calin.simulation.tracker.ParticleType_MUON
-    elif args.primary == 'electron':
-        pt = calin.simulation.tracker.ParticleType_ELECTRON
-    elif args.primary == 'proton':
-        pt = calin.simulation.tracker.ParticleType_PROTON
-    elif args.primary == 'helium':
-        pt = calin.simulation.tracker.ParticleType_HELIUM
-    elif args.primary == 'iron':
-        pt = calin.simulation.tracker.ParticleType_IRON
-    else:
-        raise ValueError(f'Unknown primary particle type: {args.primary}')
+    pt = calin.simulation.iact_factory.get_tracker_particle_type(args.primary)
 
     generator.generate_showers(iact, 1, pt, e, x0, u)
 
