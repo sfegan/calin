@@ -1,1 +1,1 @@
-__all__ = [ ${CALIN_PY_INIT_SWIG_LIST}, "vs_cta", "vs_plotting", "vs_panoseti" ]
+__all__ = [ ${CALIN_PY_INIT_SWIG_LIST}, "vs_cta", "vs_plotting", "vs_panoseti", "iact_factory" ]
