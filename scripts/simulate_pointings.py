@@ -31,6 +31,7 @@ import calin.math.healpix_array
 import calin.ix.simulation.vcl_iact
 import calin.simulation.tracker
 import calin.simulation.vs_cta
+import calin.simulation.vs_panoseti
 import calin.simulation.vs_optics
 import calin.simulation.ray_processor
 import calin.simulation.world_magnetic_model
@@ -247,17 +248,41 @@ def init(args):
     global atm
     global atm_abs
     global mst_config
-    if args.site == 'ctan':
+    global dark100_config
+    global det_eff
+    global cone_eff
+    global pe_gen
+    global store_pe_weights
+    global lens_refractive_index_spline
+
+    if args.site == 'dark100':
+        zobs = calin.simulation.vs_panoseti.palomar_observation_level()
+        atm = calin.simulation.vs_panoseti.palomar_atmosphere(quiet=True)
+        atm_abs = calin.simulation.vs_panoseti.palomar_atmospheric_absorption(quiet=True)
+        dark100_datapack = calin.simulation.vs_panoseti.read_optical_model_datapack()
+        dark100_config = calin.simulation.vs_panoseti.dark100_palomar_config
+        det_eff = calin.simulation.vs_panoseti.detection_efficiency_from_datapack(dark100_datapack, quiet=True)
+        cone_eff = None
+        lens_refractive_index_spline = calin.simulation.vs_panoseti.lens_refractive_index_spline_from_datapack(dark100_datapack)
+        dummy_array_origin = dark100_config(elevation=0).array_origin()
+    elif args.site == 'ctan':
         zobs = calin.simulation.vs_cta.ctan_observation_level()
         atm = calin.simulation.vs_cta.ctan_atmosphere(quiet=True)
         atm_abs = calin.simulation.vs_cta.ctan_atmospheric_absorption(quiet=True)
         mst_config = calin.simulation.vs_cta.mstn1_config
+        det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=True)
+        cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=True)
+        lens_refractive_index_spline = None
+        dummy_array_origin = mst_config(elevation=0).array_origin()
     else:
         zobs = calin.simulation.vs_cta.ctas_observation_level()
         atm = calin.simulation.vs_cta.ctas_atmosphere(quiet=True)
         atm_abs = calin.simulation.vs_cta.ctas_atmospheric_absorption(quiet=True)
         mst_config = calin.simulation.vs_cta.msts1_config
-    mst = mst_config(elevation=0)  # dummy config to get array origin for bfield
+        det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=True)
+        cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=True)
+        lens_refractive_index_spline = None
+        dummy_array_origin = mst_config(elevation=0).array_origin()
 
     # IACT config object (reused for every pointing, only instantiation deferred)
     global iact_cfg
@@ -267,17 +292,12 @@ def init(args):
     else:
         iact_cfg.set_refraction_mode(calin.ix.simulation.vcl_iact.REFRACT_ONLY_CLOSE_RAYS)
 
-    # Load detector and efficiency models and the SPE generator
-    global det_eff
-    global cone_eff
-    global pe_gen
-    global store_pe_weights
-    det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=True)
-    cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=True)
+    # Load SPE generator
     pe_gen = None
     store_pe_weights = False
     if args.enable_pe_spectrum:
-        pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+        if args.site != 'dark100':
+            pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
         store_pe_weights = True
 
     global store_times_as_integer
@@ -293,7 +313,7 @@ def init(args):
         bfield = None
     else:
         wmm = calin.simulation.world_magnetic_model.WMM()
-        bfield = wmm.field_vs_elevation(mst.array_origin().latitude(), mst.array_origin().longitude())
+        bfield = wmm.field_vs_elevation(dummy_array_origin.latitude(), dummy_array_origin.longitude())
 
     # Configure Geant4 shower generator
     geant4_cfg = calin.simulation.geant4_shower_generator.Geant4ShowerGenerator.customized_config(
@@ -400,8 +420,7 @@ def make_spectral_transform(bmax_polynomial, viewcone_polynomial):
         lx = numpy.log10(args.emin)
         return lambda r: lx
 
-def setup_pointing(el_deg, az_deg):
-    # Generate array parameters
+def setup_mst(el_deg):
     mst = mst_config(elevation = el_deg)
     mst.mutable_prescribed_array_layout().mutable_scope_positions(0).set_x(0)
     mst.mutable_prescribed_array_layout().mutable_scope_positions(0).set_y(0)
@@ -414,11 +433,44 @@ def setup_pointing(el_deg, az_deg):
     scope = array.telescope(0)
     telescope_layout = scope.convert_to_telescope_layout()
     nchan = telescope_layout.camera().channel_size()
+    return mst, nscope, nchan, 'MST/NC'
+
+def setup_dark100(el_deg):
+    dark100 = dark100_config(elevation = el_deg)
+    dark100.mutable_scope_positions(0).set_x(0)
+    dark100.mutable_scope_positions(0).set_y(0)
+    nscope = dark100.scope_positions_size()
+    nchan = dark100.num_pixels_per_axis() ** 2
+    return dark100, nscope, nchan, 'PANOSETI/Dark100'
+
+def setup_iact(iact, bmax_poly, array_params, nscope, nchan, detector_type_name):
+    global all_pe_processor
+    global all_prop
+    all_pe_processor = []
+    all_prop = []
+    for i in range(numpy.max([1, saved_args.reuse])):
+        iact.add_propagator_set(numpy.flipud(bmax_poly), f"Super array {i}")
+        pe_processor = calin.simulation.ray_processor.SimpleListPEProcessor(nscope, nchan)
+        if saved_args.site == 'dark100':
+            prop = iact.add_panoseti_propagator(
+                array_params, lens_refractive_index_spline, pe_processor, det_eff,
+                detector_type_name, pe_gen, saved_args.tts)
+        else:
+            prop = iact.add_davies_cotton_propagator(
+                array_params, pe_processor, det_eff, cone_eff, pe_gen, saved_args.tts, detector_type_name)
+        all_pe_processor.append(pe_processor)
+        all_prop.append(prop)
+
+def setup_pointing(el_deg, az_deg):
+    # Generate array parameters
+    if saved_args.site == 'dark100':
+        array_params, nscope, nchan, detector_type_name = setup_dark100(el_deg)
+    else:
+        array_params, nscope, nchan, detector_type_name = setup_mst(el_deg)
 
     # Build and return (iact, vc_dir, bmax_poly, viewcone_poly,
     # spectral_tf, sim_config) for the pointing (el_deg, az_deg).
     zn_deg = 90.0 - el_deg
-    detector_type_name = 'MST/NC'
 
     # Resolve polynomials for this zenith angle
     bmax_poly     = make_bmax_polynomial(zn_deg)
@@ -428,18 +480,8 @@ def setup_pointing(el_deg, az_deg):
     # Fresh IACT instance for this pointing
     iact = iact_class(atm, atm_abs, iact_cfg)
 
-    global all_pe_processor
-    global all_prop
-    all_pe_processor = []
-    all_prop = []
-    for i in range(numpy.max([1, saved_args.reuse])):
-        iact.add_propagator_set(numpy.flipud(bmax_poly), f"Super array {i}")
-        pe_processor = calin.simulation.ray_processor.SimpleListPEProcessor(nscope, nchan)
-        prop = iact.add_davies_cotton_propagator(
-            mst, pe_processor, det_eff, cone_eff, pe_gen, saved_args.tts, detector_type_name)
-        all_pe_processor.append(pe_processor)
-        all_prop.append(prop)
-
+    # Populate propagators and pe processors
+    setup_iact(iact, bmax_poly, array_params, nscope, nchan, detector_type_name)
 
     # Pointing direction and viewcone axis
     iact.point_all_telescopes_az_el_deg(az_deg, el_deg)
@@ -545,15 +587,17 @@ def setup_pointing(el_deg, az_deg):
     detector_type_config.set_detector_efficiency_banner(det_eff.banner())
     detector_type_config.set_detector_efficiency_energy(numpy.asarray(det_eff.all_xi()))
     detector_type_config.set_detector_efficiency_efficiency(numpy.asarray(det_eff.all_yi()))
-    detector_type_config.set_angular_response_banner(cone_eff.banner())
-    detector_type_config.set_angular_response_costheta(numpy.asarray(det_eff.all_xi()))
-    detector_type_config.set_angular_response_efficiency(numpy.asarray(det_eff.all_yi()))
+    if cone_eff:
+        detector_type_config.set_angular_response_banner(cone_eff.banner())
+        detector_type_config.set_angular_response_costheta(numpy.asarray(cone_eff.all_xi()))
+        detector_type_config.set_angular_response_efficiency(numpy.asarray(cone_eff.all_yi()))
     if pe_gen:
         detector_type_config.set_pe_spectrum_banner(pe_gen.banner())
         detector_type_config.set_pe_spectrum_banner_q(pe_gen.raw_q())
         detector_type_config.set_pe_spectrum_banner_dp_dq(pe_gen.raw_dp_dq())
     detector_type_config.set_pe_time_spread(saved_args.tts)
-    detector_type_config.mutable_dc_array_parameters().CopyFrom(mst)
+    if saved_args.site != 'dark100':
+        detector_type_config.mutable_dc_array_parameters().CopyFrom(array_params)
 
     args_dict = vars(saved_args)
     for arg in args_dict:
@@ -778,8 +822,8 @@ if __name__ == '__main__':
         help='Number of shower events per output file (default: 1000)')
 
     # --- Site ---
-    parser.add_argument('--site', type=str, default='ctan', choices=['ctan', 'ctas'],
-        help='Site to simulate (default: ctan)')
+    parser.add_argument('--site', type=str, default='ctan', choices=['ctan', 'ctas', 'dark100'],
+        help='Site / instrument to simulate: ctan, ctas, or dark100 (default: ctan)')
 
     # --- Shower reuse ---
     parser.add_argument('--reuse', type=int, default=10,
