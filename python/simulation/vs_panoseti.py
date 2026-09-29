@@ -248,13 +248,13 @@ def dark100_palomar_config(elevation = 60, datapack = None):
         [ -130.43E2,  190.40E2, 34.66E2 ],  # Fern
         [  177.58E2, -333.33E2, 42.82E2 ],  # Gattini
         [ -402.48E2,  133.47E2, 45.23E2 ],  # Tower
-        [  132.97E23,  -9.01E2, 37.22E2 ],  # Antler
+        [  132.97E2,   -9.01E2, 37.22E2 ],  # Antler
         [    0.10E2,  -97.18E2, 46.35E2 ]   # Vent
     ]
 
     scope_x = [p[0] for p in scope_pos]
     scope_y = [p[1] for p in scope_pos]
-    scope_z = [p[2] +  for p in scope_pos]
+    scope_z = [p[2] for p in scope_pos]
     return array_parameters_from_datapack(
         datapack = datapack, elevation = elevation,
         scope_x = scope_x, scope_y = scope_y, scope_z = scope_z)
