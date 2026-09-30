@@ -27,6 +27,7 @@ import platform
 import numpy
 import calin.math.geometry
 import calin.simulation.vs_cta
+import calin.simulation.vs_panoseti
 import calin.simulation.ray_processor
 import calin.simulation.iact_factory
 import calin.iact_data.instrument_layout
@@ -46,7 +47,7 @@ parser.add_argument('-o', '--output', type=str, default='tt.pickle',
 parser.add_argument('--omit_untriggered', action='store_true',
                     help='Reduce file size by omitting untriggered events')
 
-parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas'],
+parser.add_argument('--site', type=str, default='ctan', choices=['ctan','ctas','dark100'],
                     help='Site to simulate (default: ctan)')
 parser.add_argument('-b', '--bmax', type=float, default=1000.0,
                    help='Specify the maximum shower impact parameter in meters')
@@ -145,7 +146,7 @@ def init():
     pe_gen   = site_env.pe_gen
 
     # Set up telescope array (site-specific; PANOSETI keeps real positions)
-    array_params, nscope_factory, nchan_from_array, detector_type_name = \
+    array_params, _, nchan_from_array, detector_type_name = \
         calin.simulation.iact_factory.setup_telescope_array(args.site, el_deg=args.el)
 
     # For CTA: load NectarCam layout for electronics sim; for PANOSETI use nchan from array
@@ -160,7 +161,8 @@ def init():
     else:
         scam = None
         nchan = nchan_from_array
-        nscope = nscope_factory
+        # The threshold search is for one telescope camera at a time.
+        nscope = 1
 
     # Configure IACT array
     global iact
@@ -171,7 +173,10 @@ def init():
     global isample0
     global dtsample
     global nsample
-    pulse = calin.simulation.vs_cta.mstn_impulse_response()
+    if args.site == 'dark100':
+        pulse = calin.simulation.vs_panoseti.dark100_impulse_response()
+    else:
+        pulse = calin.simulation.vs_cta.mstn_impulse_response()
     hg = pulse['hg']
     dtsample = pulse['dt']
     isample0 = len(hg)
@@ -209,16 +214,31 @@ def init():
         atm, bfield=bfield, multiple_scattering=args.multiple_scattering, primary=args.primary)
     generator.set_minimum_energy_cut(20)  # 20 MeV cut on KE (e-,p+,n,ions) or Etot
 
-    # Complete electronics sim setup (CTA only)
+    # Complete electronics simulation setup.
+    electronics_sim.register_impulse_response(hg, 'DC')
+    electronics_sim.add_camera_response(numpy.asarray([0]), True)
     if args.site in ('ctan', 'ctas'):
-        # Register impulse response
-        electronics_sim.register_impulse_response(hg, 'DC')
-
-        # Register camera response
-        electronics_sim.add_camera_response(numpy.asarray([0]), True)
-
-        # Configure the neighbors matrix
         electronics_sim.set_cr_neighbors(0, scam)
+    elif args.trigger in ('3nn', '4nn'):
+        # Dark100 pixels form a square grid; use four-connected neighbors.
+        npixel_axis = int(round(numpy.sqrt(nchan)))
+        if npixel_axis * npixel_axis != nchan:
+            raise ValueError('Dark100 camera channel count is not a square grid')
+        neighbors = numpy.full((4, nchan), -1, dtype=numpy.int32)
+        for iy in range(npixel_axis):
+            for ix in range(npixel_axis):
+                ichan = iy * npixel_axis + ix
+                adjacent = []
+                if ix > 0:
+                    adjacent.append(ichan - 1)
+                if ix + 1 < npixel_axis:
+                    adjacent.append(ichan + 1)
+                if iy > 0:
+                    adjacent.append(ichan - npixel_axis)
+                if iy + 1 < npixel_axis:
+                    adjacent.append(ichan + npixel_axis)
+                neighbors[:len(adjacent), ichan] = adjacent
+        electronics_sim.set_cr_neighbors(0, neighbors)
 
     # Select trigger algorithm
     global trigger_method
