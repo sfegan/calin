@@ -71,22 +71,8 @@ def init(args):
         args.site, enable_pe_spectrum=args.enable_pe_spectrum,
         no_bfield=args.no_bfield, quiet=True)
 
-    global zobs
-    global atm
-    global atm_abs
-    global bfield
-    global det_eff
-    global cone_eff
-    global pe_gen
     global store_pe_weights
-    zobs    = site_env.zobs
-    atm     = site_env.atm
-    atm_abs = site_env.atm_abs
-    bfield  = site_env.bfield
-    det_eff = site_env.det_eff
-    cone_eff = site_env.cone_eff
-    pe_gen   = site_env.pe_gen
-    store_pe_weights = (pe_gen is not None)
+    store_pe_weights = (site_env.pe_gen is not None)
 
     global store_times_as_integer
     store_times_as_integer = args.store_times_as_integer
@@ -107,7 +93,8 @@ def init(args):
     global iact
     global iact_cfg
     iact, iact_cfg, _ = calin.simulation.iact_factory.create_iact_array(
-        atm, atm_abs, avx=args.avx, no_refraction=args.no_refraction)
+        site_env.atm, site_env.atm_abs, avx=args.avx,
+        no_refraction=args.no_refraction)
 
     # bmax polynomial in internal units (cm)
     global bmax_polynomial
@@ -124,7 +111,8 @@ def init(args):
         iact, args.site, array_params,
         bmax_polynomial=args.bmax_polynomial,
         reuse=args.reuse, nscope=nscope, nchan=nchan,
-        det_eff=det_eff, cone_eff=cone_eff, pe_gen=pe_gen,
+        det_eff=site_env.det_eff, cone_eff=site_env.cone_eff,
+        pe_gen=site_env.pe_gen,
         tts=args.tts,
         lens_spline=site_env.lens_refractive_index_spline,
         detector_type_name=detector_type_name)
@@ -145,7 +133,8 @@ def init(args):
     global generator
     global geant4_cfg
     generator, geant4_cfg = calin.simulation.iact_factory.create_geant4_generator(
-        atm, bfield=bfield, multiple_scattering=args.multiple_scattering, primary=args.primary)
+        site_env.atm, bfield=site_env.bfield,
+        multiple_scattering=args.multiple_scattering, primary=args.primary)
 
     # Particle type enums
     global particle_type
@@ -200,26 +189,26 @@ def init(args):
     sim_config.set_viewcone_halfangle_polynomial(numpy.flipud(viewcone_polynomial) * 180.0/numpy.pi)
     sim_config.set_scattering_radius_polynomial(numpy.flipud(bmax_polynomial)*0.01)
     sim_config.set_banner(get_banner())
-    atm_abs_zmin = numpy.min(atm_abs.levels_cm())
-    atm_abs_zmax = numpy.max(atm_abs.levels_cm())
-    for level in atm.get_levels():
+    atm_abs_zmin = numpy.min(site_env.atm_abs.levels_cm())
+    atm_abs_zmax = numpy.max(site_env.atm_abs.levels_cm())
+    for level in site_env.atm.get_levels():
         proto_level = sim_config.add_atmospheric_level()
         proto_level.set_altitude(level.z)
         proto_level.set_thickness(level.t)
         proto_level.set_density(level.rho)
         proto_level.set_n_minus_one(level.nmo)
-        if bfield is not None:
-            b = bfield.field_nT(level.z)
+        if site_env.bfield is not None:
+            b = site_env.bfield.field_nT(level.z)
             proto_level.mutable_bfield().set_x(b[0])
             proto_level.mutable_bfield().set_y(b[1])
             proto_level.mutable_bfield().set_z(b[2])
         if atm_abs_zmin < level.z < atm_abs_zmax:
-            proto_level.set_optical_depth_1d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
-            proto_level.set_optical_depth_2d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
-            proto_level.set_optical_depth_2d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
-            proto_level.set_optical_depth_3d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
-            proto_level.set_optical_depth_3d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
-            proto_level.set_optical_depth_4d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
+            proto_level.set_optical_depth_1d5ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
+            proto_level.set_optical_depth_2d0ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
+            proto_level.set_optical_depth_2d5ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
+            proto_level.set_optical_depth_3d0ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
+            proto_level.set_optical_depth_3d5ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
+            proto_level.set_optical_depth_4d0ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
     sim_config.mutable_geant4_shower_generator_config().CopyFrom(geant4_cfg)
     sim_config.mutable_iact_array_config().CopyFrom(iact_cfg)
     for ipropagatorset in range(iact.num_propagator_sets()):
@@ -243,17 +232,17 @@ def init(args):
 
     detector_type_config = sim_config.mutable_detector_type_config(detector_type_name)
     detector_type_config.set_type_name(detector_type_name)
-    detector_type_config.set_detector_efficiency_banner(det_eff.banner())
-    detector_type_config.set_detector_efficiency_energy(numpy.asarray(det_eff.all_xi()))
-    detector_type_config.set_detector_efficiency_efficiency(numpy.asarray(det_eff.all_yi()))
-    if cone_eff is not None:
-        detector_type_config.set_angular_response_banner(cone_eff.banner())
-        detector_type_config.set_angular_response_costheta(numpy.asarray(cone_eff.all_xi()))
-        detector_type_config.set_angular_response_efficiency(numpy.asarray(cone_eff.all_yi()))
-    if pe_gen:
-        detector_type_config.set_pe_spectrum_banner(pe_gen.banner())
-        detector_type_config.set_pe_spectrum_banner_q(pe_gen.raw_q())
-        detector_type_config.set_pe_spectrum_banner_dp_dq(pe_gen.raw_dp_dq())
+    detector_type_config.set_detector_efficiency_banner(site_env.det_eff.banner())
+    detector_type_config.set_detector_efficiency_energy(numpy.asarray(site_env.det_eff.all_xi()))
+    detector_type_config.set_detector_efficiency_efficiency(numpy.asarray(site_env.det_eff.all_yi()))
+    if site_env.cone_eff is not None:
+        detector_type_config.set_angular_response_banner(site_env.cone_eff.banner())
+        detector_type_config.set_angular_response_costheta(numpy.asarray(site_env.cone_eff.all_xi()))
+        detector_type_config.set_angular_response_efficiency(numpy.asarray(site_env.cone_eff.all_yi()))
+    if site_env.pe_gen:
+        detector_type_config.set_pe_spectrum_banner(site_env.pe_gen.banner())
+        detector_type_config.set_pe_spectrum_banner_q(site_env.pe_gen.raw_q())
+        detector_type_config.set_pe_spectrum_banner_dp_dq(site_env.pe_gen.raw_dp_dq())
     detector_type_config.set_pe_time_spread(args.tts)
     if mst is not None:
         detector_type_config.mutable_dc_array_parameters().CopyFrom(mst)
@@ -276,8 +265,8 @@ def gen_event(args):
     u = numpy.asarray([numpy.sin(theta)*numpy.cos(phi), numpy.sin(theta)*numpy.sin(phi), numpy.cos(theta)])
     u = calin.math.geometry.rotate_vec_z_to_u_Rzy(u, vc_dir)
 
-    ct0 = 1.0/u[2]*(atm.top_of_atmosphere() - atm.zobs(0))
-    x0 = numpy.asarray([0,0,atm.zobs(0)]) + ct0*u
+    ct0 = 1.0/u[2]*(site_env.atm.top_of_atmosphere() - site_env.atm.zobs(0))
+    x0 = numpy.asarray([0,0,site_env.atm.zobs(0)]) + ct0*u
 
     generator.generate_showers(iact, 1, particle_type, e, x0, u, ct0)
 

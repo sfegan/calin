@@ -225,26 +225,12 @@ def init(args):
     instance_event_id = 0
 
     # Load site environment and detector response models once per worker.
-    global zobs
-    global atm
-    global atm_abs
     global site_env
-    global det_eff
-    global cone_eff
-    global pe_gen
     global store_pe_weights
-    global lens_refractive_index_spline
     site_env = calin.simulation.iact_factory.load_site_environment(
         args.site, enable_pe_spectrum=args.enable_pe_spectrum,
         no_bfield=args.no_bfield, quiet=True)
-    zobs = site_env.zobs
-    atm = site_env.atm
-    atm_abs = site_env.atm_abs
-    det_eff = site_env.det_eff
-    cone_eff = site_env.cone_eff
-    pe_gen = site_env.pe_gen
-    lens_refractive_index_spline = site_env.lens_refractive_index_spline
-    store_pe_weights = pe_gen is not None
+    store_pe_weights = site_env.pe_gen is not None
 
     global store_times_as_integer
     store_times_as_integer = args.store_times_as_integer
@@ -253,12 +239,12 @@ def init(args):
     # nothing to compute here.
 
     # The site environment also resolves the magnetic field at the array origin.
-    global bfield
-    bfield = site_env.bfield
+    # Keep site_env alive for the C++ generator and propagators that use its models.
     global generator
     global saved_geant4_cfg
     generator, saved_geant4_cfg = calin.simulation.iact_factory.create_geant4_generator(
-        atm, bfield=bfield, multiple_scattering=args.multiple_scattering,
+        site_env.atm, bfield=site_env.bfield,
+        multiple_scattering=args.multiple_scattering,
         primary=args.primary)
 
     # Particle type
@@ -341,15 +327,16 @@ def setup_pointing(el_deg, az_deg):
 
     # Build a fresh IACT instance for this pointing and attach its propagators.
     iact, iact_cfg, _ = calin.simulation.iact_factory.create_iact_array(
-        atm, atm_abs, avx=saved_args.avx,
+        site_env.atm, site_env.atm_abs, avx=saved_args.avx,
         no_refraction=saved_args.no_refraction)
     all_pe_processor, all_prop = calin.simulation.iact_factory.attach_iact_propagators(
         iact, saved_args.site, array_params,
         bmax_polynomial=numpy.flipud(bmax_poly) * 0.01,
         reuse=saved_args.reuse, nscope=nscope, nchan=nchan,
-        det_eff=det_eff, cone_eff=cone_eff, pe_gen=pe_gen,
+        det_eff=site_env.det_eff, cone_eff=site_env.cone_eff,
+        pe_gen=site_env.pe_gen,
         tts=saved_args.tts,
-        lens_spline=lens_refractive_index_spline,
+        lens_spline=site_env.lens_refractive_index_spline,
         detector_type_name=detector_type_name)
 
     pt_dir, vc_dir = calin.simulation.iact_factory.set_iact_pointing(
@@ -383,26 +370,26 @@ def setup_pointing(el_deg, az_deg):
                                      viewcone_poly=viewcone_poly,
                                      spectral_tf=spectral_tf))
 
-    atm_abs_zmin = numpy.min(atm_abs.levels_cm())
-    atm_abs_zmax = numpy.max(atm_abs.levels_cm())
-    for level in atm.get_levels():
+    atm_abs_zmin = numpy.min(site_env.atm_abs.levels_cm())
+    atm_abs_zmax = numpy.max(site_env.atm_abs.levels_cm())
+    for level in site_env.atm.get_levels():
         proto_level = sim_config.add_atmospheric_level()
         proto_level.set_altitude(level.z)
         proto_level.set_thickness(level.t)
         proto_level.set_density(level.rho)
         proto_level.set_n_minus_one(level.nmo)
-        if bfield is not None:
-            b = bfield.field_nT(level.z)
+        if site_env.bfield is not None:
+            b = site_env.bfield.field_nT(level.z)
             proto_level.mutable_bfield().set_x(b[0])
             proto_level.mutable_bfield().set_y(b[1])
             proto_level.mutable_bfield().set_z(b[2])
         if atm_abs_zmin < level.z < atm_abs_zmax:
-            proto_level.set_optical_depth_1d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
-            proto_level.set_optical_depth_2d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
-            proto_level.set_optical_depth_2d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
-            proto_level.set_optical_depth_3d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
-            proto_level.set_optical_depth_3d5ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
-            proto_level.set_optical_depth_4d0ev(atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
+            proto_level.set_optical_depth_1d5ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 1.5))
+            proto_level.set_optical_depth_2d0ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.0))
+            proto_level.set_optical_depth_2d5ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 2.5))
+            proto_level.set_optical_depth_3d0ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.0))
+            proto_level.set_optical_depth_3d5ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 3.5))
+            proto_level.set_optical_depth_4d0ev(site_env.atm_abs.optical_depth_for_altitude_and_energy(level.z, 4.0))
 
     sim_config.mutable_geant4_shower_generator_config().CopyFrom(saved_geant4_cfg)
     sim_config.mutable_iact_array_config().CopyFrom(iact_cfg)
@@ -430,17 +417,17 @@ def setup_pointing(el_deg, az_deg):
 
     detector_type_config = sim_config.mutable_detector_type_config(detector_type_name)
     detector_type_config.set_type_name(detector_type_name)
-    detector_type_config.set_detector_efficiency_banner(det_eff.banner())
-    detector_type_config.set_detector_efficiency_energy(numpy.asarray(det_eff.all_xi()))
-    detector_type_config.set_detector_efficiency_efficiency(numpy.asarray(det_eff.all_yi()))
-    if cone_eff:
-        detector_type_config.set_angular_response_banner(cone_eff.banner())
-        detector_type_config.set_angular_response_costheta(numpy.asarray(cone_eff.all_xi()))
-        detector_type_config.set_angular_response_efficiency(numpy.asarray(cone_eff.all_yi()))
-    if pe_gen:
-        detector_type_config.set_pe_spectrum_banner(pe_gen.banner())
-        detector_type_config.set_pe_spectrum_banner_q(pe_gen.raw_q())
-        detector_type_config.set_pe_spectrum_banner_dp_dq(pe_gen.raw_dp_dq())
+    detector_type_config.set_detector_efficiency_banner(site_env.det_eff.banner())
+    detector_type_config.set_detector_efficiency_energy(numpy.asarray(site_env.det_eff.all_xi()))
+    detector_type_config.set_detector_efficiency_efficiency(numpy.asarray(site_env.det_eff.all_yi()))
+    if site_env.cone_eff:
+        detector_type_config.set_angular_response_banner(site_env.cone_eff.banner())
+        detector_type_config.set_angular_response_costheta(numpy.asarray(site_env.cone_eff.all_xi()))
+        detector_type_config.set_angular_response_efficiency(numpy.asarray(site_env.cone_eff.all_yi()))
+    if site_env.pe_gen:
+        detector_type_config.set_pe_spectrum_banner(site_env.pe_gen.banner())
+        detector_type_config.set_pe_spectrum_banner_q(site_env.pe_gen.raw_q())
+        detector_type_config.set_pe_spectrum_banner_dp_dq(site_env.pe_gen.raw_dp_dq())
     detector_type_config.set_pe_time_spread(saved_args.tts)
     if saved_args.site != 'dark100':
         detector_type_config.mutable_dc_array_parameters().CopyFrom(array_params)
@@ -471,8 +458,8 @@ def gen_event(iact, vc_dir, viewcone_polynomial, spectral_transform):
     ])
     u = calin.math.geometry.rotate_vec_z_to_u_Rzy(u, vc_dir)
 
-    ct0 = 1.0 / u[2] * (atm.top_of_atmosphere() - atm.zobs(0))
-    x0  = numpy.asarray([0, 0, atm.zobs(0)]) + ct0 * u
+    ct0 = 1.0 / u[2] * (site_env.atm.top_of_atmosphere() - site_env.atm.zobs(0))
+    x0  = numpy.asarray([0, 0, site_env.atm.zobs(0)]) + ct0 * u
 
     generator.generate_showers(iact, 1, particle_type, e, x0, u, ct0)
 

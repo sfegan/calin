@@ -183,15 +183,14 @@ def lens_refractive_index_spline_from_datapack(datapack = None):
 
     return calin.math.spline_interpolation.CubicSpline(ev_sorted, n_sorted)
 
-def dark100_impulse_response(pulse_file = 'Pulse_template_dark100.dat',
-                            pulse_length_ns = 60.0, pulse_decay_ns = 3.5,
-                            sample_period_ns = 1.0):
-    """Return the Dark100 waveform impulse response as ``hg``, ``lg`` and ``dt``.
+def do_load_dark100_impulse_response(pulse_file, pulse_length_ns = 60.0,
+                                     pulse_decay_ns = 3.5,
+                                     sample_period_ns = 1.0):
+    """Load a Dark100 shaper response as ``hg``, ``lg`` and ``dt``.
 
     Until the digitized response file is installed, return an all-zero response.
-    Add ``Pulse_template_dark100.dat`` to the simulation data directory to load
-    the digitized curve. The file format is columns ``time_ns, hg`` or
-    ``time_ns, hg, lg``; a two-column curve is used for both gains.
+    The file format is columns ``time_ns, hg`` or ``time_ns, hg, lg``; a
+    two-column curve is used for both gains.
     """
     resolved_file = ds_filename(pulse_file)
     if not os.path.exists(resolved_file):
@@ -202,7 +201,7 @@ def dark100_impulse_response(pulse_file = 'Pulse_template_dark100.dat',
     with open(resolved_file, 'r') as pulse_stream:
         file_record = calin.provenance.chronicle.register_file_open(
             resolved_file, calin.ix.provenance.chronicle.AT_READ,
-            'calin.simulation.vs_panoseti.dark100_impulse_response')
+            'calin.simulation.vs_panoseti.do_load_dark100_impulse_response')
         comments = ''.join(line for line in pulse_stream if line.startswith('#'))
         file_record.set_comment(comments)
         calin.provenance.chronicle.register_file_close(file_record)
@@ -229,6 +228,20 @@ def dark100_impulse_response(pulse_file = 'Pulse_template_dark100.dat',
     return dict(hg=pad_gain(1),
                 lg=pad_gain(2) if pulse.shape[1] == 3 else pad_gain(1),
                 dt=dt)
+
+def dark100_fast_impulse_response(
+        pulse_file = 'Pulse_template_dark100_fast.dat', **args):
+    """Return the Dark100 MAROC3 fast shaper response."""
+    return do_load_dark100_impulse_response(pulse_file, **args)
+
+def dark100_slow_impulse_response(
+        pulse_file = 'Pulse_template_dark100_slow.dat', **args):
+    """Return the Dark100 MAROC3 slow shaper response."""
+    return do_load_dark100_impulse_response(pulse_file, **args)
+
+def dark100_impulse_response(pulse_file = 'Pulse_template_dark100_fast.dat', **args):
+    """Compatibility alias for the Dark100 fast shaper response."""
+    return do_load_dark100_impulse_response(pulse_file, **args)
 
 def array_parameters_from_datapack(datapack = None, elevation = 60,
                                    scope_x = 0, scope_y = 0, scope_z = 0,
