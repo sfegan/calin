@@ -159,7 +159,7 @@ def init():
     global dtsample
     global nsample
     if args.site == 'dark100':
-        pulse = calin.simulation.vs_panoseti.dark100_fast_impulse_response()
+        pulse = calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
     else:
         pulse = calin.simulation.vs_cta.mstn_impulse_response()
     hg = pulse['hg']

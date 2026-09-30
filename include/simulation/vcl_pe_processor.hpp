@@ -1234,13 +1234,12 @@ public:
   int trigger_panoseti_multiplicity(const vecX_t& threshold, unsigned multiplicity,
       unsigned coincidence_window, unsigned first_sample_of_interest=0)
   {
-    // Multiplicity trigger divided into 4 quabos, each with 16x16 channels. 
-    // Triggering of each quabo is handled independently. The camera trigger 
-    // is satisfied if any quabo has "multiplicity" channels with exceeding the
-    // "threshold" within "coincidence_window" samples of each other. The 
-    // trigger returns the first sample at which the trigger condition is 
-    // satisfied.
+    // Multiplicity trigger algorithm with triggering of the four 16x16
+    // channel quabos handled independently. Camera-level trigger is
+    // satisfied when any quabo triggers.
 
+    // Algorithm assumes all values in SIMD vector belong to same Quabo.
+    // This is always true in current Intel SIMD vectors
     static_assert(16 % VCLReal::num_real == 0,
       "SIMD lane count must divide the 16-channel PANOSETI module width");
 
