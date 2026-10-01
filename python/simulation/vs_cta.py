@@ -301,7 +301,7 @@ def mstn_spe_and_afterpulsing_amplitude_generator(spe = "spe_nectarcam_lmp_run15
         args['rescale_gain_to_unity'] = False
     return mstn_spe_amplitude_generator(spe = spe, spline_ninterval = spline_ninterval, **args)
 
-def vcl_mstn_spe_amplitude_generator(avx = 512, **args):
+def vcl_mstn_spe_amplitude_generator(avx = 512, afterpulsing = False, **args):
     """Return an architecture-specific SIMD wrapper for the MST PE spectrum."""
     generator_classes = {
         128: calin.simulation.detector_efficiency.VCLSplinePEAmplitudeGenerator128,
@@ -310,7 +310,10 @@ def vcl_mstn_spe_amplitude_generator(avx = 512, **args):
     }
     if avx not in generator_classes:
         raise ValueError(f'Unsupported VCL architecture width: {avx}')
-    spline_generator = mstn_spe_amplitude_generator(**args)
+    if afterpulsing:
+        spline_generator = mstn_spe_and_afterpulsing_amplitude_generator(**args)
+    else:
+        spline_generator = mstn_spe_amplitude_generator(**args)
     vcl_generator = generator_classes[avx](spline_generator, True)
     spline_generator.this.disown()
     return vcl_generator

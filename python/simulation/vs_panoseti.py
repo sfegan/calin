@@ -243,9 +243,19 @@ def panoseti_impulse_response(pulse_file = 'Pulse_template_dark100_fast.dat', **
     """Compatibility alias for the PANOSETI fast shaper response."""
     return do_load_panoseti_impulse_response(pulse_file, **args)
 
-def panoseti_pe_amplitude_generator(quiet = False):
-    """Return the PANOSETI PE amplitude generator, when implemented."""
-    return None
+def panoseti_pe_amplitude_generator(crosstalk_mean = 0.05, spe_resolution = None,
+                                    avx = 512, quiet = False):
+    """Construct a SIMD PE amplitude generator for a simple SiPM model."""
+    if spe_resolution is None:
+        raise ValueError('spe_resolution must be specified for the PANOSETI SiPM model')
+    generator_classes = {
+        128: calin.simulation.detector_efficiency.VCLSimpleSiPMPEAmplitudeGenerator128,
+        256: calin.simulation.detector_efficiency.VCLSimpleSiPMPEAmplitudeGenerator256,
+        512: calin.simulation.detector_efficiency.VCLSimpleSiPMPEAmplitudeGenerator512,
+    }
+    if avx not in generator_classes:
+        raise ValueError(f'Unsupported VCL architecture width: {avx}')
+    return generator_classes[avx](crosstalk_mean, spe_resolution)
 
 def array_parameters_from_datapack(datapack = None, elevation = 60,
                                    scope_x = 0, scope_y = 0, scope_z = 0,

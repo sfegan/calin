@@ -85,6 +85,62 @@ private:
   bool adopt_pe_generator_ = false;
 };
 
+template<typename VCLArchitecture>
+class alignas(VCLArchitecture::vec_bytes) VCLSimpleSiPMPEAmplitudeGenerator:
+  public VCLPEAmplitudeGenerator<VCLArchitecture>
+{
+public:
+#ifndef SWIG
+  using VCLRNG = calin::math::rng::VCLRNG<VCLArchitecture>;
+  using double_vt = typename VCLArchitecture::double_vt;
+#endif
+
+  VCLSimpleSiPMPEAmplitudeGenerator(double crosstalk_mean, double spe_resolution):
+    crosstalk_mean_(crosstalk_mean), exp_neg_crosstalk_mean_(std::exp(-crosstalk_mean)),
+    spe_resolution_(spe_resolution)
+  {
+    if(not (crosstalk_mean_ >= 0.0 and crosstalk_mean_ < 1.0)) {
+      throw std::domain_error("SiPM crosstalk mean must be in [0, 1)");
+    }
+    if(not (spe_resolution_ >= 0.0 and std::isfinite(spe_resolution_))) {
+      throw std::domain_error("SiPM SPE resolution must be finite and nonnegative");
+    }
+  }
+
+  double mean_amplitude() final {
+    return 1.0 / (1.0 - crosstalk_mean_);
+  }
+
+  std::string banner(const std::string& indent0="", const std::string& indentN="") const final {
+    using calin::util::string::double_to_string_with_commas;
+    std::ostringstream stream;
+    stream << indent0 << "Simple SiPM PE amplitude model"
+      << '\n' << indentN << "Crosstalk mean : "
+      << double_to_string_with_commas(crosstalk_mean_, 3)
+      << '\n' << indentN << "SPE resolution : "
+      << double_to_string_with_commas(spe_resolution_, 3)
+      << '\n' << indentN << "Mean charge : "
+      << double_to_string_with_commas(1.0 / (1.0 - crosstalk_mean_), 3);
+    return stream.str();
+  }
+
+#ifndef SWIG
+  double_vt vcl_generate_amplitude(VCLRNG& rng) const final {
+    const double_vt n = rng.borel_tanner_k1_exp_neg_mu_double(
+      double_vt(exp_neg_crosstalk_mean_));
+    return n + vcl::sqrt(n) * spe_resolution_ * rng.normal_double();
+  }
+#endif
+
+  double crosstalk_mean() const { return crosstalk_mean_; }
+  double spe_resolution() const { return spe_resolution_; }
+
+private:
+  double crosstalk_mean_;
+  double exp_neg_crosstalk_mean_;
+  double spe_resolution_;
+};
+
 template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCLDirectionResponse
 {
 public:

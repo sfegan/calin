@@ -65,6 +65,13 @@
 %template (VCLSplinePEAmplitudeGenerator512)
   calin::simulation::detector_efficiency::VCLSplinePEAmplitudeGenerator<calin::util::vcl::VCL512Architecture>;
 
+%template (VCLSimpleSiPMPEAmplitudeGenerator128)
+  calin::simulation::detector_efficiency::VCLSimpleSiPMPEAmplitudeGenerator<calin::util::vcl::VCL128Architecture>;
+%template (VCLSimpleSiPMPEAmplitudeGenerator256)
+  calin::simulation::detector_efficiency::VCLSimpleSiPMPEAmplitudeGenerator<calin::util::vcl::VCL256Architecture>;
+%template (VCLSimpleSiPMPEAmplitudeGenerator512)
+  calin::simulation::detector_efficiency::VCLSimpleSiPMPEAmplitudeGenerator<calin::util::vcl::VCL512Architecture>;
+
 %template (VCLDirectionResponse128)
   calin::simulation::detector_efficiency::VCLDirectionResponse<calin::util::vcl::VCL128Architecture>;
 %template (VCLDirectionResponse256)

@@ -48,7 +48,7 @@ parser.add_argument('-o', '--output', type=str, default=None,
 parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam','panoseti'],
                     help='Camera configuration to simulate (default: nectarcam)')
 parser.add_argument('-a', '--algorithm', type=str, default='3nn', choices=['3nn','4nn','m2','m3','m4','multiplicity'],
-                    help='Trigger algorithm to use (default: 3nn; Dark100 supports m2, m3, m4, or multiplicity)')
+                    help='Trigger algorithm to use (default: 3nn; PANOSETI supports m2, m3, m4, or multiplicity)')
 parser.add_argument('-m', '--multiplicity', type=int, default=3,
                     help='Channel multiplicity if "multiplicity" algorithm is selected')
 parser.add_argument('-c', '--coincidence', type=int, default=24,
@@ -127,12 +127,12 @@ def init():
 
     # Instantiate PE generator
     pe_gen = None
-    if args.camera == 'panoseti':
-        pe_gen = calin.simulation.vs_panoseti.panoseti_pe_amplitude_generator(quiet=True)
-    elif args.no_after_pulsing:
-        pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
-    else:
-        pe_gen = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
+    if args.camera != 'panoseti':
+        if args.no_after_pulsing:
+            pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=512, quiet=True)
+        else:
+            pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=512, afterpulsing=True, quiet=True)
+    # The waveform processor uses an architecture-specific SIMD PE generator.
     if pe_gen is not None:
         pe_gen.this.disown() # Let pe_list_processor own it
 

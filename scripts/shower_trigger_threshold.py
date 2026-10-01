@@ -252,9 +252,9 @@ def init():
             electronics_sim.set_cr_multiplicity(0, multiplicity)
 
         if args.no_after_pulsing:
-            pe_gen_nsb = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+            pe_gen_nsb = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, quiet=True)
         else:
-            pe_gen_nsb = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
+            pe_gen_nsb = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, afterpulsing=True, quiet=True)
         pe_gen_nsb.this.disown()  # Let this electronics processor own it
 
         if args.nsb > 0:

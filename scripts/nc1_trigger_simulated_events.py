@@ -80,15 +80,15 @@ def init(args):
     
     # Load PE spectrum for prompt photons
     global pe_gen
-    pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+    pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, quiet=True)
 
     # Define NSB PE generator and rate and register them
     if args.nsb>0:
         pe_gen_nsb = None
         if args.no_after_pulsing:
-            pe_gen_nsb = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=True)
+            pe_gen_nsb = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, quiet=True)
         else:
-            pe_gen_nsb = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
+            pe_gen_nsb = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, afterpulsing=True, quiet=True)
         pe_gen_nsb.this.disown() # Let electronics_sim own it
 
         nsb = numpy.zeros(scam.channel_size()) + args.nsb

@@ -44,6 +44,7 @@
 #include <math/interpolation_1d.hpp>
 #include <math/brent.hpp>
 #include <simulation/pe_processor.hpp>
+#include <simulation/vcl_detector_efficiency.hpp>
 #include <iact_data/instrument_layout.pb.h>
 #include <iact_data/instrument_layout.hpp>
 
@@ -139,7 +140,7 @@ public:
 
   void load_from_simulated_event_with_pmt_noise(
     const calin::ix::simulation::simulated_event::DetectorGroupEvent& detector_group_event,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen,
     double time_spread = 0)
   {
     this->start_processing();
@@ -160,7 +161,7 @@ public:
         int ipix = pixel_event.pixel_id();
         for(int kpe=0; kpe<pixel_event.weight_size(); ++kpe) {
           if(idev == 0) {
-            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            pegen->vcl_generate_amplitude(*rng_).store_a(pe_w);
             if(time_spread > 0) {
               (rng_->normal_double() * time_spread).store_a(pe_dt);
             } else if (time_spread < 0) {
@@ -174,7 +175,7 @@ public:
         }
         for(int kpe=pixel_event.weight_size(); kpe<pixel_event.time_size(); ++kpe) {
           if(idev == 0) {
-            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            pegen->vcl_generate_amplitude(*rng_).store_a(pe_w);
             if(time_spread > 0) {
               (rng_->normal_double() * time_spread).store_a(pe_dt);
             } else if (time_spread < 0) {
@@ -187,7 +188,7 @@ public:
         }
         for(int kpe=0; kpe<pixel_event.integer_time_size(); ++kpe) {
           if(idev == 0) {
-            pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_).store_a(pe_w);
+            pegen->vcl_generate_amplitude(*rng_).store_a(pe_w);
             if(time_spread > 0) {
               (rng_->normal_double() * time_spread).store_a(pe_dt);
             } else if (time_spread < 0) {
@@ -381,7 +382,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////
 
   void add_nsb_noise_to_waveform(const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     double t0_samples = 0)
   {
     if(nsb_freq_per_pixel_ghz.size() != int(npix_)) {
@@ -406,7 +407,7 @@ public:
         typename VCLArchitecture::double_vt dt_samples = rng_->exponential_double() * rate_samples;
         typename VCLArchitecture::double_vt charge = 1.0;
         if(pegen) {
-          charge = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
+          charge = pegen->vcl_generate_amplitude(*rng_);
         }
         typename VCLArchitecture::double_at dt_samples_a;
         dt_samples.store(dt_samples_a);
@@ -1841,7 +1842,7 @@ public:
   }
 
   void inject_n_pes(unsigned pixel_id, unsigned npe, double t0_samples,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     double time_spread_ns = 0.0)
   {
     double time_spread_samples = time_spread_ns*sampling_freq_ghz_;
@@ -1855,7 +1856,7 @@ public:
       }        
       typename VCLArchitecture::double_vt q;
       if(pegen) {
-        q = pegen->vcl_generate_amplitude<VCLArchitecture>(*rng_);
+        q = pegen->vcl_generate_amplitude(*rng_);
       } else {
         q = 1.0;
       }
@@ -1876,7 +1877,7 @@ public:
   }
 
   void inject_poisson_pes(unsigned pixel_id, double lambda, double t0_samples,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     double time_spread_ns = 0.0)
   {
     calin::math::rng::VCLToScalarRNGCore scalar_core(rng_->core());
@@ -1886,7 +1887,7 @@ public:
   }
 
   void inject_poisson_pes(const Eigen::VectorXd& lambda, const Eigen::VectorXd& t0_samples, 
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     const Eigen::VectorXd& time_spread_ns = Eigen::VectorXd())
   {
     if(lambda.size() != npix_) {
@@ -1954,7 +1955,7 @@ public:
 
   void set_cr_nsb_rate(unsigned camera_response_id, 
     const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     bool adopt_pegen = false)
   {
     validate_camera_response_id(camera_response_id);
@@ -2073,7 +2074,7 @@ public:
     return cr.nsb_freq_per_pixel_ghz;
   }
 
-  calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* get_cr_nsb_pegen(unsigned camera_response_id)
+  calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* get_cr_nsb_pegen(unsigned camera_response_id)
   {
     validate_camera_response_id(camera_response_id);
     auto& cr = camera_responses_[camera_response_id];
@@ -2212,7 +2213,7 @@ public:
 
   vecX_t ac_coupling_offset(const Eigen::VectorXi& impulse_response_id, 
     const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     const vecX_t& relative_gain = vecX_t())
   {
     int iri_max = std::numeric_limits<int>::min();
@@ -2259,7 +2260,7 @@ public:
 
   vecX_t ac_coupling_offset(int impulse_response_id, 
     const Eigen::VectorXd& nsb_freq_per_pixel_ghz,
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* pegen = nullptr,
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* pegen = nullptr,
     const vecX_t& relative_gain = vecX_t())
   {
     Eigen::VectorXi all_impulse_response_id(nsb_freq_per_pixel_ghz.size());
@@ -2472,7 +2473,7 @@ private:
       }
     }
     Eigen::VectorXd nsb_freq_per_pixel_ghz;
-    calin::simulation::detector_efficiency::SplinePEAmplitudeGenerator* nsb_pegen = nullptr;
+    calin::simulation::detector_efficiency::VCLPEAmplitudeGenerator<VCLArchitecture>* nsb_pegen = nullptr;
     bool add_ac_coupling_offset = true;
     Eigen::VectorXi impulse_response_id;
     vecX_t demand_pedestal;

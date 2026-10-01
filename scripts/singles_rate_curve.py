@@ -73,7 +73,7 @@ def init():
     pe_list_processor.add_camera_response(numpy.asarray([0]),True)
 
     # Instantiate PE generator
-    ap_pe_gen = calin.simulation.vs_cta.mstn_spe_and_afterpulsing_amplitude_generator(quiet=True)
+    ap_pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=512, afterpulsing=True, quiet=True)
     ap_pe_gen.this.disown() # Let pe_list_processor own it
 
     # Define NSB
