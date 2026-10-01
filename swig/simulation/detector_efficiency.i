@@ -39,6 +39,7 @@
 %import "calin_global_definitions.i"
 
 %import "math/interpolation_1d.i"
+%import "math/rng.i"
 
 %newobject make_spline;
 
