@@ -2182,6 +2182,14 @@ public:
       first_sample_of_interest);
   }
 
+  int trigger_panoseti_multiplicity_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0)
+  {
+    validate_camera_response_id(camera_response_id);
+    auto& cr = camera_responses_[camera_response_id];
+
+    return trigger_panoseti_multiplicity(cr.threshold, cr.multiplicity, cr.coincidence_window, first_sample_of_interest);
+  }
+
   int trigger_3nn_cr(unsigned camera_response_id, unsigned first_sample_of_interest=0)
   {
     validate_camera_response_id(camera_response_id);
