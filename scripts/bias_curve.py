@@ -42,7 +42,13 @@ parser.add_argument('--star_rate', type=float, nargs='*', default=[],
 parser.add_argument('-t', '--threshold', type=float, default=120.0,
                    help='Specify the threshold in DC')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
+parser.add_argument('--avx', type=int, default=512, choices=[128, 256, 512],
+                    help='SIMD vector width in bits (default: 512)')
 parser.add_argument('--no_after_pulsing', action='store_true', help='Disable after-pulsing in SPE spectrum (default: enabled)')
+parser.add_argument('--crosstalk-mean', type=float, default=0.05,
+                    help='PANOSETI SiPM mean crosstalk per triggered cell (default: 0.05)')
+parser.add_argument('--spe-resolution', type=float, default=0.1,
+                    help='PANOSETI SiPM single-cell charge resolution (sigma/mean; default: 0.1)')
 parser.add_argument('-o', '--output', type=str, default=None,
                     help='Write trigger times to this file')
 parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam','panoseti'],
@@ -90,7 +96,12 @@ def init():
         dtsample = 0.125
 
     # Instantiate PE list processor
-    pe_list_processor = calin.simulation.ray_processor.VCLWaveformPEProcessorFloat512(
+    pe_processor_classes = {
+        128: calin.simulation.ray_processor.VCLWaveformPEProcessorFloat128,
+        256: calin.simulation.ray_processor.VCLWaveformPEProcessorFloat256,
+        512: calin.simulation.ray_processor.VCLWaveformPEProcessorFloat512,
+    }
+    pe_list_processor = pe_processor_classes[args.avx](
         1, nchan, 1024, dtsample, isample0)
     pe_list_processor.register_impulse_response(hg, 'DC')
 
@@ -132,11 +143,16 @@ def init():
 
     # Instantiate PE generator
     pe_gen = None
-    if args.camera != 'panoseti':
+    if args.camera == 'panoseti':
+        pe_gen = calin.simulation.vs_panoseti.panoseti_pe_amplitude_generator(
+            crosstalk_mean=args.crosstalk_mean,
+            spe_resolution=args.spe_resolution,
+            avx=args.avx)
+    else:
         if args.no_after_pulsing:
-            pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=512, quiet=True)
+            pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, quiet=True)
         else:
-            pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=512, afterpulsing=True, quiet=True)
+            pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(avx=args.avx, afterpulsing=True, quiet=True)
     # The waveform processor uses an architecture-specific SIMD PE generator.
     if pe_gen is not None:
         pe_gen.this.disown() # Let pe_list_processor own it
