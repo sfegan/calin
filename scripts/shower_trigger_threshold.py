@@ -129,7 +129,8 @@ def init():
     # Load site environment (atmosphere, absorption, efficiencies, B-field)
     global site_env
     site_env = calin.simulation.iact_factory.load_site_environment(
-        args.site, enable_pe_spectrum=True, no_bfield=args.no_bfield, quiet=True)
+        args.site, enable_pe_spectrum=True, no_bfield=args.no_bfield,
+        quiet=True, avx=args.avx)
 
     # Set up telescope array (site-specific; PANOSETI keeps real positions)
     array_params, nscope, nchan_from_array, detector_type_name = \

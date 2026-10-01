@@ -229,7 +229,7 @@ def init(args):
     global store_pe_weights
     site_env = calin.simulation.iact_factory.load_site_environment(
         args.site, enable_pe_spectrum=args.enable_pe_spectrum,
-        no_bfield=args.no_bfield, quiet=True)
+        no_bfield=args.no_bfield, quiet=True, avx=args.avx)
     store_pe_weights = site_env.pe_gen is not None
 
     global store_times_as_integer

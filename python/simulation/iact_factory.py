@@ -49,7 +49,7 @@ class SiteEnvironment:
         self.array_config_fn = array_config_fn
 
 def load_site_environment(site = 'ctan', enable_pe_spectrum = False,
-                          no_bfield = False, quiet = True):
+                          no_bfield = False, quiet = True, avx = 512):
     """
     Load site atmosphere, atmospheric absorption, observation level, detector efficiencies,
     and geomagnetic field.
@@ -72,7 +72,8 @@ def load_site_environment(site = 'ctan', enable_pe_spectrum = False,
         array_config_fn = calin.simulation.vs_cta.mstn1_config
         det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=quiet)
         cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=quiet)
-        pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=quiet) if enable_pe_spectrum else None
+        pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(
+            avx=avx, quiet=quiet) if enable_pe_spectrum else None
         lens_refractive_index_spline = None
         dummy_array_origin = array_config_fn(elevation=0).array_origin()
     elif site == 'ctas':
@@ -82,7 +83,8 @@ def load_site_environment(site = 'ctan', enable_pe_spectrum = False,
         array_config_fn = calin.simulation.vs_cta.msts1_config
         det_eff = calin.simulation.vs_cta.mstn_detection_efficiency(quiet=quiet)
         cone_eff = calin.simulation.vs_cta.mstn_cone_efficiency(quiet=quiet)
-        pe_gen = calin.simulation.vs_cta.mstn_spe_amplitude_generator(quiet=quiet) if enable_pe_spectrum else None
+        pe_gen = calin.simulation.vs_cta.vcl_mstn_spe_amplitude_generator(
+            avx=avx, quiet=quiet) if enable_pe_spectrum else None
         lens_refractive_index_spline = None
         dummy_array_origin = array_config_fn(elevation=0).array_origin()
     else:

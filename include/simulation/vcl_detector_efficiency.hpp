@@ -21,12 +21,69 @@
 
 #include <sstream>
 #include <cmath>
+#include <stdexcept>
 
 #include <util/vcl.hpp>
 #include <util/string.hpp>
 #include <simulation/detector_efficiency.hpp>
 
 namespace calin { namespace simulation { namespace detector_efficiency {
+
+template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCLPEAmplitudeGenerator
+{
+public:
+#ifndef SWIG
+  using double_vt = typename VCLArchitecture::double_vt;
+  using VCLRNG = calin::math::rng::VCLRNG<VCLArchitecture>;
+
+  virtual double_vt vcl_generate_amplitude(VCLRNG& rng) const = 0;
+#endif
+
+  virtual ~VCLPEAmplitudeGenerator() = default;
+  virtual double mean_amplitude() = 0;
+  virtual std::string banner(const std::string& indent0="", const std::string& indentN="") const = 0;
+};
+
+template<typename VCLArchitecture>
+class alignas(VCLArchitecture::vec_bytes) VCLSplinePEAmplitudeGenerator:
+  public VCLPEAmplitudeGenerator<VCLArchitecture>
+{
+public:
+#ifndef SWIG
+  using VCLRNG = calin::math::rng::VCLRNG<VCLArchitecture>;
+  using double_vt = typename VCLArchitecture::double_vt;
+#endif
+
+  VCLSplinePEAmplitudeGenerator(SplinePEAmplitudeGenerator* pe_generator, bool adopt_pe_generator):
+    pe_generator_(pe_generator), adopt_pe_generator_(adopt_pe_generator)
+  {
+    if(pe_generator_ == nullptr) {
+      throw std::invalid_argument("Spline PE amplitude generator must not be null");
+    }
+  }
+
+  ~VCLSplinePEAmplitudeGenerator() override {
+    if(adopt_pe_generator_) delete pe_generator_;
+  }
+
+  double mean_amplitude() final {
+    return pe_generator_->mean_amplitude();
+  }
+
+  std::string banner(const std::string& indent0="", const std::string& indentN="") const final {
+    return pe_generator_->banner(indent0, indentN);
+  }
+
+#ifndef SWIG
+  double_vt vcl_generate_amplitude(VCLRNG& rng) const final {
+    return pe_generator_->template vcl_generate_amplitude<VCLArchitecture>(rng);
+  }
+#endif
+
+private:
+  SplinePEAmplitudeGenerator* pe_generator_ = nullptr;
+  bool adopt_pe_generator_ = false;
+};
 
 template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCLDirectionResponse
 {

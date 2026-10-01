@@ -851,9 +851,30 @@ public:
     return k;
   }
 
+  double_vt poisson_small_exp_neg_lambda_double(const double_vt& exp_neg_lambda)
+  {
+    // Knuth's algorithm for small lambda with precomputed exp(-lambda)
+    // Version that returns a double
+    double_vt prod = uniform_double();
+    double_bvt active = prod > exp_neg_lambda;
+    double_vt k = 0;
+
+    while(vcl::horizontal_or(active)) {
+      k = select(active, k + 1, k);
+      prod = select(active, prod * uniform_double(), prod);
+      active = active & (prod > exp_neg_lambda);
+    }
+    return k;
+  }
+
   int64_vt poisson_small_int64(const double_vt& lambda)
   {
     return poisson_small_exp_neg_lambda_int64(vcl::exp(-lambda));
+  }
+
+  double_vt poisson_small_double(const double_vt& lambda)
+  {
+    return poisson_small_exp_neg_lambda_double(vcl::exp(-lambda));
   }
 
   static inline double_vt lfactorial_approx_double(const double_vt& k)
@@ -1015,9 +1036,35 @@ public:
     return truncate_to_int64(n_double);
   }
 
+  double_vt borel_tanner_k1_exp_neg_mu_double(const double_vt& exp_neg_mu)
+  {
+    // Borel-Tanner distribution - useful for SiPM crosstalk simulation with 
+    // - k: fixed to 1 primary avalanche (genuine PE) and
+    // - exp_neg_mu: exp(-mu), where mu is presumed small
+    // Version that returns a double
+    double_vt a = poisson_small_exp_neg_lambda_double(exp_neg_mu);
+    double_vt n = 1.0 + a;
+    while(vcl::horizontal_or(a > 0.0)) {
+      double_vt exp_neg_a_mu = select(a > 0.0, exp_neg_mu, 1.0);
+      a = vcl::max(a - 1.0, 0.0);
+      while(vcl::horizontal_or(a > 0.0)) {
+        exp_neg_a_mu *= select(a > 0.0, exp_neg_mu, 1.0);
+        a = vcl::max(a - 1.0, 0.0);
+      }
+      a = poisson_small_exp_neg_lambda_double(exp_neg_a_mu);
+      n += a;
+    }
+    return n;
+  }
+
   void borel_tanner_k1_exp_neg_mu_int(int64_vt& n, const double_vt& exp_neg_mu)
   {
     n = borel_tanner_k1_exp_neg_mu_int64(exp_neg_mu);
+  }
+
+  void borel_tanner_k1_exp_neg_mu_real(double_vt& n, const double_vt& exp_neg_mu)
+  {
+    n = borel_tanner_k1_exp_neg_mu_double(exp_neg_mu);
   }
 
   static uint64_vt uint64_from_seed(uint64_t seed = 0)
