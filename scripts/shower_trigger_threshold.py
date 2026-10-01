@@ -206,7 +206,8 @@ def init():
     # Select trigger algorithm once, then configure each independent reuse slot.
     global trigger_method
     if args.trigger in ('multiplicity', 'm2', 'm3', 'm4'):
-        trigger_method = 'trigger_multiplicity_cr'
+        trigger_method = ('trigger_panoseti_multiplicity_cr'
+            if args.site == 'dark100' else 'trigger_multiplicity_cr')
     elif args.trigger == '3nn':
         trigger_method = 'trigger_3nn_cr'
     elif args.trigger == '4nn':
@@ -242,7 +243,7 @@ def init():
         if neighbors is not None:
             electronics_sim.set_cr_neighbors(0, neighbors)
 
-        if trigger_method == 'trigger_multiplicity_cr':
+        if trigger_method in ('trigger_multiplicity_cr', 'trigger_panoseti_multiplicity_cr'):
             multiplicity = {
                 'multiplicity': args.multiplicity,
                 'm2': 2,

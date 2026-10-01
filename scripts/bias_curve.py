@@ -47,7 +47,7 @@ parser.add_argument('-o', '--output', type=str, default=None,
                     help='Write trigger times to this file')
 parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam','panoseti'],
                     help='Camera configuration to simulate (default: nectarcam)')
-parser.add_argument('-a', '--algorithm', type=str, default='3nn', choices=['3nn','4nn','m2','m3','m4','multiplicity'],
+parser.add_argument('-a', '--algorithm', type=str, default='3nn', choices=['3nn','4nn','m1','m2','m3','m4','multiplicity'],
                     help='Trigger algorithm to use (default: 3nn; PANOSETI supports m2, m3, m4, or multiplicity)')
 parser.add_argument('-m', '--multiplicity', type=int, default=3,
                     help='Channel multiplicity if "multiplicity" algorithm is selected')
@@ -103,18 +103,18 @@ def init():
 
     # Select trigger algorithm
     trigger_threshold = numpy.zeros(nchan) + threshold
-    if args.camera == 'panoseti':
-        trigger_method = 'trigger_panoseti_multiplicity'
-        trigger_multiplicity = args.multiplicity if args.algorithm == 'multiplicity' else int(args.algorithm[1])
-    elif args.algorithm == 'multiplicity':
+    if args.algorithm == 'multiplicity':
         trigger_method = 'trigger_multiplicity_cr'
         pe_list_processor.set_cr_multiplicity(0, args.multiplicity)
-    elif args.algorithm == 'm3':
+    elif args.algorithm == 'm1':
         trigger_method = 'trigger_multiplicity_cr'
-        pe_list_processor.set_cr_multiplicity(0, 3)
+        pe_list_processor.set_cr_multiplicity(0, 1)
     elif args.algorithm == 'm2':
         trigger_method = 'trigger_multiplicity_cr'
         pe_list_processor.set_cr_multiplicity(0, 2)
+    elif args.algorithm == 'm3':
+        trigger_method = 'trigger_multiplicity_cr'
+        pe_list_processor.set_cr_multiplicity(0, 3)
     elif args.algorithm == 'm4':
         trigger_method = 'trigger_multiplicity_cr'
         pe_list_processor.set_cr_multiplicity(0, 4)
@@ -124,6 +124,11 @@ def init():
         trigger_method = 'trigger_4nn_cr'
     else:
         raise ValueError(f'Unknown trigger algorithm: {args.algorithm}')
+
+    if args.camera == 'panoseti':
+        if trigger_method != 'trigger_multiplicity_cr':
+            raise ValueError(f'PANOSETI supports only multiplicity trigger algorithm')
+        trigger_method = 'trigger_panoseti_multiplicity_cr'
 
     # Instantiate PE generator
     pe_gen = None
@@ -161,8 +166,6 @@ def init():
 
 def trigger():
     trigger_fn = getattr(pe_list_processor, trigger_method)
-    if args.camera == 'panoseti':
-        return trigger_fn(trigger_threshold, trigger_multiplicity, tcoincidence, isample0)
     return trigger_fn(0, isample0)
 
 def one_trigger():
