@@ -54,14 +54,14 @@ parser.add_argument('-o', '--output', type=str, default=None,
 parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam','panoseti'],
                     help='Camera configuration to simulate (default: nectarcam)')
 parser.add_argument('-a', '--algorithm', type=str, default='3nn', choices=['3nn','4nn','m1','m2','m3','m4','multiplicity'],
-                    help='Trigger algorithm to use (default: 3nn; PANOSETI supports m2, m3, m4, or multiplicity)')
+                    help='Trigger algorithm to use (default: 3nn; PANOSETI supports m1, m2, m3, m4, or multiplicity)')
 parser.add_argument('-m', '--multiplicity', type=int, default=3,
                     help='Channel multiplicity if "multiplicity" algorithm is selected')
 parser.add_argument('-c', '--coincidence', type=int, default=24,
                     help='Set the trigger coincidence time in samples')
 args = parser.parse_args()
-if args.camera == 'panoseti' and args.algorithm not in ('multiplicity', 'm2', 'm3', 'm4'):
-    parser.error('PANOSETI supports only multiplicity, m2, m3, or m4 trigger algorithms')
+if args.camera == 'panoseti' and args.algorithm not in ('multiplicity', 'm1', 'm2', 'm3', 'm4'):
+    parser.error('PANOSETI supports only multiplicity, m1,  m2, m3, or m4 trigger algorithms')
 
 nsb_rate = args.nsb
 threshold = args.threshold
