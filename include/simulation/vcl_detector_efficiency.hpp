@@ -34,9 +34,33 @@ template<typename VCLArchitecture> class alignas(VCLArchitecture::vec_bytes) VCL
 public:
 #ifndef SWIG
   using double_vt = typename VCLArchitecture::double_vt;
+  using double_at = typename VCLArchitecture::double_at;
   using VCLRNG = calin::math::rng::VCLRNG<VCLArchitecture>;
 
   virtual double_vt vcl_generate_amplitude(VCLRNG& rng) const = 0;
+#endif
+
+  Eigen::VectorXd bulk_generate_amplitude(unsigned n,
+      calin::math::rng::VCLRNG<VCLArchitecture>& rng) const
+#ifndef SWIG
+  {
+    Eigen::VectorXd amplitudes(n);
+    constexpr unsigned num_double = VCLArchitecture::num_double;
+    unsigned i = 0;
+    for(; i+num_double<=n; i+=num_double) {
+      vcl_generate_amplitude(rng).store(amplitudes.data()+i);
+    }
+    if(i<n) {
+      double_at last_amplitudes;
+      vcl_generate_amplitude(rng).store(last_amplitudes);
+      for(unsigned ilane=0; i<n; ++i, ++ilane) {
+        amplitudes[i] = last_amplitudes[ilane];
+      }
+    }
+    return amplitudes;
+  }
+#else
+  ;
 #endif
 
   virtual ~VCLPEAmplitudeGenerator() = default;
