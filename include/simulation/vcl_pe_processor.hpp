@@ -440,7 +440,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
 
-  unsigned register_impulse_response(vecX_t& impulse_response, 
+  unsigned register_impulse_response(const vecX_t& impulse_response, 
     const std::string& units, double window_fraction=0.6)
   {
     ImpulseResponse ir;
