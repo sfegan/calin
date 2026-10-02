@@ -183,9 +183,7 @@ def lens_refractive_index_spline_from_datapack(datapack = None):
 
     return calin.math.spline_interpolation.CubicSpline(ev_sorted, n_sorted)
 
-def do_load_panoseti_impulse_response(pulse_file, pulse_length_ns = 60.0,
-                                     pulse_decay_ns = 3.5,
-                                     sample_period_ns = 1.0):
+def do_load_panoseti_impulse_response(pulse_file):
     """Load a Dark100 shaper response as ``hg``, ``lg`` and ``dt``.
 
     Until the digitized response file is installed, return an all-zero response.
@@ -193,11 +191,6 @@ def do_load_panoseti_impulse_response(pulse_file, pulse_length_ns = 60.0,
     two-column curve is used for both gains.
     """
     resolved_file = ds_filename(pulse_file)
-    if not os.path.exists(resolved_file):
-        nsample = int(numpy.ceil(pulse_length_ns / sample_period_ns))
-        return dict(hg=numpy.zeros(nsample), lg=numpy.zeros(nsample),
-                    dt=sample_period_ns)
-
     with open(resolved_file, 'r') as pulse_stream:
         file_record = calin.provenance.chronicle.register_file_open(
             resolved_file, calin.ix.provenance.chronicle.AT_READ,
@@ -208,25 +201,12 @@ def do_load_panoseti_impulse_response(pulse_file, pulse_length_ns = 60.0,
 
     pulse = numpy.loadtxt(resolved_file, comments='#', ndmin=2)
     if pulse.shape[1] not in (2, 3):
-        raise ValueError('Dark100 pulse file must have 2 or 3 columns: time, hg[, lg]')
+        raise ValueError('Panoseti pulse file must have 2 or 3 columns: time, hg[, lg]')
     t = pulse[:, 0]
     dt = float(numpy.mean(numpy.diff(t))) if len(t) > 1 else sample_period_ns
-    nsample = int(numpy.ceil(pulse_length_ns / dt))
-    if nsample < len(pulse):
-        raise ValueError('Dark100 pulse file is longer than pulse_length_ns')
 
-    def pad_gain(gain):
-        response = numpy.zeros(nsample)
-        response[:len(pulse)] = pulse[:, gain]
-        if nsample > len(pulse):
-            n = nsample - len(pulse)
-            decay = 0.5 * (1.0 - numpy.tanh(
-                (numpy.arange(n) - n / 2) / pulse_decay_ns * dt))
-            response[len(pulse):] = pulse[-1, gain] * decay
-        return response
-
-    return dict(hg=pad_gain(1),
-                lg=pad_gain(2) if pulse.shape[1] == 3 else pad_gain(1),
+    return dict(hg=pulse[:,1],
+                lg=pulse[:,2] if pulse.shape[1] == 3 else pulse[:,1],
                 dt=dt)
 
 def panoseti_fast_impulse_response(
