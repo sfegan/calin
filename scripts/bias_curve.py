@@ -78,17 +78,16 @@ def init(pulse):
 
     hg = pulse['hg']
     dtsample = pulse['dt']
+    isample0 = len(hg)
 
     if args.camera == 'panoseti':
         nchan = 1024
         scam = None
-        isample0 = len(hg)
     else:
         ncam = calin.iact_data.nectarcam_layout.nectarcam_layout()
         scam = calin.iact_data.instrument_layout.reorder_camera_channels(
             ncam, ncam.pixel_spiral_channel_index())
         nchan = scam.channel_size()
-        isample0 = len(hg)
 
     # Instantiate PE list processor
     pe_processor_classes = {
