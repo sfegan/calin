@@ -68,32 +68,27 @@ threshold = args.threshold
 isample0 = 480
 tcoincidence = args.coincidence
 
-# Prepare a JSON header describing the run
-config = vars(args).copy()
-config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-config['_host'] = platform.node()
-header = 'Configuration (JSON):\n' + json.dumps(config, indent=2)
+def load_impulse_response():
+    if args.camera == 'panoseti':
+        return calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
+    return calin.simulation.vs_cta.mstn_impulse_response()
 
-def init():
+def init(pulse):
     global pe_list_processor, trigger_method, trigger_threshold, trigger_multiplicity, isample0
+
+    hg = pulse['hg']
+    dtsample = pulse['dt']
 
     if args.camera == 'panoseti':
         nchan = 1024
         scam = None
-        pulse = calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
-        hg = pulse['hg']
-        dtsample = pulse['dt']
         isample0 = len(hg)
     else:
         ncam = calin.iact_data.nectarcam_layout.nectarcam_layout()
         scam = calin.iact_data.instrument_layout.reorder_camera_channels(
             ncam, ncam.pixel_spiral_channel_index())
         nchan = scam.channel_size()
-        pulse = numpy.loadtxt('Pulse_template_nectarCam_17042020-noshift.dat')
-        hg = numpy.zeros(isample0)
-        hg[0:len(pulse)] = pulse[:,1]
-        hg[len(pulse):] = pulse[-1,1] * numpy.exp(-numpy.arange(isample0-len(pulse))/64)
-        dtsample = 0.125
+        isample0 = len(hg)
 
     # Instantiate PE list processor
     pe_processor_classes = {
@@ -180,6 +175,20 @@ def init():
     # Define threshold
     pe_list_processor.set_cr_threshold(0, trigger_threshold, tcoincidence)
 
+# Load the pulse once in the parent process. Worker initializers receive the
+# loaded response so they can set up their own processors without reloading it.
+pulse_response = load_impulse_response()
+sampling_interval_ns = pulse_response['dt']
+sampling_rate_ghz = 1.0 / sampling_interval_ns
+
+# Prepare a JSON header describing the run
+config = vars(args).copy()
+config['sampling_interval_ns'] = sampling_interval_ns
+config['sampling_rate_ghz'] = sampling_rate_ghz
+config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+config['_host'] = platform.node()
+header = 'Configuration (JSON):\n' + json.dumps(config, indent=2)
+
 def trigger():
     trigger_fn = getattr(pe_list_processor, trigger_method)
     return trigger_fn(0, isample0)
@@ -204,7 +213,8 @@ def one_trigger():
 trigger_times = []
 max_workers = os.cpu_count() or 4
 batch_size = max_workers * 10
-with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_workers) as executor:
+with concurrent.futures.ProcessPoolExecutor(initializer=init,
+        initargs=(pulse_response,), max_workers=max_workers) as executor:
     remaining = args.n
     futures = set()
 
@@ -220,7 +230,9 @@ with concurrent.futures.ProcessPoolExecutor(initializer=init, max_workers=max_wo
         for fut in done:
             futures.remove(fut)
             trigger_times.append(fut.result())
-            print(f'{len(trigger_times)} : {numpy.sum(trigger_times)/8e6:.2f} ms {1/numpy.mean(trigger_times)*8e6:.3f} kHz')
+            elapsed_ms = numpy.sum(trigger_times) * sampling_interval_ns / 1e6
+            rate_khz = 1e6 / (numpy.mean(trigger_times) * sampling_interval_ns)
+            print(f'{len(trigger_times)} : {elapsed_ms:.2f} ms {rate_khz:.3f} kHz')
 
             if args.output and len(trigger_times)>0 and (len(trigger_times)%100)==0:
                 numpy.savetxt(args.output, trigger_times, header=header, fmt='%d')

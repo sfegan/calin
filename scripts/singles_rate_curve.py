@@ -60,26 +60,17 @@ nsb_rate = args.nsb
 threshold = args.threshold
 isample0 = 480
 
-# Prepare a JSON header describing the run
-config = vars(args).copy()
-config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-config['_host'] = platform.node()
-header = 'Configuration (JSON):\n' + json.dumps(config, indent=2)
+def load_impulse_response():
+    if args.camera == 'panoseti':
+        return calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
+    return calin.simulation.vs_cta.mstn_impulse_response()
 
-def init():
+def init(pulse):
     global pe_list_processor, isample0
 
-    if args.camera == 'panoseti':
-        pulse = calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
-        hg = pulse['hg']
-        dtsample = pulse['dt']
-        isample0 = len(hg)
-    else:
-        pulse = numpy.loadtxt('Pulse_template_nectarCam_17042020-noshift.dat')
-        hg = numpy.zeros(isample0)
-        hg[0:len(pulse)] = pulse[:,1]
-        hg[len(pulse):] = pulse[-1,1] * numpy.exp(-numpy.arange(isample0-len(pulse))/64)
-        dtsample = 0.125
+    hg = pulse['hg']
+    dtsample = pulse['dt']
+    isample0 = len(hg)
 
     pe_processor_classes = {
         128: calin.simulation.ray_processor.VCLWaveformPEProcessorFloat128,
@@ -150,10 +141,24 @@ def gen_triggers():
     return all_ttrig
 
 trigger_times = []
-init()
+impulse_response = load_impulse_response()
+init(impulse_response)
+sampling_interval_ns = impulse_response['dt']
+sampling_rate_ghz = 1.0 / sampling_interval_ns
+
+# Prepare a JSON header describing the run
+config = vars(args).copy()
+config['sampling_interval_ns'] = sampling_interval_ns
+config['sampling_rate_ghz'] = sampling_rate_ghz
+config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+config['_host'] = platform.node()
+header = 'Configuration (JSON):\n' + json.dumps(config, indent=2)
+
 trigger_times = gen_triggers()
 
-print(f'{len(trigger_times)} : {numpy.sum(trigger_times)/8e6:.2f} ms {1/numpy.mean(trigger_times)*8e6:.3f} kHz')
+elapsed_ms = numpy.sum(trigger_times) * sampling_interval_ns / 1e6
+rate_khz = 1e6 / (numpy.mean(trigger_times) * sampling_interval_ns)
+print(f'{len(trigger_times)} : {elapsed_ms:.2f} ms {rate_khz:.3f} kHz')
 
 if args.output:
     numpy.savetxt(args.output, trigger_times, header=header, fmt='%d')
