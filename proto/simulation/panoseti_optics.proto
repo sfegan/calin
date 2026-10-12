@@ -43,7 +43,10 @@ message ArrayParameters {
      "values are above the origin, negative values are below.",
      (CFO).units = "cm"];
 
-  bool equatorial_mount                                     = 3
+  repeated string scope_names                               = 3
+    [(CFO).desc = "Names of telescopes in the array in same order as \"scope_positions\"."];
+
+  bool equatorial_mount                                     = 4
     [(CFO).desc = "If true the telescope mount is equatorial, otherwise it is alt-azimuth. If true "
       "the telescope will be rotated about the optical axis to maintain a fixed orientation with "
       "respect to the sky."];

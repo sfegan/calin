@@ -25,6 +25,7 @@ import calin.math.spline_interpolation
 import calin.ix.simulation.panoseti_optics
 import calin.provenance.system_info
 import calin.provenance.chronicle
+import calin.math.geometry
 
 def ds_filename(filename):
     if os.path.exists(filename):
@@ -238,7 +239,7 @@ def panoseti_pe_amplitude_generator(crosstalk_mean = 0.05, spe_resolution = None
     return generator_classes[avx](crosstalk_mean, spe_resolution)
 
 def array_parameters_from_datapack(datapack = None, elevation = 60,
-                                   scope_x = 0, scope_y = 0, scope_z = 0,
+                                   scope_x = 0, scope_y = 0, scope_z = 0, scope_names = None,
                                    array_lat = None, array_lon = None, array_alt = None):
     if datapack is None:
         datapack = read_optical_model_datapack()
@@ -272,6 +273,10 @@ def array_parameters_from_datapack(datapack = None, elevation = 60,
         pos.set_y(scope_y)
         pos.set_z(scope_z)
 
+    if scope_names is not None:
+        for name in scope_names:
+            params.add_scope_names(name)
+
     # Populate lens and detector optics parameters
     params.set_fresnel_lens_aperture(float(opt_model['D']))
     params.set_fresnel_lens_thickness(float(opt_model['thickness']))
@@ -288,27 +293,38 @@ def array_parameters_from_datapack(datapack = None, elevation = 60,
     return params
 
 def dark100_palomar_config(elevation = 60, datapack = None):
+
+    # These lines assume X=East, Y=North, Z=Up coordinate system 
+    # with origin at Palomar Observatory. This is contrary to the
+    # CORSIKA system.
+
     # TELESCOPE    -0.10E2   97.18E2    39.70E2		25	# Heli
     # TELESCOPE	 -220.15E2   33.67E2	49.17E2		25	# Winter
     # TELESCOPE  -130.43E2	190.40E2	34.66E2		25	# Fern
     # TELESCOPE   177.58E2 -333.33E2	42.82E2		25	# Gattini
     # TELESCOPE  -402.48E2  133.47E2	45.23E2		25	# Tower
-    # TELESCOPE   132.97E23  -9.01E2	37.22E2		25	# Antler
+    # TELESCOPE   132.97E2   -9.01E2	37.22E2		25	# Antler
     # TELESCOPE     0.10E2  -97.18E2	46.35E2		25	# Vent
 
     scope_pos = [
-        [   -0.10E2,   97.18E2, 39.70E2 ],  # Heli
-        [ -220.15E2,   33.67E2, 49.17E2 ],  # Winter
-        [ -130.43E2,  190.40E2, 34.66E2 ],  # Fern
-        [  177.58E2, -333.33E2, 42.82E2 ],  # Gattini
-        [ -402.48E2,  133.47E2, 45.23E2 ],  # Tower
-        [  132.97E2,   -9.01E2, 37.22E2 ],  # Antler
-        [    0.10E2,  -97.18E2, 46.35E2 ]   # Vent
+        [   -0.10E2,   97.18E2, 39.70E2, "Heli" ],
+        [ -220.15E2,   33.67E2, 49.17E2, "Winter" ],
+        [ -130.43E2,  190.40E2, 34.66E2, "Fern" ],
+        [  177.58E2, -333.33E2, 42.82E2, "Gattini" ],
+        [ -402.48E2,  133.47E2, 45.23E2, "Tower" ],
+        [  132.97E2,   -9.01E2, 37.22E2, "Antler" ],
+        [    0.10E2,  -97.18E2, 46.35E2, "Vent" ]
     ]
 
-    scope_x = [p[0] for p in scope_pos]
-    scope_y = [p[1] for p in scope_pos]
-    scope_z = [p[2] for p in scope_pos]
+    scope_x = numpy.asarray([p[0] for p in scope_pos])
+    scope_y = numpy.asarray([p[1] for p in scope_pos])
+    scope_z = numpy.asarray([p[2] + 161585 for p in scope_pos])
+
+    c = calin.math.geometry.containing_circle_2d(numpy.vstack([scope_x, scope_y, scope_z*0+100]).transpose())
+    scope_x -= c[0]
+    scope_y -= c[1]
+
     return array_parameters_from_datapack(
         datapack = datapack, elevation = elevation,
-        scope_x = scope_x, scope_y = scope_y, scope_z = scope_z)
+        scope_x = scope_x, scope_y = scope_y, scope_z = scope_z,
+        scope_names = [p[3] for p in scope_pos])
