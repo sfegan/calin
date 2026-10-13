@@ -15,6 +15,7 @@
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
+from cmath import pi
 import os
 import json
 import numpy
@@ -26,6 +27,7 @@ import calin.ix.simulation.panoseti_optics
 import calin.provenance.system_info
 import calin.provenance.chronicle
 import calin.math.geometry
+import calin.util.utm
 
 def ds_filename(filename):
     if os.path.exists(filename):
@@ -72,9 +74,8 @@ def palomar_observation_level(level_km = 1.61585):
 
 def palomar_location():
     # Palomar Observatory coordinates
-    # Lat: 33°21'23.76"N 116°51'51.05"W
-    lat_deg = dms(33, 21, 23.76)
-    lon_deg = dms(-116, 51, 51.05)
+    lat_deg = dms(33, 21, 20.579)
+    lon_deg = dms(-116, 51, 53.911)
     alt_cm = palomar_observation_level()
     return lat_deg, lon_deg, alt_cm
 
@@ -292,39 +293,51 @@ def array_parameters_from_datapack(datapack = None, elevation = 60,
 
     return params
 
-def dark100_palomar_config(elevation = 60, datapack = None):
-
-    # These lines assume X=East, Y=North, Z=Up coordinate system 
-    # with origin at Palomar Observatory. This is contrary to the
-    # CORSIKA system.
-
-    # TELESCOPE    -0.10E2   97.18E2    39.70E2		25	# Heli
-    # TELESCOPE	 -220.15E2   33.67E2	49.17E2		25	# Winter
-    # TELESCOPE  -130.43E2	190.40E2	34.66E2		25	# Fern
-    # TELESCOPE   177.58E2 -333.33E2	42.82E2		25	# Gattini
-    # TELESCOPE  -402.48E2  133.47E2	45.23E2		25	# Tower
-    # TELESCOPE   132.97E2   -9.01E2	37.22E2		25	# Antler
-    # TELESCOPE     0.10E2  -97.18E2	46.35E2		25	# Vent
-
-    scope_pos = [
-        [   -0.10E2,   97.18E2, 39.70E2, "Heli" ],
-        [ -220.15E2,   33.67E2, 49.17E2, "Winter" ],
-        [ -130.43E2,  190.40E2, 34.66E2, "Fern" ],
-        [  177.58E2, -333.33E2, 42.82E2, "Gattini" ],
-        [ -402.48E2,  133.47E2, 45.23E2, "Tower" ],
-        [  132.97E2,   -9.01E2, 37.22E2, "Antler" ],
-        [    0.10E2,  -97.18E2, 46.35E2, "Vent" ]
+def dark100_palomar_config(elevation = 60, origin=None, recenter=False, datapack = None):
+    gnss_positions = [
+        [dms(33, 21, 26.891), dms(-116, 51, 50.960), 1662.168, 0, 150, 'Heli'],    # GNSS value from data center ± 0.50 m
+        [dms(33, 21, 24.961), dms(-116, 51, 58.122), 1669.977, 0, 150, 'Winter'],  # GNSS value from data center ± 0.02 m
+        [dms(33, 21, 29.840), dms(-116, 51, 55.245), 1654.299, 0, 150, 'Fern'],    # GNSS value from data center ± 0.60 m
+        [dms(33, 21, 12.538), dms(-116, 51, 44.868), 1665.026, 350, 0, 'Gattini'], # GNSS value from data center ± 0.02 m
+        [dms(33, 21, 28.620), dms(-116, 52, 03.090), 1695.290, 0,   0, 'Tower'],   # TEMPORARY VALUE FROM GOOGLE EARTH
+        [dms(33, 21, 22.570), dms(-116, 51, 46.760), 1685.810, 0,   0, 'Antler'],  # TEMPORARY VALUE FROM GOOGLE EARTH
+        [dms(33, 21, 20.690), dms(-116, 51, 51.060), 1696.520, 0,   0, 'Vent']     # TEMPORARY VALUE FROM GOOGLE EARTH
     ]
+
+    if origin is None:
+        origin = palomar_location()
+
+    scope_pos = []
+
+    wgs84 = calin.util.utm.wgs84_ellipse()
+    ref_lon = origin[1]/180*pi
+    a = wgs84.a + origin[2]*1e-2
+    e2 = wgs84.e2
+    NE0 = calin.util.utm.geographic_to_tm(a, e2, 1.0, ref_lon, 0, 0, origin[0]/180*pi, origin[1]/180*pi)
+    print(NE0)
+    for lat, lon, alt, dx, dy, name in gnss_positions:
+        NE = calin.util.utm.geographic_to_tm(a, e2, 1.0, ref_lon, 0, 0, lat/180*pi, lon/180*pi)
+        print(NE)
+        scope_pos.append([(NE[1]-NE0[1])*100+dx, (NE[0]-NE0[0])*100+dy, alt, name])
 
     scope_x = numpy.asarray([p[0] for p in scope_pos])
     scope_y = numpy.asarray([p[1] for p in scope_pos])
-    scope_z = numpy.asarray([p[2] + 161585 for p in scope_pos])
+    scope_z = numpy.asarray([p[2]*100 for p in scope_pos])
 
-    c = calin.math.geometry.containing_circle_2d(numpy.vstack([scope_x, scope_y, scope_z*0+100]).transpose())
-    scope_x -= c[0]
-    scope_y -= c[1]
+    if recenter:
+        xyc = calin.math.geometry.containing_circle_2d(numpy.vstack([scope_x, scope_y, scope_z*0+100]).transpose())
+        print(xyc)
+        scope_x -= xyc[0]
+        scope_y -= xyc[1]
 
-    return array_parameters_from_datapack(
-        datapack = datapack, elevation = elevation,
-        scope_x = scope_x, scope_y = scope_y, scope_z = scope_z,
-        scope_names = [p[3] for p in scope_pos])
+        latlon = calin.util.utm.tm_to_geographic(a, e2, 1.0, ref_lon, 0, 0, NE0[0] + xyc[1]*0.01, xyc[0]*0.01)
+        print(asarray(latlon)/pi*180)
+        origin = (latlon[0]/pi*180, latlon[1]/pi*180, origin[2])
+
+    array = array_parameters_from_datapack(
+                datapack = datapack, elevation = elevation,
+                scope_x = scope_x, scope_y = scope_y, scope_z = scope_z,
+                scope_names = [p[3] for p in scope_pos],
+                array_lat = origin[0], array_lon = origin[1], array_alt = origin[2])
+
+    return array
