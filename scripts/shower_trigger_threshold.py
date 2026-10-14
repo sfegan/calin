@@ -82,6 +82,8 @@ parser.add_argument('--multiple_scattering', type=str,
 parser.add_argument('--nsb', type=float, default=0.30,
                    help='Specify the NSB rate in GHz')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
+parser.add_argument('--coupling', choices=['ac', 'dc'], default='ac',
+                    help='Camera coupling mode (default: ac)')
 parser.add_argument('--no_after_pulsing', action='store_true', help='Disable after-pulsing in SPE spectrum (default: enabled)')
 parser.add_argument('-t', '--trigger', type=str, default='3nn', choices=['3nn','4nn','m2','m3','m4','multiplicity'],
                     help='Trigger algorithm to use (default: 3nn)')
@@ -239,7 +241,8 @@ def init():
                 neighbors[:len(adjacent), ichan] = adjacent
     for electronics_sim in all_electronics_sim:
         electronics_sim.register_impulse_response(hg, 'DC')
-        electronics_sim.add_camera_response(numpy.asarray([0]), True)
+        electronics_sim.add_camera_response(
+            numpy.asarray([0]), args.coupling == 'ac')
         if neighbors is not None:
             electronics_sim.set_cr_neighbors(0, neighbors)
 

@@ -47,6 +47,8 @@ parser.add_argument('--nsb', type=float, default=0.30,
 parser.add_argument('-t', '--threshold', type=float, default=120.0,
                    help='Specify the threshold in DC')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
+parser.add_argument('--coupling', choices=['ac', 'dc'], default='ac',
+                    help='Camera coupling mode (default: ac)')
 parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam', 'panoseti'],
                     help='Camera configuration to simulate (default: nectarcam)')
 parser.add_argument('--avx', type=int, default=512, choices=[128, 256, 512],
@@ -89,7 +91,8 @@ def init(pulse):
     pe_list_processor.register_impulse_response(hg, 'DC')
 
     # Register camera response
-    pe_list_processor.add_camera_response(numpy.asarray([0]),True)
+    pe_list_processor.add_camera_response(
+        numpy.asarray([0]), args.coupling == 'ac')
 
     # Instantiate PE generator
     if args.camera == 'panoseti':

@@ -42,6 +42,8 @@ parser.add_argument('--star_rate', type=float, nargs='*', default=[],
 parser.add_argument('-t', '--threshold', type=float, default=120.0,
                    help='Specify the threshold in DC')
 parser.add_argument('--noise', action='store_true', help='Add electronics noise')
+parser.add_argument('--coupling', choices=['ac', 'dc'], default='ac',
+                    help='Camera coupling mode (default: ac)')
 parser.add_argument('--avx', type=int, default=512, choices=[128, 256, 512],
                     help='SIMD vector width in bits (default: 512)')
 parser.add_argument('--no_after_pulsing', action='store_true', help='Disable after-pulsing in SPE spectrum (default: enabled)')
@@ -100,7 +102,8 @@ def init(pulse):
     pe_list_processor.register_impulse_response(hg, 'DC')
 
     # Register camera response
-    pe_list_processor.add_camera_response(numpy.asarray([0]),True)
+    pe_list_processor.add_camera_response(
+        numpy.asarray([0]), args.coupling == 'ac')
 
     # Configure the NectarCam neighbors matrix.
     if scam is not None:

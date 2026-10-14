@@ -73,7 +73,8 @@ def init(args):
     electronics_sim.register_impulse_response(hg, 'DC')
     
     # Add camera response
-    electronics_sim.add_camera_response(numpy.asarray([0]),True)
+    electronics_sim.add_camera_response(
+        numpy.asarray([0]), args.coupling == 'ac')
     
     # Configure the camera neighbbor map
     electronics_sim.set_cr_neighbors(0, scam)
@@ -238,6 +239,8 @@ if __name__ == '__main__':
     parser.add_argument('--nsb', type=float, default=0.30,
                     help='Specify the NSB rate in GHz')
     parser.add_argument('--noise', action='store_true', help='Add electronics noise')
+    parser.add_argument('--coupling', choices=['ac', 'dc'], default='ac',
+                        help='Camera coupling mode (default: ac)')
     parser.add_argument('--no_after_pulsing', action='store_true', help='Disable after-pulsing in SPE spectrum (default: enabled)')
     parser.add_argument('-t', '--trigger', type=str, default='3nn', choices=['3nn','4nn','m3','m4','multiplicity'],
                         help='Trigger algorithm to use (default: 3nn)')
