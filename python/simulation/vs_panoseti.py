@@ -307,32 +307,33 @@ def dark100_palomar_config(elevation = 60, origin=None, recenter=False, datapack
     if origin is None:
         origin = palomar_location()
 
-    scope_pos = []
-
     wgs84 = calin.util.utm.wgs84_ellipse()
     ref_lon = origin[1]/180*pi
     a = wgs84.a + origin[2]*1e-2
     e2 = wgs84.e2
-    NE0 = calin.util.utm.geographic_to_tm(a, e2, 1.0, ref_lon, 0, 0, origin[0]/180*pi, origin[1]/180*pi)
-    print(NE0)
-    for lat, lon, alt, dx, dy, name in gnss_positions:
-        NE = calin.util.utm.geographic_to_tm(a, e2, 1.0, ref_lon, 0, 0, lat/180*pi, lon/180*pi)
-        print(NE)
-        scope_pos.append([(NE[1]-NE0[1])*100+dx, (NE[0]-NE0[0])*100+dy, alt, name])
 
-    scope_x = numpy.asarray([p[0] for p in scope_pos])
-    scope_y = numpy.asarray([p[1] for p in scope_pos])
-    scope_z = numpy.asarray([p[2]*100 for p in scope_pos])
+    def calculate_xyz_positions(origin, recenter = False):
+        scope_pos = []
 
+        NE0 = calin.util.utm.geographic_to_tm(a, e2, 1.0, ref_lon, 0, 0, origin[0]/180*pi, origin[1]/180*pi)
+        for lat, lon, alt, dx, dy, name in gnss_positions:
+            NE = calin.util.utm.geographic_to_tm(a, e2, 1.0, ref_lon, 0, 0, lat/180*pi, lon/180*pi)
+            scope_pos.append([(NE[1]-NE0[1])*100+dx, (NE[0]-NE0[0])*100+dy, alt, name])
+
+        scope_x = numpy.asarray([p[0] for p in scope_pos])
+        scope_y = numpy.asarray([p[1] for p in scope_pos])
+        scope_z = numpy.asarray([p[2]*100 for p in scope_pos])
+
+        if recenter:
+            xyc = calin.math.geometry.containing_circle_2d(numpy.vstack([scope_x, scope_y, scope_z*0+100]).transpose())
+            latlon = calin.util.utm.tm_to_geographic(a, e2, 1.0, ref_lon, 0, 0, NE0[0] + xyc[1]*0.01, xyc[0]*0.01)
+            origin = (latlon[0]/pi*180, latlon[1]/pi*180, origin[2])
+
+        return scope_x, scope_y, scope_z, origin
+
+    scope_x, scope_y, scope_z, origin = calculate_xyz_positions(origin, recenter)
     if recenter:
-        xyc = calin.math.geometry.containing_circle_2d(numpy.vstack([scope_x, scope_y, scope_z*0+100]).transpose())
-        print(xyc)
-        scope_x -= xyc[0]
-        scope_y -= xyc[1]
-
-        latlon = calin.util.utm.tm_to_geographic(a, e2, 1.0, ref_lon, 0, 0, NE0[0] + xyc[1]*0.01, xyc[0]*0.01)
-        print(asarray(latlon)/pi*180)
-        origin = (latlon[0]/pi*180, latlon[1]/pi*180, origin[2])
+        scope_x, scope_y, scope_z, _ = calculate_xyz_positions(origin, recenter=False)
 
     array = array_parameters_from_datapack(
                 datapack = datapack, elevation = elevation,
