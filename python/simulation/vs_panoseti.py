@@ -69,7 +69,7 @@ def dms(d, m, s):
         s = abs(s)
     return sign * (d + m / 60.0 + s / 3600.0)
 
-def palomar_observation_level(level_km = 1.61585):
+def palomar_observation_level(level_km = 1.655):
     return level_km * 1e5
 
 def palomar_location():
@@ -79,10 +79,10 @@ def palomar_location():
     alt_cm = palomar_observation_level()
     return lat_deg, lon_deg, alt_cm
 
-def palomar_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
-            'ecmwf_intermediate': 'atmprof_ecmwf_north_intermediate_fixed.dat',
-            'ecmwf_summer': 'atmprof_ecmwf_north_summer_fixed.dat',
-            'ecmwf_winter': 'atmprof_ecmwf_north_winter_fixed.dat' },
+def palomar_atmosphere(profile = 'midlatitude_winter', standard_profiles = {
+            'midlatitude_winter': 'atmprof3.dat',
+            'midlatitude_summer': 'atmprof2.dat',
+            'us_standard': 'atmprof6.dat' },
         zobs = palomar_observation_level(), quiet = False):
     cfg = calin.simulation.atmosphere.LayeredRefractiveAtmosphere.default_config()
     cfg.set_angular_model_optimization_altitude(18e5)
@@ -107,9 +107,9 @@ def palomar_atmosphere(profile = 'ecmwf_intermediate', standard_profiles = {
 
     return atm
 
-def palomar_atmospheric_absorption(absorption_model = 'navy_maritime', standard_models = {
-            'low_extinction': 'atm_trans_2156_1_3_2_0_0_0.1_0.1.dat',
-            'navy_maritime': 'atm_trans_2156_1_3_0_0_0.dat' },
+def palomar_atmospheric_absorption(absorption_model = 'midlatitude_summer', standard_models = {
+            'midlatitude_summer': 'atm_trans_1655_2_10_0_0_1655.dat',
+            'tropical': 'atm_trans_1655_1_10_0_0_1655.dat' },
         quiet = False):
     model_path = standard_models[absorption_model] if absorption_model in standard_models else absorption_model
     atm_abs = calin.simulation.detector_efficiency.AtmosphericAbsorption(ds_filename(model_path))
