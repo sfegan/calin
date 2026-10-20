@@ -53,17 +53,17 @@ parser.add_argument('--spe-resolution', type=float, default=0.1,
                     help='PANOSETI SiPM single-cell charge resolution (sigma/mean; default: 0.1)')
 parser.add_argument('-o', '--output', type=str, default=None,
                     help='Write trigger times to this file')
-parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam','panoseti'],
-                    help='Camera configuration to simulate (default: nectarcam)')
+parser.add_argument('--camera', type=str, default='nectarcam', choices=['nectarcam','panoseti','quabo'],
+                    help='Camera configuration to simulate (default: nectarcam; quabo simulates one 16x16 PANOSETI Quabo)')
 parser.add_argument('-a', '--algorithm', type=str, default='3nn', choices=['3nn','4nn','m1','m2','m3','m4','multiplicity'],
-                    help='Trigger algorithm to use (default: 3nn; PANOSETI supports m1, m2, m3, m4, or multiplicity)')
+                    help='Trigger algorithm to use (default: 3nn; PANOSETI and quabo support m1, m2, m3, m4, or multiplicity)')
 parser.add_argument('-m', '--multiplicity', type=int, default=3,
                     help='Channel multiplicity if "multiplicity" algorithm is selected')
 parser.add_argument('-c', '--coincidence', type=int, default=24,
                     help='Set the trigger coincidence time in samples')
 args = parser.parse_args()
-if args.camera == 'panoseti' and args.algorithm not in ('multiplicity', 'm1', 'm2', 'm3', 'm4'):
-    parser.error('PANOSETI supports only multiplicity, m1,  m2, m3, or m4 trigger algorithms')
+if args.camera in ('panoseti', 'quabo') and args.algorithm not in ('multiplicity', 'm1', 'm2', 'm3', 'm4'):
+    parser.error('PANOSETI and quabo support only multiplicity, m1, m2, m3, or m4 trigger algorithms')
 
 nsb_rate = args.nsb
 threshold = args.threshold
@@ -71,7 +71,7 @@ isample0 = 480
 tcoincidence = args.coincidence
 
 def load_impulse_response():
-    if args.camera == 'panoseti':
+    if args.camera in ('panoseti', 'quabo'):
         return calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
     return calin.simulation.vs_cta.mstn_impulse_response()
 
@@ -84,6 +84,9 @@ def init(pulse):
 
     if args.camera == 'panoseti':
         nchan = 1024
+        scam = None
+    elif args.camera == 'quabo':
+        nchan = 256
         scam = None
     else:
         ncam = calin.iact_data.nectarcam_layout.nectarcam_layout()
@@ -105,7 +108,7 @@ def init(pulse):
     pe_list_processor.add_camera_response(
         numpy.asarray([0]), args.coupling == 'ac')
 
-    # Configure the NectarCam neighbors matrix.
+    # Configure the NectarCam neighbors matrix when simulating NectarCam.
     if scam is not None:
         pe_list_processor.set_cr_neighbors(0, scam)
 
@@ -140,7 +143,7 @@ def init(pulse):
 
     # Instantiate PE generator
     pe_gen = None
-    if args.camera == 'panoseti':
+    if args.camera in ('panoseti', 'quabo'):
         pe_gen = calin.simulation.vs_panoseti.panoseti_pe_amplitude_generator(
             crosstalk_mean=args.crosstalk_mean,
             spe_resolution=args.spe_resolution,
