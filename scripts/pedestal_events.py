@@ -14,6 +14,8 @@ import concurrent.futures
 import datetime
 import json
 import platform
+import shlex
+import sys
 import numpy
 import calin.simulation.vs_cta
 import calin.simulation.vs_panoseti
@@ -135,10 +137,13 @@ def main():
     config = vars(args).copy()
     config['sampling_interval_ns'] = sampling_interval_ns
     config['sampling_rate_ghz'] = 1.0 / sampling_interval_ns
+    config['pulse_amplitude'] = numpy.max(pulse['hg'])
     config['pedestal_sample_indices'] = sample_indices.tolist()
     config['data_shape'] = [args.n, args.nchannels]
-    config['_generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    config['_host'] = platform.node()
+    config['generated_utc'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    config['host'] = platform.node()
+    config['command_line'] = shlex.join([sys.executable] + sys.argv)
+    
     header = 'Configuration (JSON):\n' + json.dumps(config, indent=2)
 
     if args.nthread == 1 or args.n == 0:
