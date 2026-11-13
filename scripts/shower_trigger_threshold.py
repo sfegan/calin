@@ -32,6 +32,8 @@ import calin.simulation.ray_processor
 import calin.simulation.iact_factory
 import calin.iact_data.instrument_layout
 import calin.iact_data.nectarcam_layout
+import shlex
+import sys
 
 # Set up command line argument parsing
 parser = argparse.ArgumentParser(description='Nectarcam single-telescope shower trigger threshold calculation')
@@ -99,6 +101,10 @@ parser.add_argument('--nthread', type=int, default=0,
                     help='Number of threads to use (default: 0 = number of CPUs available)')
 parser.add_argument('--avx', type=int, default=512, choices=[128,256,512],
                     help='Set the AVX vector size in bits (default: 512)')
+parser.add_argument('--crosstalk-mean', type=float, default=0.05,
+                    help='PANOSETI SiPM mean crosstalk per triggered cell (default: 0.05)')
+parser.add_argument('--spe-resolution', type=float, default=0.1,
+                    help='PANOSETI single-cell charge resolution, sigma/mean (default: 0.1)')
 
 args = parser.parse_args()
 
@@ -108,7 +114,8 @@ has_one_event = False
 
 begin_utc = datetime.datetime.now(datetime.timezone.utc)
 
-# Prepare a JSON header describing the run
+
+
 config = vars(args).copy()
 config['_begin_utc'] = begin_utc.isoformat()
 config['_host'] = platform.node()
@@ -116,6 +123,7 @@ config['_num_events'] = 0
 config['_num_tracks'] = 0
 config['_num_steps'] = 0
 config['_num_rays'] = 0
+config['command_line'] = shlex.join([sys.executable] + sys.argv)
 
 def init():
     numpy.random.seed()
@@ -134,13 +142,21 @@ def init():
         args.site, enable_pe_spectrum=True, no_bfield=args.no_bfield,
         quiet=True, avx=args.avx)
 
+    # Create SPE amplitude generator for PANOSETI (dark100) if needed
+    if args.site == 'dark100':
+        site_env.pe_gen = calin.simulation.vs_panoseti.panoseti_pe_amplitude_generator(
+            crosstalk_mean=args.crosstalk_mean,
+            spe_resolution=args.spe_resolution,
+            avx=args.avx)
+
     # Set up telescope array (site-specific; PANOSETI keeps real positions)
+    global array_params
+    global nscope
     array_params, nscope, nchan_from_array, detector_type_name = \
         calin.simulation.iact_factory.setup_telescope_array(args.site, el_deg=args.el)
 
     # Use the site camera channel count, and retain every telescope in the array.
     global nchan
-    global nscope
     global scam
     if args.site in ('ctan', 'ctas'):
         ncam = calin.iact_data.nectarcam_layout.nectarcam_layout()
