@@ -360,6 +360,7 @@ public:
 
   double regular_xmax() const { return s_.regular_xmax; }
   unsigned irregular_begin() const { return s_.irregular_begin; }
+  double irregular_fraction() const { return 1.0 - double(s_.irregular_begin)/double(s_.x.size()-1); }
 
   const std::vector<double>& xknot_as_stdvec() const { return s_.x; }
   const std::vector<double>& yknot_as_stdvec() const { return s_.y; }
@@ -536,6 +537,10 @@ public:
 
   double xmin() const { return s_.xmin; }
   double xmax() const { return s_.xmax; }
+
+  double regular_xmax() const { return s_.regular_xmax; }
+  unsigned irregular_begin() const { return s_.irregular_begin; }
+  double irregular_fraction() const { return 1.0 - double(s_.irregular_begin)/double(s_.x.size()-1); }
 
   const std::vector<double>& xknot_as_stdvec() const { return s_.x; }
   Eigen::VectorXd xknot_as_eigen() const { return calin::std_to_eigenvec(s_.x); }
@@ -903,6 +908,16 @@ public:
 
   double ymin() const { return sy_.xmax; }
   double ymax() const { return sy_.xmin; }
+
+  double regular_xmax() const { return sx_.regular_xmax; }
+  double regular_ymax() const { return sy_.regular_xmax; }
+  unsigned irregular_xbegin() const { return sx_.irregular_begin; }
+  unsigned irregular_ybegin() const { return sy_.irregular_begin; }
+  double irregular_xfraction() const { return 1.0 - double(sx_.irregular_begin)/double(sx_.x.size()-1); }
+  double irregular_yfraction() const { return 1.0 - double(sy_.irregular_begin)/double(sy_.x.size()-1); }
+  double irregular_fraction() const {
+    return 1.0 - (1.0-irregular_xfraction()) * (1.0-irregular_yfraction());
+  }
 
   const std::vector<double>& xknot_as_stdvec() const { return sx_.x; }
   Eigen::VectorXd xknot_as_eigen() const { return calin::std_to_eigenvec(sx_.x); }
