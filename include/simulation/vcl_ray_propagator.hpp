@@ -709,6 +709,15 @@ public:
     delete rng_; // adopt_rng_ is handled by RealRNG
   }
 
+  void enable_status_histogram(bool enabled) {
+    status_histogram_enabled_ = enabled;
+    std::fill(status_histogram_.begin(), status_histogram_.end(), 0);
+  }
+
+  const std::vector<uint64_t>& status_histogram() const {
+    return status_histogram_;
+  }
+
   virtual std::vector<calin::simulation::ray_processor::RayProcessorDetectorSphere> detector_spheres() {
     std::vector<calin::simulation::ray_processor::RayProcessorDetectorSphere> spheres;
     spheres.reserve(ray_tracer_.size());
@@ -740,6 +749,15 @@ public:
     TraceInfo info;
     ray_mask = ray_tracer_[scope_id]->
       trace_global_frame(ray_mask, ray, info, /* do_derotation = */ false);
+    if(status_histogram_enabled_) {
+      typename VCLArchitecture::int64_at status;
+      info.status.store_a(status);
+      for(unsigned ilane=0; ilane<VCLArchitecture::num_int64; ++ilane) {
+        if(status[ilane] >= 0 && unsigned(status[ilane]) < status_histogram_.size()) {
+          ++status_histogram_[status[ilane]];
+        }
+      }
+    }
     fp_parameters.fplane_x     = info.detector_x;
     fp_parameters.fplane_y     = 0.0;
     fp_parameters.fplane_z     = info.detector_z;
@@ -774,6 +792,8 @@ private:
   RealRNG* rng_ = nullptr;
   std::vector<RayTracer*> ray_tracer_;
   double air_ref_index_ = 1.0;
+  bool status_histogram_enabled_ = false;
+  std::vector<uint64_t> status_histogram_ = std::vector<uint64_t>(8, 0);
 #endif
 };
 
