@@ -338,7 +338,7 @@ def dark100_palomar_config(elevation = 60, origin=None, recenter=False, datapack
     array = array_parameters_from_datapack(
                 datapack = datapack, elevation = elevation,
                 scope_x = scope_x, scope_y = scope_y, scope_z = scope_z,
-                scope_names = [p[3] for p in scope_pos],
+                scope_names = [p[5] for p in gnss_positions],
                 array_lat = origin[0], array_lon = origin[1], array_alt = origin[2])
 
     return array
