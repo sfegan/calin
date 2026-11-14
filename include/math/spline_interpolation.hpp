@@ -247,14 +247,15 @@ vcl_find_interval(typename VCLReal::real_vt x, const InterpolationIntervals& int
   unsigned iregmax = intervals.x.size()-2;
   if(intervals.irregular_begin <= iregmax)
   {
-    if(vcl::horizontal_or(ireg > intervals.irregular_begin)) {
+    if(vcl::horizontal_or(ireg >= intervals.irregular_begin)) {
       // Yucky scalar code, sniff :'(
       typename VCLReal::real_at x_array;
       typename VCLReal::int_at ireg_array;
       x.store_a(x_array);
       ireg.store_a(ireg_array);
       for(unsigned iv=0; iv<VCLReal::num_real; ++iv) {
-        if(ireg_array[iv] > intervals.irregular_begin) {
+        if(ireg_array[iv] >= intervals.irregular_begin &&
+            x_array[iv] >= intervals.xmin) {
           auto i = std::upper_bound(
             intervals.x.begin()+intervals.irregular_begin, intervals.x.end()-1, x_array[iv]);
           ireg_array[iv] = i - intervals.x.begin() - 1;
@@ -279,14 +280,15 @@ vcl_find_interval(typename VCLReal::real_vt x, const InterpolationIntervals& int
   unsigned iregmax = intervals.x.size()-2;
   if(intervals.irregular_begin <= iregmax)
   {
-    if(vcl::horizontal_or(ireg > intervals.irregular_begin)) {
+    if(vcl::horizontal_or(ireg >= intervals.irregular_begin)) {
       // Yucky scalar code, sniff :'(
       typename VCLReal::real_at x_array;
       typename VCLReal::int_at ireg_array;
       x.store_a(x_array);
       ireg.store_a(ireg_array);
       for(unsigned iv=0; iv<VCLReal::num_real; ++iv) {
-        if(ireg_array[iv] > intervals.irregular_begin) {
+        if(ireg_array[iv] >= intervals.irregular_begin &&
+            x_array[iv] >= intervals.xmin) {
           auto i = std::upper_bound(
             intervals.x.begin()+intervals.irregular_begin, intervals.x.end()-1, x_array[iv]);
           ireg_array[iv] = i - intervals.x.begin() - 1;
