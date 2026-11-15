@@ -253,19 +253,19 @@ public:
   real_bvt trace_reflector_frame(real_bvt mask, Ray& ray, TraceInfo& info)
   {
 #ifdef DEBUG_STATUS
-    std::cout << "Ray: maks=" << mask[0] << " pos=(" << ray.position().x()[0] << ',' << ray.position().y()[0] << ',' << ray.position().z()[0] << ") dir=("
-      << ray.direction().x()[0] << ',' << ray.direction().y()[0] << ',' << ray.direction().z()[0] << ")\n";
+    std::cout << "Ray: mask=" << mask[0] << " pos=(" << ray.position().x()[0] << ',' << ray.position().y()[0] << ',' << ray.position().z()[0] << ") dir=("
+      << ray.direction().x()[0] << ',' << ray.direction().y()[0] << ',' << ray.direction().z()[0] << ") e=" << ray.energy()[0] << "\n";
 #endif
 
     info.status = PSTS_MASKED_ON_ENTRY;
 #ifdef DEBUG_STATUS
-    std::cout << mask[0] << '/' << info.status[0];
+    std::cout << mask[0] << '/' << info.status[0]; // "X/0"
 #endif
 
     info.status = select(int_bvt(mask), PSTS_TRAVELLING_AWAY_LENS, info.status);
     mask &= ray.uy() < 0;
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << mask[0] << '/' << info.status[0];
+    std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/1"
 #endif
 
     // *************************************************************************
@@ -276,7 +276,7 @@ public:
     info.status = select(int_bvt(mask), PSTS_DOES_NOT_INTERSECT_LENS, info.status);
     mask = ray.propagate_to_y_plane_with_mask(mask, 0.0, /* time_reversal_ok = */ false, air_ref_index_);
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << mask[0] << '/' << info.status[0];
+    std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/2"
 #endif
 
     info.lens_in_x       = select(mask, ray.position().x(), 0);
@@ -288,7 +288,7 @@ public:
     info.status = select(int_bvt(mask), PSTS_OUTSIDE_LENS_APERTURE, info.status);
     mask &= (info.lens_in_x*info.lens_in_x + info.lens_in_z*info.lens_in_z) <= lens_aperture_radius2_;
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << mask[0] << '/' << info.status[0];
+    std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/3"
 #endif
 
     if(not horizontal_or(mask)) {
@@ -302,7 +302,7 @@ public:
     // Calculate reftactive index of lens
     real_vt lens_ref_index = lens_refractive_index_spline_->vcl_real_value<VCLReal>(ray.energy());
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << lens_ref_index[0];
+    std::cout << ' ' << lens_ref_index[0]; // n
 #endif
 
     // Refract into lens
@@ -315,14 +315,14 @@ public:
       /* convex= */ true);
 
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << lens_norm.x()[0] << ',' << lens_norm.y()[0] << ',' << lens_norm.z()[0];
+    std::cout << ' ' << lens_norm.x()[0] << ',' << lens_norm.y()[0] << ',' << lens_norm.z()[0]; // u
 #endif
 
     // Refract out of lens
     info.status = select(int_bvt(mask), PSTS_NO_LENS_EXIT, info.status);
     mask = ray.refract_at_surface_out_with_mask(mask, lens_norm, lens_ref_index);
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << mask[0] << '/' << info.status[0];
+    std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/4"
 #endif
 
     if(scattering_sigma_theta_ > 0) {
@@ -350,7 +350,7 @@ public:
       info.status = select(int_bvt(mask), PSTS_TRAVELLING_AWAY_FROM_DETECTOR_PLANE, info.status);
       mask &= ray.uy() < 0;
 #ifdef DEBUG_STATUS
-      std::cout << ' ' << mask[0] << '/' << info.status[0];
+      std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/5"
 #endif
     }
 
@@ -370,7 +370,7 @@ public:
     mask &= (vcl::abs(info.detector_x) <= pixel_array_halfwidth_) & 
             (vcl::abs(info.detector_z) <= pixel_array_halfwidth_);
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << mask[0] << '/' << info.status[0];
+    std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/6"
 #endif
 
     // Find the pixel ID
@@ -382,7 +382,7 @@ public:
 
     info.status = select(int_bvt(mask), PSTS_TS_FOUND_PIXEL, info.status);
 #ifdef DEBUG_STATUS
-    std::cout << ' ' << mask[0] << '/' << info.status[0];
+    std::cout << ' ' << mask[0] << '/' << info.status[0]; // "X/7"
 #endif
 
     if(detector_has_rotation_) {
