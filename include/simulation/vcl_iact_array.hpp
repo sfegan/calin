@@ -1875,6 +1875,10 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
     << " to " << double_to_string_with_commas(zobs_/1e5,3) << " km : "
     << double_to_string_with_commas(prop_delay_ct*0.03335641,2) <<  "ns ("
     << double_to_string_with_commas(prop_delay_ct,1) << " cm)\n";
+  if(this->atm_->spline()->irregular_fraction() > 0.0) {
+    stream << "- Atmospheric spline irregular fraction: "
+      << double_to_string_with_commas(this->atm_->spline()->irregular_fraction()*100,1) << "%\n";
+  }
   if(this->is_viewcone_enabled()) {
     stream << "Viewcone : "
       << "Zn=" << double_to_string_with_commas(std::acos(-this->viewcone_n_[2])/M_PI*180,3) << " deg, "
@@ -1902,6 +1906,10 @@ template<typename VCLArchitecture> std::string VCLIACTArray<VCLArchitecture>::ba
       << double_to_string_with_commas(yield_5*bw_5,2) << ", "
       << double_to_string_with_commas(yield_10*bw_10,2) << ", "
       << double_to_string_with_commas(yield_15*bw_15,2) <<  " PE/m\n";
+    if(this->variable_bandwidth_spline_->irregular_fraction() > 0.0) {
+      stream << "- Spline irregular fraction: "
+        << double_to_string_with_commas(this->variable_bandwidth_spline_->irregular_fraction()*100,1) << "%\n";
+    }
   } else if (this->do_color_photons_) {
     stream << "Cherenkov ray mode : PHOTONS WITH FIXED BANDWIDTH "
       << double_to_string_with_commas(this->fixed_bandwidth_,3) << " eV\n"

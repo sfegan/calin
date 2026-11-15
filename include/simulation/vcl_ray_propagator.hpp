@@ -24,6 +24,9 @@
 
 #include <algorithm>
 #include <limits>
+#include <cmath>
+#include <vector>
+#include <sstream>
 
 #include <util/vcl.hpp>
 #include <math/ray_vcl.hpp>
@@ -69,6 +72,10 @@ public:
   virtual void colorize(Ray_vt& ray, double_bvt ray_mask) = 0;
 #endif // not defined SWIG
   virtual std::string banner(const std::string& indent0 = "", const std::string& indentN = "") const = 0;
+  virtual double quantile(double q) const { return 0.0; }
+  virtual std::vector<double> quantiles() const {
+    return { quantile(0.25), quantile(0.50), quantile(0.75) };
+  }
 
 #ifndef SWIG
 protected:
@@ -104,8 +111,28 @@ public:
   }
 #endif // not defined SWIG
 
+  double quantile(double q) const override {
+    if(color_inv_cdf_.size() == 0) return 0.0;
+    if(color_inv_cdf_.size() == 1) return color_inv_cdf_[0];
+    double u = std::max(0.0, std::min(1.0, q)) * double(color_inv_cdf_.size() - 1);
+    unsigned i = std::min(unsigned(u), unsigned(color_inv_cdf_.size() - 2));
+    double f = u - double(i);
+    return color_inv_cdf_[i] + f * (color_inv_cdf_[i + 1] - color_inv_cdf_[i]);
+  }
+
+  std::vector<double> quantiles() const override {
+    return { quantile(0.25), quantile(0.50), quantile(0.75) };
+  }
+
   std::string banner(const std::string& indent0 = "", const std::string& indentN = "") const override {
-    return indent0 + "Inverse CDF Ray Colorizer";
+    using calin::util::string::double_to_string_with_commas;
+    std::ostringstream stream;
+    stream << indent0 << "Inverse CDF Ray Colorizer : "
+           << "25%, 50%, 75% = "
+           << double_to_string_with_commas(quantile(0.25), 3) << ", "
+           << double_to_string_with_commas(quantile(0.50), 3) << ", "
+           << double_to_string_with_commas(quantile(0.75), 3) << " eV";
+    return stream.str();
   }
 
 private:
@@ -146,8 +173,26 @@ public:
   }
 #endif // not defined SWIG
 
+  double quantile(double q) const override {
+    if(!spline_) return 0.0;
+    q = std::max(1e-12, std::min(1.0 - 1e-12, q));
+    double logit = std::log(q / (1.0 - q));
+    return spline_->value(logit);
+  }
+
+  std::vector<double> quantiles() const override {
+    return { quantile(0.25), quantile(0.50), quantile(0.75) };
+  }
+
   std::string banner(const std::string& indent0 = "", const std::string& indentN = "") const override {
-    return indent0 + "Logit Spline Ray Colorizer";
+    using calin::util::string::double_to_string_with_commas;
+    std::ostringstream stream;
+    stream << indent0 << "Logit Spline Ray Colorizer : "
+           << "25%, 50%, 75% = "
+           << double_to_string_with_commas(quantile(0.25), 3) << ", "
+           << double_to_string_with_commas(quantile(0.50), 3) << ", "
+           << double_to_string_with_commas(quantile(0.75), 3) << " eV";
+    return stream.str();
   }
 
 private:
@@ -236,8 +281,20 @@ public:
   }
 #endif // not defined SWIG
 
+  double quantile(double q) const override {
+    return base_colorizer_ ? base_colorizer_->quantile(q) : 0.0;
+  }
+
+  std::vector<double> quantiles() const override {
+    return base_colorizer_ ? base_colorizer_->quantiles() : std::vector<double>{0.0, 0.0, 0.0};
+  }
+
   std::string banner(const std::string& indent0 = "", const std::string& indentN = "") const override {
-    return indent0 + "Atmospheric Absorption Ray Colorizer\n" + base_colorizer_->banner(indent0 + "  ", indentN + "  ");
+    std::string s = indent0 + "Atmospheric Absorption Ray Colorizer";
+    if(base_colorizer_) {
+      s += '\n' + base_colorizer_->banner(indentN + "- ", indentN + "  ");
+    }
+    return s;
   }
 
 private:
@@ -777,8 +834,39 @@ public:
   }
 
   std::string banner(const std::string& indent0 = "", const std::string& indentN = "") const final {
+    using calin::util::string::double_to_string_with_commas;
     std::ostringstream stream;
-    stream << indent0 << "Array of " << this->ray_tracer_.size() << " PANOSETI telescopes.";
+    double xmin = std::numeric_limits<double>::infinity();
+    double xmax = -std::numeric_limits<double>::infinity();
+    double ymin = std::numeric_limits<double>::infinity();
+    double ymax = -std::numeric_limits<double>::infinity();
+    for(const auto& pos : array_params_.scope_positions()) {
+      xmin = std::min(xmin, pos.x());
+      xmax = std::max(xmax, pos.x());
+      ymin = std::min(ymin, pos.y());
+      ymax = std::max(ymax, pos.y());
+    }
+    double A = (array_params_.scope_positions_size() > 1) ? (xmax-xmin)*(ymax-ymin)*1e-10 : 0.0;
+    stream << indent0 << "Array of " << this->ray_tracer_.size() << " PANOSETI telescopes covering "
+      << double_to_string_with_commas(A,3) << " km^2.";
+
+    double D = array_params_.fresnel_lens_aperture() * 0.01;
+    double F = array_params_.detector_separation() * 0.01;
+    double f = (D > 0.0) ? (F / D) : 0.0;
+
+    stream << '\n' << indentN << this->ray_tracer_.size() << " x D=" << double_to_string_with_commas(D,2)
+      << "m f=" << double_to_string_with_commas(f,2)
+      << " F=" << double_to_string_with_commas(F,2) << "m";
+
+    if(lens_refractive_index_spline_ && lens_refractive_index_spline_->irregular_fraction() > 0.0) {
+      stream << " - Note: n(E) spline " << 
+        double_to_string_with_commas(this->lens_refractive_index_spline_->irregular_fraction()*100,1) << "% irregular";
+    }
+
+    if(colorizer_) {
+      stream << '\n' << colorizer_->banner(indentN + "- ", indentN + "  ");
+    }
+
     return stream.str();
   }
 
