@@ -94,8 +94,11 @@ parser.add_argument('-m', '--multiplicity', type=int, default=3,
 parser.add_argument('-c', '--coincidence', type=int, default=24,
                     help='Set the L1 trigger coincidence time in samples')
 
-parser.add_argument('--threshold_min', type=float, default=40.0,
-                    help='Minimum threshold for search (default: 40.0)')
+parser.add_argument('--threshold_min', type=float, default=2.0,
+                    help='Minimum threshold in PE for search (default: 2.0)')
+parser.add_argument('--pulse_amplitude', '--pulse-amplitude', type=float, default=None,
+                    dest='pulse_amplitude',
+                    help='1PE pulse amplitude in DC units (default: peak of impulse response curve)')
 
 parser.add_argument('--nthread', type=int, default=0,
                     help='Number of threads to use (default: 0 = number of CPUs available)')
@@ -114,7 +117,17 @@ has_one_event = False
 
 begin_utc = datetime.datetime.now(datetime.timezone.utc)
 
+# Load the selected site/shaper impulse response for waveform simulation.
+if args.site == 'dark100':
+    pulse = calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
+else:
+    pulse = calin.simulation.vs_cta.mstn_impulse_response()
+hg = pulse['hg']
+dtsample = pulse['dt']
+isample0 = len(hg)
+nsample = 1 << ((len(hg)-1).bit_length() + 1)  # Next power of two greater than 2*len(hg)
 
+pulse_amplitude = args.pulse_amplitude if args.pulse_amplitude is not None else float(numpy.max(hg))
 
 config = vars(args).copy()
 config['_begin_utc'] = begin_utc.isoformat()
@@ -124,6 +137,9 @@ config['_num_tracks'] = 0
 config['_num_steps'] = 0
 config['_num_rays'] = 0
 config['command_line'] = shlex.join([sys.executable] + sys.argv)
+config['_pulse_amplitude'] = pulse_amplitude
+config['_pulse'] = hg
+config['_pulse_sampling_time'] = float(dtsample)
 
 def init():
     numpy.random.seed()
@@ -172,19 +188,6 @@ def init():
     iact, _, _ = calin.simulation.iact_factory.create_iact_array(
         site_env.atm, site_env.atm_abs, avx=args.avx,
         no_refraction=args.no_refraction)
-
-    # Load the selected site/shaper impulse response for waveform simulation.
-    global isample0
-    global dtsample
-    global nsample
-    if args.site == 'dark100':
-        pulse = calin.simulation.vs_panoseti.panoseti_fast_impulse_response()
-    else:
-        pulse = calin.simulation.vs_cta.mstn_impulse_response()
-    hg = pulse['hg']
-    dtsample = pulse['dt']
-    isample0 = len(hg)
-    nsample = 1 << ((len(hg)-1).bit_length() + 1)  # Next power of two greater than 2*len(hg)
 
     # Each propagator reuse needs its own PE list and waveform state.
     global all_electronics_sim
@@ -325,8 +328,8 @@ def find_threshold(iarray, iscope):
     # Now perform threshold search
     trigger_fn = getattr(electronics_sim, trigger_method)
     
-    # Start at threshold_min
-    threshold = args.threshold_min
+    # Start at threshold_min (converted from PE to DC units)
+    threshold = args.threshold_min * pulse_amplitude
     electronics_sim.set_cr_threshold(0, numpy.zeros(nchan) + threshold, tcoincidence)
     itrig = trigger_fn(0, isample0)
     if itrig == -1:
@@ -490,17 +493,19 @@ with open(args.output, 'wb') as f:
         events_written = num_events
         batch_start = len(all_results)
 
-th = args.threshold_min
+th_min_dc = args.threshold_min * pulse_amplitude
+th = th_min_dc
 pc = 98
 bsim = config['bmax']
 filtered_results = all_results
+dth = 0.5 * pulse_amplitude
 while True:
     filtered_results = [r for r in filtered_results if r['threshold'] >= th]
     ntrig = len(filtered_results)
-    if(ntrig < 10 or th > 10*config['threshold_min']):
+    if(ntrig < 10 or th > 10 * th_min_dc):
         break
     if(ntrig < 0.9*num_events):
         bmax = numpy.percentile([r['b'] for r in filtered_results],pc)
         thmax = numpy.percentile([numpy.arccos(r['costheta'])/numpy.pi*180.0 for r in filtered_results],pc)        
-        print(f'{th:6.1f} {th/20:6.2f} | {ntrig:6d} {ntrig/num_events:5.3f} | {ntrig/num_events*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
-    th = th + 10.0
+        print(f'{th:6.1f} {th/pulse_amplitude:6.2f} | {ntrig:6d} {ntrig/num_events:5.3f} | {ntrig/num_events*numpy.pi*bsim**2:.3e} {bmax*1e-2:6.1f} | {thmax:6.4f}')
+    th = th + dth
