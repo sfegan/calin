@@ -170,7 +170,7 @@ def detection_efficiency_from_datapack(datapack = None, degradation_factor = 1.0
 
     return det_eff
 
-def lens_refractive_index_spline_from_datapack(datapack = None):
+def lens_refractive_index_spline_from_datapack(datapack = None, Nknot = 32):
     if datapack is None:
         datapack = read_optical_model_datapack()
 
@@ -183,7 +183,10 @@ def lens_refractive_index_spline_from_datapack(datapack = None):
     ev_sorted = [p[0] for p in sorted_pairs]
     n_sorted = [p[1] for p in sorted_pairs]
 
-    return calin.math.spline_interpolation.CubicSpline(ev_sorted, n_sorted)
+    # Regularized spline interpolation to improve knot lookup performance
+    ev_fit, n_fit = calin.math.spline_interpolation.fit_regular_spline(Nknot, ev_sorted, n_sorted)
+
+    return calin.math.spline_interpolation.CubicSpline(ev_fit, n_fit)
 
 def do_load_panoseti_impulse_response(pulse_file):
     """Load a Dark100 shaper response as ``hg``, ``lg`` and ``dt``.
