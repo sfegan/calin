@@ -46,6 +46,16 @@ parser.add_argument('--write_batch', type=int, default=100,
 
 parser.add_argument('-o', '--output', type=str, default='tt.pickle',
                     help='Write trigger thresholds to this file')
+parser.add_argument('--output_mode', '--output-mode', type=str, default='new',
+                    choices=['new', 'truncate', 'append', 'overwrite'],
+                    dest='output_mode',
+                    help='Output file mode: "new" (default, fail if file exists), "truncate" (overwrite existing file), or "append"')
+parser.add_argument('--truncate', action='store_const', const='truncate', dest='output_mode',
+                    help='Shortcut for --output_mode truncate')
+parser.add_argument('--overwrite', action='store_const', const='truncate', dest='output_mode',
+                    help='Shortcut for --output_mode truncate')
+parser.add_argument('--append', action='store_const', const='append', dest='output_mode',
+                    help='Shortcut for --output_mode append')
 parser.add_argument('--omit_untriggered', action='store_true',
                     help='Reduce file size by omitting untriggered events')
 
@@ -110,6 +120,18 @@ parser.add_argument('--spe-resolution', type=float, default=0.1,
                     help='PANOSETI single-cell charge resolution, sigma/mean (default: 0.1)')
 
 args = parser.parse_args()
+
+output_mode = 'truncate' if args.output_mode == 'overwrite' else args.output_mode
+if output_mode == 'new' and os.path.exists(args.output):
+    sys.exit(f'Error: Output file "{args.output}" already exists (output_mode="new"). '
+             f'Use --output_mode truncate to overwrite, or --output_mode append to append.')
+
+mode_map = {
+    'new': 'xb',
+    'truncate': 'wb',
+    'append': 'ab'
+}
+file_open_mode = mode_map[output_mode]
 
 tcoincidence = args.coincidence
 iact = None
@@ -457,7 +479,7 @@ def process_results(results):
         config['_num_rays'] = 0
 
 max_workers = args.nthread or os.cpu_count() or 1
-with open(args.output, 'wb') as f:
+with open(args.output, file_open_mode) as f:
     # Run the simulations in this thread
     if max_workers == 1:
         init()
